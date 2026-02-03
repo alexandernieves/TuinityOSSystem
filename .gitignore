@@ -18,9 +18,15 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Logs
+*.log
+
 # Build outputs
 backend/dist/
 frontend/.next/
+
+# Accidental duplicates
+frontend/postcss.config 2.mjs
 
 # IDE
 .vscode/
