@@ -1,0 +1,108 @@
+// Additional models for POS functionality
+// These should be added to the main schema.prisma file
+
+model Payment {
+  id        String      @id @default(uuid())
+  tenantId  String
+  invoiceId String
+  amount    Decimal     @db.Decimal(18, 2)
+  method    String      // Efectivo, Tarjeta, Transferencia
+  status    String      @default("PENDING") // PENDING, COMPLETED, FAILED
+  metadata  Json?       // For card details, bank info, etc.
+  paidAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([status])
+}
+
+model Return {
+  id           String   @id @default(uuid())
+  tenantId     String
+  invoiceId    String
+  returnNumber String
+  amount       Decimal  @db.Decimal(18, 2)
+  reason       String
+  status       String   @default("PENDING") // PENDING, PROCESSED, CANCELLED
+  metadata     Json?    // Additional return details
+  createdAt    DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([status])
+}
+
+model CashRegister {
+  id          String   @id @default(uuid())
+  tenantId    String
+  branchId    String
+  registerId  String   // Caja 01, Caja 02, etc.
+  openedBy    String?
+  closedBy    String?
+  openingDate DateTime @default(now())
+  closingDate DateTime?
+  openingAmount Decimal @db.Decimal(18, 2) @default(0)
+  closingAmount Decimal @db.Decimal(18, 2) @default(0)
+  cashSales   Decimal  @db.Decimal(18, 2) @default(0)
+  cardSales   Decimal  @db.Decimal(18, 2) @default(0)
+  transferSales Decimal @db.Decimal(18, 2) @default(0)
+  status      String   @default("OPEN") // OPEN, CLOSED
+  metadata    Json?    // Details about discrepancies, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, branchId, registerId, openingDate])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  tenantId    String
+  sku         String   @unique
+  name        String
+  description String?
+  category    String
+  price       Decimal  @db.Decimal(18, 2)
+  cost        Decimal  @db.Decimal(18, 2)
+  stock       Int      @default(0)
+  minStock    Int      @default(5)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  @@index([category])
+  @@index([isActive])
+}
+
+model SalesAnalytics {
+  id            String   @id @default(uuid())
+  tenantId      String
+  branchId      String?
+  productId     String?
+  date          DateTime
+  period        String   // daily, weekly, monthly
+  totalSales    Decimal  @db.Decimal(18, 2)
+  totalUnits    Int
+  totalInvoices Int
+  avgTicket     Decimal  @db.Decimal(18, 2)
+  metadata      Json?    // Additional analytics data
+  createdAt     DateTime @default(now())
+
+  @@unique([tenantId, branchId, productId, date, period])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([productId])
+  @@index([date])
+  @@index([period])
+}

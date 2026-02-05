@@ -14,7 +14,13 @@ export class TenantMiddleware implements NestMiddleware {
   use(req: RequestWithTenant, res: Response, next: NextFunction) {
     const path = req.path ?? '';
 
-    if (path.startsWith('/health')) {
+    if (path.startsWith('/health') || path.startsWith('/auth')) {
+      return next();
+    }
+
+    const authorizationRaw = req.header('authorization');
+    const authorization = authorizationRaw?.trim();
+    if (authorization?.toLowerCase().startsWith('bearer ')) {
       return next();
     }
 
