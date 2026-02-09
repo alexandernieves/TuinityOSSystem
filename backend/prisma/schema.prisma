@@ -61,12 +61,21 @@ model Branch {
   @@index([tenantId])
 }
 
+enum UserRoleType {
+  CLIENT
+  MEMBER
+  ADMIN
+  OWNER
+}
+
 model User {
   id           String     @id @default(uuid())
   tenantId     String
   email        String
+  name         String?
   passwordHash String
   status       UserStatus @default(ACTIVE)
+  role         UserRoleType @default(CLIENT)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

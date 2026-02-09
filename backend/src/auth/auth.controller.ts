@@ -8,6 +8,7 @@ import { RegisterTenantDtoSchema } from './dto/register-tenant.dto';
 import { RefreshDtoSchema } from './dto/refresh.dto';
 import { LogoutDtoSchema } from './dto/logout.dto';
 import { UseGuards } from '@nestjs/common';
+import { UsersService } from '../users/users.service';
 import type { Request } from 'express';
 
 type RequestWithUser = Request & {
@@ -19,7 +20,10 @@ type RequestWithUser = Request & {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) { }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @Post('register-tenant')
@@ -50,10 +54,25 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Req() req: RequestWithUser) {
+  async me(@Req() req: RequestWithUser) {
+    const userId = req.user?.sub;
+    const tenantId = req.user?.tenantId;
+
+    if (!userId || !tenantId) {
+      return {
+        userId,
+        tenantId,
+      };
+    }
+
+    const user = await this.usersService.findByIdAndTenant(userId, tenantId);
+
     return {
-      userId: req.user?.sub,
-      tenantId: req.user?.tenantId,
+      userId,
+      tenantId,
+      email: user?.email,
+      name: user?.name,
+      role: user?.role,
     };
   }
 }
