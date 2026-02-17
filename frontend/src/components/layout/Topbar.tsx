@@ -1,12 +1,25 @@
 'use client';
 
 import React from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, PanelLeft } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
+import { useSidebar } from '@/components/layout/SidebarContext';
+import { Button } from '@/components/ui/Button';
 
 export const Topbar: React.FC = () => {
+    const { toggleSidebar } = useSidebar();
+
     return (
-        <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border-subtle bg-surface px-4 md:px-6">
+        <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border-subtle bg-surface px-4 md:px-6 gap-4">
+            <Button
+                variant="ghost"
+                onClick={toggleSidebar}
+                className="hidden md:flex text-text-secondary hover:text-text-primary h-12 w-12 p-0 !border-none !outline-none !ring-0 !ring-offset-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!ring-0 focus-visible:!outline-none shadow-none !bg-transparent"
+                aria-label="Toggle Sidebar"
+            >
+                <PanelLeft className="h-7 w-7" />
+            </Button>
+
             {/* Search Bar - Hidden on mobile, visible on md+ */}
             <div className="hidden md:flex flex-1 max-w-xl">
                 <div className="relative w-full">

@@ -58,85 +58,87 @@ export default function CustomersHubPage() {
         }
     ];
 
-    // Modules Data as per spec
+    // Modules Data as per user's images
     const modules: ModuleCardProps[] = [
         {
-            title: 'Directorio de Clientes',
-            description: 'Accede al listado completo de clientes, ficha técnica y estados.',
+            title: 'Consulta de Clientes',
+            description: 'Búsqueda y visualización de información de clientes.',
             icon: Users,
             iconColor: 'text-brand-secondary',
             iconBgColor: 'bg-brand-secondary/10',
             href: '/dashboard/clientes/consulta'
         },
         {
-            title: 'Nuevo Cliente',
-            description: 'Registra un nuevo cliente en el sistema con validación RIF/NIT.',
+            title: 'Administración de Clientes',
+            description: 'Gestión completa del registro de clientes.',
+            icon: UserCheck,
+            iconColor: 'text-brand-primary',
+            iconBgColor: 'bg-brand-primary/10',
+            href: '/dashboard/clientes/administracion'
+        },
+        {
+            title: 'Crear Cliente Contado',
+            description: 'Registro rápido de clientes de contado.',
             icon: UserPlus,
             iconColor: 'text-success',
             iconBgColor: 'bg-success/10',
-            href: '/dashboard/clientes/nuevo'
+            href: '/dashboard/clientes/crear-contado'
         },
         {
-            title: 'Segmentación de Clientes',
-            description: 'Clasifica tu cartera por volumen, frecuencia y rentabilidad.',
-            icon: Filter,
+            title: 'Registro de Transacciones',
+            description: 'Registro manual de operaciones de clientes.',
+            icon: FileText,
             iconColor: 'text-brand-accent',
             iconBgColor: 'bg-brand-accent/10',
-            href: '/dashboard/clientes/segmentacion'
+            href: '/dashboard/clientes/transacciones'
         },
         {
-            title: 'Gestión de Crédito',
-            description: 'Administra límites de crédito, plazos y bloqueos automáticos.',
-            icon: CreditCard,
+            title: 'Anular Transacciones',
+            description: 'Reversión de transacciones registradas.',
+            icon: History,
+            iconColor: 'text-error',
+            iconBgColor: 'bg-error/10',
+            href: '/dashboard/clientes/anular-transacciones'
+        },
+        {
+            title: 'Análisis de Morosidad',
+            description: 'Evaluación de cartera vencida y riesgo crediticio.',
+            icon: BarChart3,
             iconColor: 'text-warning',
             iconBgColor: 'bg-warning/10',
-            href: '/dashboard/clientes/credito'
+            href: '/dashboard/clientes/morosidad'
         },
         {
-            title: 'Cuentas por Cobrar',
-            description: 'Monitor de saldos pendientes, antiguedad y cobranza.',
-            icon: DollarSign,
-            iconColor: 'text-success',
-            iconBgColor: 'bg-success/10',
-            href: '/dashboard/clientes/cuentas-cobrar'
-        },
-        {
-            title: 'Historial de Compras',
-            description: 'Consulta detallada de todas las transacciones históricas.',
-            icon: History,
+            title: 'Imprimir Estado de Cuentas',
+            description: 'Generación de estados de cuenta individuales.',
+            icon: FileText,
             iconColor: 'text-brand-secondary',
             iconBgColor: 'bg-brand-secondary/10',
-            href: '/dashboard/clientes/historial-compras'
+            href: '/dashboard/clientes/imprimir-estado'
         },
         {
             title: 'Administración de Archivos',
-            description: 'Configura tipos de cliente, zonas y parámetros base.',
+            description: 'Configuración de áreas, vendedores y parámetros.',
             icon: FolderOpen,
-            iconColor: 'text-warning',
-            iconBgColor: 'bg-warning/10',
-            href: '/dashboard/clientes/admin-archivos',
+            iconColor: 'text-brand-primary',
+            iconBgColor: 'bg-brand-primary/10',
+            href: '/dashboard/clientes/archivos',
             hasSubmodules: true,
             submodulesCount: 2
         },
         {
-            title: 'Análisis de Clientes',
-            description: 'Insights sobre comportamiento de compra y fidelización.',
-            icon: BarChart3,
-            iconColor: 'text-brand-accent',
-            iconBgColor: 'bg-brand-accent/10',
-            href: '/dashboard/clientes/analisis'
-        },
-        {
-            title: 'Zonas de Venta',
-            description: 'Gestión geográfica y asignación de vendedores por zona.',
-            icon: Map,
-            iconColor: 'text-brand-secondary',
-            iconBgColor: 'bg-brand-secondary/10',
-            href: '/dashboard/clientes/zonas'
+            title: 'Reportes de Cuentas x Cobrar',
+            description: 'Informes financieros y estados de cuenta.',
+            icon: DollarSign,
+            iconColor: 'text-success',
+            iconBgColor: 'bg-success/10',
+            href: '/dashboard/clientes/reportes',
+            hasSubmodules: true,
+            submodulesCount: 5
         },
         {
             title: 'Herramientas',
-            description: 'Importación masiva, exportación y mantenimiento de datos.',
+            description: 'Utilidades de mantenimiento y operaciones masivas.',
             icon: Wrench,
             iconColor: 'text-brand-accent',
             iconBgColor: 'bg-brand-accent/10',
@@ -145,14 +147,12 @@ export default function CustomersHubPage() {
             submodulesCount: 3
         },
         {
-            title: 'Reportes de Cuentas x Cobrar',
-            description: 'Genera estados de cuenta y reportes financieros detallados.',
-            icon: FileText,
-            iconColor: 'text-warning',
-            iconBgColor: 'bg-warning/10',
-            href: '/dashboard/clientes/reportes-cuentas-cobrar',
-            hasSubmodules: true,
-            submodulesCount: 5
+            title: 'Consulta de Transacciones',
+            description: 'Historial y búsqueda de transacciones de clientes.',
+            icon: History,
+            iconColor: 'text-brand-secondary',
+            iconBgColor: 'bg-brand-secondary/10',
+            href: '/dashboard/clientes/consulta-transacciones'
         }
     ];
 

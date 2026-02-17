@@ -1,338 +1,258 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
-    LayoutDashboard,
-    ListTree,
     BookOpen,
-    FileSpreadsheet,
-    Calendar,
-    ArrowUpRight,
-    ArrowDownLeft,
-    PieChart,
+    FileText,
+    BarChart3,
+    Printer,
+    Search,
+    Settings,
+    FolderOpen,
+    Wrench,
     Building2,
-    RefreshCw,
-    Plus,
-    ChevronRight
+    TrendingUp,
+    DollarSign,
+    Calendar
 } from 'lucide-react';
-import {
-    Card,
-    CardBody,
-    Button,
-    ButtonGroup,
-    Chip,
-    Table,
-    TableHeader,
-    TableColumn,
-    TableBody,
-    TableRow,
-    TableCell,
-    Divider,
-    Tab,
-    Tabs
-} from '@heroui/react';
-import { toast } from 'sonner';
-import { api } from '@/lib/api';
-import { loadSession } from '@/lib/auth-storage';
+import { Card, CardBody } from '@heroui/react';
+import { ModuleCard, ModuleCardProps } from '@/components/ui/ModuleCard';
 
-export default function AccountingDashboard() {
+export default function ContabilidadHubPage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
-    const [pAndL, setPAndL] = useState<any>(null);
-    const [balanceSheet, setBalanceSheet] = useState<any>(null);
 
-    useEffect(() => {
-        fetchReports();
-    }, [reportDate]);
-
-    const fetchReports = async () => {
-        const session = loadSession();
-        if (!session) return;
-
-        try {
-            const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
-            const endOfDay = new Date().toISOString();
-
-            const [plData, bsData] = await Promise.all([
-                api(`/accounting/reports/p-and-l?start=${startOfYear}&end=${endOfDay}`, { accessToken: session.accessToken }),
-                api(`/accounting/reports/balance-sheet?date=${endOfDay}`, { accessToken: session.accessToken })
-            ]);
-
-            setPAndL(plData);
-            setBalanceSheet(bsData);
-        } catch (error) {
-            console.error(error);
-            // Don't toast error if COA just isn't init yet
-        } finally {
-            setLoading(false);
+    const modules: ModuleCardProps[] = [
+        {
+            title: 'Transacciones del Mayor',
+            description: 'Registro y consulta de movimientos contables.',
+            icon: BookOpen,
+            iconColor: 'text-brand-primary',
+            iconBgColor: 'bg-brand-primary/10',
+            href: '/dashboard/contabilidad/mayor'
+        },
+        {
+            title: 'Catálogo de Cuentas',
+            description: 'Gestión del plan de cuentas contables.',
+            icon: FileText,
+            iconColor: 'text-purple-600',
+            iconBgColor: 'bg-purple-600/10',
+            href: '/dashboard/contabilidad/catalogo'
+        },
+        {
+            title: 'Consulta de Estados Financieros',
+            description: 'Visualización de reportes financieros.',
+            icon: BarChart3,
+            iconColor: 'text-emerald-600',
+            iconBgColor: 'bg-emerald-600/10',
+            href: '/dashboard/contabilidad/estados-financieros'
+        },
+        {
+            title: 'Re-Imprimir Cheque',
+            description: 'Reimpresión de cheques emitidos.',
+            icon: Printer,
+            iconColor: 'text-orange-600',
+            iconBgColor: 'bg-orange-600/10',
+            href: '/dashboard/contabilidad/reimprimir-cheque'
+        },
+        {
+            title: 'Consulta de Cuentas',
+            description: 'Búsqueda y análisis de cuentas contables.',
+            icon: Search,
+            iconColor: 'text-blue-600',
+            iconBgColor: 'bg-blue-600/10',
+            href: '/dashboard/contabilidad/consulta-cuentas'
+        },
+        {
+            title: 'Procesos Especiales',
+            description: 'Operaciones de cierre y actualización contable.',
+            icon: Settings,
+            iconColor: 'text-red-600',
+            iconBgColor: 'bg-red-600/10',
+            href: '/dashboard/contabilidad/procesos',
+            hasSubmodules: true,
+            submodulesCount: 4
+        },
+        {
+            title: 'Administración de Archivos',
+            description: 'Configuración de parámetros contables.',
+            icon: FolderOpen,
+            iconColor: 'text-indigo-600',
+            iconBgColor: 'bg-indigo-600/10',
+            href: '/dashboard/contabilidad/archivos',
+            hasSubmodules: true,
+            submodulesCount: 0 // Pendiente de definir
+        },
+        {
+            title: 'Reportes de Contabilidad',
+            description: 'Informes y análisis contables.',
+            icon: BarChart3,
+            iconColor: 'text-green-600',
+            iconBgColor: 'bg-green-600/10',
+            href: '/dashboard/contabilidad/reportes',
+            hasSubmodules: true,
+            submodulesCount: 0 // Pendiente de definir
+        },
+        {
+            title: 'Herramientas',
+            description: 'Utilidades de mantenimiento contable.',
+            icon: Wrench,
+            iconColor: 'text-yellow-600',
+            iconBgColor: 'bg-yellow-600/10',
+            href: '/dashboard/contabilidad/herramientas',
+            hasSubmodules: true,
+            submodulesCount: 1
+        },
+        {
+            title: 'Conciliación Bancaria',
+            description: 'Conciliación de cuentas bancarias.',
+            icon: Building2,
+            iconColor: 'text-cyan-600',
+            iconBgColor: 'bg-cyan-600/10',
+            href: '/dashboard/contabilidad/conciliacion',
+            hasSubmodules: true,
+            submodulesCount: 3
+        },
+        {
+            title: 'Consulta de Transacciones',
+            description: 'Historial y búsqueda de transacciones.',
+            icon: Search,
+            iconColor: 'text-slate-600',
+            iconBgColor: 'bg-slate-600/10',
+            href: '/dashboard/contabilidad/transacciones'
         }
-    };
+    ];
 
-    const handleInitCOA = async () => {
-        const session = loadSession();
-        if (!session) return;
-
-        try {
-            await api('/accounting/init-coa', {
-                method: 'POST',
-                accessToken: session.accessToken
-            });
-            toast.success('Plan de cuentas inicializado correctamente');
-            fetchReports();
-        } catch (error: any) {
-            toast.error(error.message || 'Error al inicializar');
+    const kpis = [
+        {
+            label: 'ACTIVOS TOTALES',
+            value: '$2.5M',
+            icon: TrendingUp,
+            iconColor: 'text-blue-600',
+            iconBgColor: 'bg-blue-600/10',
+            trend: '+5.2%',
+            trendColor: 'text-emerald-500'
+        },
+        {
+            label: 'PASIVOS TOTALES',
+            value: '$850K',
+            icon: DollarSign,
+            iconColor: 'text-red-600',
+            iconBgColor: 'bg-red-600/10',
+            trend: '-2.1%',
+            trendColor: 'text-blue-500'
+        },
+        {
+            label: 'PATRIMONIO',
+            value: '$1.65M',
+            icon: BarChart3,
+            iconColor: 'text-emerald-600',
+            iconBgColor: 'bg-emerald-600/10',
+            trend: '+8.4%',
+            trendColor: 'text-emerald-500'
+        },
+        {
+            label: 'PERIODO ACTUAL',
+            value: 'Feb 2026',
+            icon: Calendar,
+            iconColor: 'text-purple-600',
+            iconBgColor: 'bg-purple-600/10',
+            trend: 'ACTIVO',
+            trendColor: 'text-purple-500'
         }
-    };
-
-    if (loading) return (
-        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-            <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-        </div>
-    );
+    ];
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-20 px-8 py-8">
-            <div className="max-w-7xl mx-auto space-y-8">
-
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 pb-20">
+            <div className="px-8 py-8 max-w-[1600px] mx-auto">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-3">
-                            <Building2 className="w-8 h-8 text-blue-600" />
-                            Contabilidad Integrada
-                        </h1>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                            Finanzas y Estados Financieros en Tiempo Real
-                        </p>
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-8"
+                >
+                    <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
+                        <span
+                            className="hover:text-brand-primary cursor-pointer transition-colors"
+                            onClick={() => router.push('/dashboard')}
+                        >
+                            Dashboard
+                        </span>
+                        <span>/</span>
+                        <span className="text-slate-900 font-medium">Contabilidad</span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            variant="flat"
-                            color="primary"
-                            startContent={<ListTree className="w-4 h-4" />}
-                            onClick={() => router.push('/dashboard/contabilidad/plan-cuentas')}
-                        >
-                            Plan de Cuentas
-                        </Button>
-                        <Button
-                            variant="flat"
-                            color="secondary"
-                            startContent={<BookOpen className="w-4 h-4" />}
-                            onClick={() => router.push('/dashboard/contabilidad/asientos')}
-                        >
-                            Libro Diario
-                        </Button>
-                        <Button
-                            color="primary"
-                            startContent={<Plus className="w-4 h-4" />}
-                            onClick={() => router.push('/dashboard/contabilidad/asientos/nuevo')}
-                        >
-                            Nuevo Asiento
-                        </Button>
-                    </div>
-                </div>
 
-                {!pAndL && (
-                    <Card className="border-none shadow-sm bg-blue-50">
-                        <CardBody className="p-8 text-center space-y-4">
-                            <Clock className="w-12 h-12 text-blue-400 mx-auto" />
-                            <h3 className="font-bold text-blue-900 text-lg">Módulo no Configurado</h3>
-                            <p className="text-blue-700 max-w-md mx-auto">
-                                Parece que aún no has configurado tu plan de cuentas. Pulsa el botón para inicializar la estructura contable base para Panamá.
+                    <div className="flex items-start gap-4">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Building2 className="w-5 h-5 text-brand-primary" />
+                                <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
+                                    Portal de Negocios
+                                </span>
+                            </div>
+                            <h1 className="text-4xl font-bold text-slate-900 mb-2">
+                                Módulo de Contabilidad
+                            </h1>
+                            <p className="text-slate-600 text-lg">
+                                Gestión integral de finanzas, estados contables y reportes financieros.
                             </p>
-                            <Button color="primary" onClick={handleInitCOA}>
-                                Comenzar Configuración Contable
-                            </Button>
-                        </CardBody>
-                    </Card>
-                )}
-
-                {pAndL && (
-                    <>
-                        {/* Summary KPIs */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Card className="border-none shadow-sm">
-                                <CardBody className="p-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Ingresos YTD</p>
-                                    <p className="text-2xl font-black text-slate-900">${pAndL?.totalRevenue?.toLocaleString()}</p>
-                                    <div className="mt-2 text-emerald-600 flex items-center gap-1 text-[10px] font-bold">
-                                        <ArrowUpRight className="w-3 h-3" />
-                                        <span>INGRESO OPERATIVO</span>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                            <Card className="border-none shadow-sm">
-                                <CardBody className="p-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Egresos YTD</p>
-                                    <p className="text-2xl font-black text-slate-900">${pAndL?.totalExpense?.toLocaleString()}</p>
-                                    <div className="mt-2 text-red-600 flex items-center gap-1 text-[10px] font-bold">
-                                        <ArrowDownLeft className="w-3 h-3" />
-                                        <span>COSTOS Y GASTOS</span>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                            <Card className="border-none shadow-sm bg-gradient-to-br from-slate-800 to-slate-900 text-white">
-                                <CardBody className="p-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilidad Neta</p>
-                                    <p className="text-2xl font-black">${pAndL?.netIncome?.toLocaleString()}</p>
-                                    <div className="mt-2 text-blue-300 flex items-center gap-1 text-[10px] font-bold">
-                                        <PieChart className="w-3 h-3" />
-                                        <span>RENTABILIDAD YTD</span>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                            <Card className="border-none shadow-sm">
-                                <CardBody className="p-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Margen Neto</p>
-                                    <p className="text-2xl font-black text-slate-900">
-                                        {pAndL?.totalRevenue > 0 ? ((pAndL.netIncome / pAndL.totalRevenue) * 100).toFixed(1) : 0}%
-                                    </p>
-                                    <div className="mt-2 text-slate-400 flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter">
-                                        Sobres las ventas
-                                    </div>
-                                </CardBody>
-                            </Card>
                         </div>
+                    </div>
+                </motion.div>
 
-                        {/* Main Reports */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                            {/* Profit and Loss Table */}
-                            <Card className="border-none shadow-sm">
-                                <CardBody className="p-6">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="font-black text-slate-900 uppercase text-sm flex items-center gap-2">
-                                            <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                                            Estado de Resultados (P&L)
-                                        </h3>
-                                        <Chip size="sm" variant="flat" color="success" className="font-bold">AÑO ACTUAL</Chip>
+                {/* KPIs */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+                >
+                    {kpis.map((kpi, index) => (
+                        <Card key={index} className="border-none shadow-sm hover:shadow-md transition-shadow bg-white">
+                            <CardBody className="p-5">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        {kpi.label}
+                                    </span>
+                                    <div className={`w-10 h-10 rounded-xl ${kpi.iconBgColor} flex items-center justify-center`}>
+                                        <kpi.icon className={`w-5 h-5 ${kpi.iconColor}`} />
                                     </div>
-
-                                    <div className="space-y-6">
-                                        <div>
-                                            <p className="text-[10px] font-black text-emerald-600 uppercase mb-3">INGRESOS</p>
-                                            <table className="w-full text-sm">
-                                                <tbody>
-                                                    {pAndL?.revenue.map((acc: any) => (
-                                                        <tr key={acc.code} className="border-b border-slate-50">
-                                                            <td className="py-2 text-slate-500 font-medium">{acc.code}</td>
-                                                            <td className="py-2 font-bold text-slate-700">{acc.name}</td>
-                                                            <td className="py-2 text-right font-black">${acc.balance.toLocaleString()}</td>
-                                                        </tr>
-                                                    ))}
-                                                    <tr className="bg-slate-50">
-                                                        <td colSpan={2} className="py-3 px-2 font-black text-slate-900 uppercase">Total Ingresos</td>
-                                                        <td className="py-3 px-2 text-right font-black text-emerald-600 text-lg">${pAndL?.totalRevenue.toLocaleString()}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-2xl font-bold text-slate-900">{kpi.value}</p>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className={`flex items-center gap-1 text-[11px] font-bold ${kpi.trendColor}`}>
+                                            <TrendingUp className="w-3 h-3" />
+                                            {kpi.trend}
                                         </div>
-
-                                        <div>
-                                            <p className="text-[10px] font-black text-red-600 uppercase mb-3">EGRESOS</p>
-                                            <table className="w-full text-sm">
-                                                <tbody>
-                                                    {pAndL?.expense.map((acc: any) => (
-                                                        <tr key={acc.code} className="border-b border-slate-50">
-                                                            <td className="py-2 text-slate-500 font-medium">{acc.code}</td>
-                                                            <td className="py-2 font-bold text-slate-700">{acc.name}</td>
-                                                            <td className="py-2 text-right font-black">${acc.balance.toLocaleString()}</td>
-                                                        </tr>
-                                                    ))}
-                                                    <tr className="bg-slate-50">
-                                                        <td colSpan={2} className="py-3 px-2 font-black text-slate-900 uppercase">Total Egresos</td>
-                                                        <td className="py-3 px-2 text-right font-black text-red-600 text-lg">${pAndL?.totalExpense.toLocaleString()}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        <span className="text-[11px] text-slate-400 font-medium">vs mes anterior</span>
                                     </div>
-                                </CardBody>
-                            </Card>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    ))}
+                </motion.div>
 
-                            {/* Balance Sheet Summary */}
-                            <Card className="border-none shadow-sm bg-white">
-                                <CardBody className="p-6">
-                                    <h3 className="font-black text-slate-900 uppercase text-sm mb-6 flex items-center gap-2">
-                                        <LayoutDashboard className="w-5 h-5 text-blue-600" />
-                                        Balance General (Resumen)
-                                    </h3>
-
-                                    <div className="space-y-4">
-                                        <div className="p-4 border border-slate-100 rounded-xl flex items-center justify-between">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase">ACTIVOS TOTALES</p>
-                                                <p className="text-xl font-black text-blue-600">
-                                                    ${balanceSheet?.assets.reduce((sum: number, a: any) => sum + a.balance, 0).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <ChevronRight className="w-5 h-5 text-slate-300" />
-                                        </div>
-                                        <div className="p-4 border border-slate-100 rounded-xl flex items-center justify-between">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase">PASIVOS TOTALES</p>
-                                                <p className="text-xl font-black text-red-600">
-                                                    ${balanceSheet?.liabilities.reduce((sum: number, a: any) => sum + a.balance, 0).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <ChevronRight className="w-5 h-5 text-slate-300" />
-                                        </div>
-                                        <div className="p-4 border border-slate-100 rounded-xl flex items-center justify-between">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase">PATRIMONIO</p>
-                                                <p className="text-xl font-black text-emerald-600">
-                                                    ${balanceSheet?.equity.reduce((sum: number, a: any) => sum + a.balance, 0).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <ChevronRight className="w-5 h-5 text-slate-300" />
-                                        </div>
-
-                                        <Divider className="my-4" />
-
-                                        <div className="text-center p-4">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ecuación Contable (A = P + PT)</p>
-                                            <div className="flex items-center justify-center gap-4 text-xs font-bold text-slate-600">
-                                                <span className="text-blue-600">
-                                                    ${balanceSheet?.assets.reduce((sum: number, a: any) => sum + a.balance, 0).toLocaleString()}
-                                                </span>
-                                                <span>=</span>
-                                                <span className="text-slate-900">
-                                                    ${(
-                                                        balanceSheet?.liabilities.reduce((sum: number, a: any) => sum + a.balance, 0) +
-                                                        balanceSheet?.equity.reduce((sum: number, a: any) => sum + a.balance, 0)
-                                                    ).toLocaleString()}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardBody>
-                            </Card>
-                        </div>
-                    </>
-                )}
+                {/* Modules Grid */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                    {modules.map((module, index) => (
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 * index }}
+                        >
+                            <ModuleCard {...module} />
+                        </motion.div>
+                    ))}
+                </motion.div>
             </div>
         </div>
-    );
-}
-
-function Clock(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-        </svg>
     );
 }

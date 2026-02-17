@@ -4,161 +4,97 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
-    FileText,
-    CheckCircle,
-    ShoppingCart,
-    ClipboardCheck,
-    Package,
-    FilePlus,
     Settings,
-    TrendingUp,
-    BarChart3,
-    Search,
+    Warehouse,
+    Wrench,
+    ShieldCheck,
     Users,
-    ShoppingBag,
-    DollarSign,
-    Clock,
-    Target
+    Database,
+    Activity,
+    ArrowLeft,
+    Building2,
+    Lock,
+    ToggleLeft
 } from 'lucide-react';
-import { Card, CardBody } from '@heroui/react';
+import { Card, CardBody, Button } from '@heroui/react';
 import { ModuleCard, ModuleCardProps } from '@/components/ui/ModuleCard';
 
-export default function VentasHubPage() {
+export default function ConfiguracionHubPage() {
     const router = useRouter();
 
     const modules: ModuleCardProps[] = [
         {
-            title: 'Administración de Cotizaciones',
-            description: 'Creación y gestión de propuestas comerciales.',
-            icon: FileText,
+            title: 'Registro de Bodegas',
+            description: 'Gestión y configuración de almacenes y depósitos.',
+            icon: Warehouse,
             iconColor: 'text-blue-600',
             iconBgColor: 'bg-blue-600/10',
-            href: '/dashboard/ventas/cotizaciones'
+            href: '/dashboard/configuracion/bodegas'
         },
         {
-            title: 'Aprobación de Cotizaciones',
-            description: 'Revisión y autorización de cotizaciones pendientes.',
-            icon: CheckCircle,
-            iconColor: 'text-emerald-600',
-            iconBgColor: 'bg-emerald-600/10',
-            href: '/dashboard/ventas/aprobacion-cotizaciones'
-        },
-        {
-            title: 'Administración de Pedidos',
-            description: 'Gestión de órdenes de venta confirmadas.',
-            icon: ShoppingCart,
-            iconColor: 'text-indigo-600',
-            iconBgColor: 'bg-indigo-600/10',
-            href: '/dashboard/ventas/pedidos'
-        },
-        {
-            title: 'Aprobación de Pedidos',
-            description: 'Validación de pedidos para su procesamiento.',
-            icon: ClipboardCheck,
-            iconColor: 'text-purple-600',
-            iconBgColor: 'bg-purple-600/10',
-            href: '/dashboard/ventas/aprobacion-pedidos'
-        },
-        {
-            title: 'Lista de Empaque',
-            description: 'Preparación y control de despacho de mercancía.',
-            icon: Package,
+            title: 'Herramientas del Sistema',
+            description: 'Utilidades avanzadas y configuración técnica del ERP.',
+            icon: Wrench,
             iconColor: 'text-orange-600',
             iconBgColor: 'bg-orange-600/10',
-            href: '/dashboard/ventas/lista-empaque'
+            href: '/dashboard/configuracion/herramientas',
+            hasSubmodules: true,
+            submodulesCount: 0 // Pendiente de definir subsecciones
         },
         {
-            title: 'Generar Factura',
-            description: 'Emisión de facturas comerciales a partir de pedidos.',
-            icon: FilePlus,
-            iconColor: 'text-cyan-600',
-            iconBgColor: 'bg-cyan-600/10',
-            href: '/dashboard/ventas/facturar'
+            title: 'Gestión de Sucursales',
+            description: 'Administración de puntos de venta y oficinas.',
+            icon: Building2,
+            iconColor: 'text-emerald-600',
+            iconBgColor: 'bg-emerald-600/10',
+            href: '/dashboard/configuracion/sucursales'
         },
         {
-            title: 'Procesos Especiales',
-            description: 'Operaciones críticas y ajustes de ventas.',
-            icon: Settings,
+            title: 'Seguridad y Permisos',
+            description: 'Control de acceso y roles de usuario.',
+            icon: ShieldCheck,
             iconColor: 'text-red-600',
             iconBgColor: 'bg-red-600/10',
-            href: '/dashboard/ventas/procesos',
-            hasSubmodules: true,
-            submodulesCount: 4
-        },
-        {
-            title: 'DMC - Movimiento Comercial',
-            description: 'Control de movimientos y documentos comerciales.',
-            icon: TrendingUp,
-            iconColor: 'text-brand-primary',
-            iconBgColor: 'bg-brand-primary/10',
-            href: '/dashboard/ventas/dmc',
-            hasSubmodules: true,
-            submodulesCount: 0
-        },
-        {
-            title: 'Reportes de Ventas',
-            description: 'Análisis detallado de gestión comercial.',
-            icon: BarChart3,
-            iconColor: 'text-green-600',
-            iconBgColor: 'bg-green-600/10',
-            href: '/dashboard/ventas/reportes',
-            hasSubmodules: true,
-            submodulesCount: 0
-        },
-        {
-            title: 'Consulta de Pedidos Reservados',
-            description: 'Seguimiento de mercancía apartada.',
-            icon: Search,
-            iconColor: 'text-slate-600',
-            iconBgColor: 'bg-slate-600/10',
-            href: '/dashboard/ventas/pedidos-reservados'
-        },
-        {
-            title: 'Consulta de Ventas x Vendedor',
-            description: 'Rendimiento y comisiones por ejecutivo.',
-            icon: Users,
-            iconColor: 'text-blue-500',
-            iconBgColor: 'bg-blue-500/10',
-            href: '/dashboard/ventas/ventas-vendedor'
+            href: '/dashboard/configuracion/seguridad'
         }
     ];
 
     const kpis = [
         {
-            label: 'VENTAS TOTALES',
-            value: '$1.2M',
-            icon: DollarSign,
+            label: 'ESTADO DEL SISTEMA',
+            value: 'Óptimo',
+            icon: Activity,
             iconColor: 'text-emerald-600',
             iconBgColor: 'bg-emerald-600/10',
-            trend: '+12.5%',
+            trend: '99.9%',
             trendColor: 'text-emerald-500'
         },
         {
-            label: 'PEDIDOS PENDIENTES',
-            value: '45',
-            icon: ShoppingCart,
+            label: 'USUARIOS ACTIVOS',
+            value: '24',
+            icon: Users,
             iconColor: 'text-blue-600',
             iconBgColor: 'bg-blue-600/10',
-            trend: '-8.2%',
+            trend: 'Sesiones hoy',
             trendColor: 'text-blue-500'
         },
         {
-            label: 'COTIZACIONES ACTIVAS',
-            value: '128',
-            icon: FileText,
-            iconColor: 'text-orange-600',
-            iconBgColor: 'bg-orange-600/10',
-            trend: '+5.4',
-            trendColor: 'text-emerald-500'
-        },
-        {
-            label: 'META MENSUAL',
-            value: '85%',
-            icon: Target,
+            label: 'BASE DE DATOS',
+            value: '1.2 GB',
+            icon: Database,
             iconColor: 'text-purple-600',
             iconBgColor: 'bg-purple-600/10',
-            trend: 'EN CURSO',
+            trend: 'Copia: 2h ago',
             trendColor: 'text-purple-500'
+        },
+        {
+            label: 'MÓDULOS ACTIVOS',
+            value: '12/15',
+            icon: ToggleLeft,
+            iconColor: 'text-orange-600',
+            iconBgColor: 'bg-orange-600/10',
+            trend: 'Licencia Gold',
+            trendColor: 'text-orange-500'
         }
     ];
 
@@ -179,22 +115,22 @@ export default function VentasHubPage() {
                             Dashboard
                         </span>
                         <span>/</span>
-                        <span className="text-slate-900 font-medium">Ventas</span>
+                        <span className="text-slate-900 font-medium">Configuración</span>
                     </div>
 
                     <div className="flex items-start gap-4">
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                                <TrendingUp className="w-5 h-5 text-blue-600" />
-                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-                                    Gestión Comercial
+                                <Settings className="w-5 h-5 text-brand-primary" />
+                                <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">
+                                    Panel de Control
                                 </span>
                             </div>
                             <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                                Módulo de Ventas
+                                Configuración del Sistema
                             </h1>
                             <p className="text-slate-600 text-lg">
-                                Control integral del ciclo de ventas: desde la cotización hasta la facturación.
+                                Administre parámetros globales, bodegas, seguridad y herramientas técnicas.
                             </p>
                         </div>
                     </div>
@@ -222,10 +158,8 @@ export default function VentasHubPage() {
                                     <p className="text-2xl font-bold text-slate-900">{kpi.value}</p>
                                     <div className="flex items-center gap-1.5">
                                         <div className={`flex items-center gap-1 text-[11px] font-bold ${kpi.trendColor}`}>
-                                            <TrendingUp className="w-3 h-3" />
                                             {kpi.trend}
                                         </div>
-                                        <span className="text-[11px] text-slate-400 font-medium">vs mes anterior</span>
                                     </div>
                                 </div>
                             </CardBody>
