@@ -32,10 +32,7 @@ export class JwtOptionalMiddleware implements NestMiddleware {
     const secret = this.configService.get<string>('JWT_SECRET') ?? 'dev-secret';
 
     try {
-      const payload = this.jwtService.verify(token, { secret }) as {
-        sub?: string;
-        tenantId?: string;
-      };
+      const payload = this.jwtService.verify(token, { secret });
 
       if (payload?.sub && payload?.tenantId) {
         req.user = { sub: payload.sub, tenantId: payload.tenantId };

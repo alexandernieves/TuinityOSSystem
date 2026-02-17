@@ -1,10 +1,19 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Req,
+  ForbiddenException,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { LoginDtoSchema } from './dto/login.dto';
 import { RegisterTenantDtoSchema } from './dto/register-tenant.dto';
+import { RegisterClientDtoSchema } from './dto/register-client.dto';
 import { RefreshDtoSchema } from './dto/refresh.dto';
 import { LogoutDtoSchema } from './dto/logout.dto';
 import { UseGuards } from '@nestjs/common';
@@ -23,13 +32,20 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
-  ) { }
+  ) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @Post('register-tenant')
   async registerTenant(@Body() body: unknown) {
     const dto = RegisterTenantDtoSchema.parse(body);
     return this.authService.registerTenant(dto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('register-client')
+  async registerClient(@Body() body: unknown) {
+    const dto = RegisterClientDtoSchema.parse(body);
+    return this.authService.registerClient(dto);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
@@ -74,5 +90,18 @@ export class AuthController {
       name: user?.name,
       role: user?.role,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('account')
+  async deleteAccount(@Req() req: RequestWithUser) {
+    const userId = req.user?.sub;
+    const tenantId = req.user?.tenantId;
+
+    if (!userId || !tenantId) {
+      throw new ForbiddenException('Acceso denegado');
+    }
+
+    return this.authService.deleteTenantAccount(userId, tenantId);
   }
 }

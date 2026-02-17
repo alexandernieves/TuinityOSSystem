@@ -65,11 +65,16 @@ export class RequestContextInterceptor implements NestInterceptor {
           bypassTenantIsolation: false,
           tenantId,
           userId,
+          role: (req as any).role,
+          permissions: (req as any).permissions,
         };
       })(),
     ).pipe(
-      mergeMap((store) =>
-        RequestContext.run(store, () => next.handle()) as unknown as Observable<unknown>,
+      mergeMap(
+        (store) =>
+          RequestContext.run(store, () =>
+            next.handle(),
+          ) as unknown as Observable<unknown>,
       ),
     );
   }

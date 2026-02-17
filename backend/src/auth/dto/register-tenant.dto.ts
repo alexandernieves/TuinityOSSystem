@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 // Password must have: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const passwordRegex =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 // Slug must be lowercase alphanumeric with hyphens only
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
