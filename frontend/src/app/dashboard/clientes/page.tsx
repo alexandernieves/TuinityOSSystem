@@ -93,14 +93,6 @@ export default function CustomersHubPage() {
             href: '/dashboard/clientes/transacciones'
         },
         {
-            title: 'Anular Transacciones',
-            description: 'Reversión de transacciones registradas.',
-            icon: History,
-            iconColor: 'text-error',
-            iconBgColor: 'bg-error/10',
-            href: '/dashboard/clientes/anular-transacciones'
-        },
-        {
             title: 'Análisis de Morosidad',
             description: 'Evaluación de cartera vencida y riesgo crediticio.',
             icon: BarChart3,
@@ -171,7 +163,7 @@ export default function CustomersHubPage() {
         visible: {
             y: 0,
             opacity: 1,
-            transition: { type: 'spring', stiffness: 100 }
+            transition: { type: 'spring' as const, stiffness: 100 }
         }
     };
 

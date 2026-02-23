@@ -12,8 +12,12 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BrandsService } from './brands.service';
+import { StorageService } from '../storage/storage.service';
 import { createBrandSchema } from './dto/create-brand.dto';
 import type { CreateBrandDto } from './dto/create-brand.dto';
 import { updateBrandSchema } from './dto/update-brand.dto';
@@ -27,7 +31,10 @@ import { RequestContext } from '../common/request-context';
 @Controller('brands')
 @UseGuards(JwtAuthGuard)
 export class BrandsController {
-  constructor(private readonly brandsService: BrandsService) {}
+  constructor(
+    private readonly brandsService: BrandsService,
+    private readonly storageService: StorageService,
+  ) {}
 
   private getContext() {
     const store = RequestContext.getStore();
@@ -38,9 +45,19 @@ export class BrandsController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createBrandSchema))
-  create(@Body() createBrandDto: CreateBrandDto) {
+  @UseInterceptors(FileInterceptor('image'))
+  async create(
+    @Body(new ZodValidationPipe(createBrandSchema))
+    createBrandDto: CreateBrandDto,
+    @UploadedFile() file?: any,
+  ) {
     const { tenantId } = this.getContext();
+    if (file) {
+      createBrandDto.imageUrl = await this.storageService.uploadFile(
+        file,
+        'brands',
+      );
+    }
     return this.brandsService.create(createBrandDto, tenantId);
   }
 
@@ -59,9 +76,20 @@ export class BrandsController {
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateBrandSchema))
-  update(@Param('id') id: string, @Body() updateBrandDto: UpdateBrandDto) {
+  @UseInterceptors(FileInterceptor('image'))
+  async update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateBrandSchema))
+    updateBrandDto: UpdateBrandDto,
+    @UploadedFile() file?: any,
+  ) {
     const { tenantId } = this.getContext();
+    if (file) {
+      updateBrandDto.imageUrl = await this.storageService.uploadFile(
+        file,
+        'brands',
+      );
+    }
     return this.brandsService.update(id, updateBrandDto, tenantId);
   }
 

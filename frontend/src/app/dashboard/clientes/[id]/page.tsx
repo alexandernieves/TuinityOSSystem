@@ -146,7 +146,7 @@ export default function CustomerDetailPage() {
 
             {/* Profile Hero Section */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <Card hover className="lg:col-span-2">
+                <Card className="lg:col-span-2">
                     <CardContent className="p-8">
                         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                             <div className="space-y-6">

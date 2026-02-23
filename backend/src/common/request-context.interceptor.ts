@@ -61,12 +61,46 @@ export class RequestContextInterceptor implements NestInterceptor {
           }
         }
 
+        let role = (req as any).role;
+        let permissions = (req as any).permissions;
+
+        if (userId && !role) {
+          const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true },
+          });
+          role = user?.role;
+
+          const userRoles = await this.prisma.userRole.findMany({
+            where: { userId },
+            include: {
+              role: {
+                include: {
+                  rolePermissions: {
+                    include: {
+                      permission: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          const perms = new Set<string>();
+          userRoles.forEach((ur) => {
+            ur.role.rolePermissions.forEach((rp) => {
+              perms.add(rp.permission.key);
+            });
+          });
+          permissions = Array.from(perms);
+        }
+
         return {
           bypassTenantIsolation: false,
           tenantId,
           userId,
-          role: (req as any).role,
-          permissions: (req as any).permissions,
+          role,
+          permissions,
         };
       })(),
     ).pipe(

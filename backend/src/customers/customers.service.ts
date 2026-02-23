@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
@@ -33,7 +38,9 @@ export class CustomersService {
         where: { tenantId_taxId: { tenantId, taxId: data.taxId } },
       });
       if (existing) {
-        throw new BadRequestException('Customer with this Tax ID already exists');
+        throw new BadRequestException(
+          'Customer with this Tax ID already exists',
+        );
       }
     }
 
@@ -80,7 +87,9 @@ export class CustomersService {
       }),
       ...(filters?.customerType && { customerType: filters.customerType }),
       ...(filters?.priceLevel && { priceLevel: filters.priceLevel }),
-      ...(filters?.creditStatus && { creditStatus: filters.creditStatus as any }),
+      ...(filters?.creditStatus && {
+        creditStatus: filters.creditStatus as any,
+      }),
       ...(filters?.isBlocked !== undefined && { isBlocked: filters.isBlocked }),
     };
 
@@ -335,7 +344,9 @@ export class CustomersService {
         balanceChange = balanceChange.negated();
       }
 
-      const newBalance = new Prisma.Decimal(customer.currentBalance).add(balanceChange);
+      const newBalance = new Prisma.Decimal(customer.currentBalance).add(
+        balanceChange,
+      );
 
       // Get next transaction number
       const lastTransaction = await tx.customerTransaction.findFirst({
@@ -465,7 +476,10 @@ export class CustomersService {
 
       // Reverse the balance change
       let balanceChange = new Prisma.Decimal(transaction.amount);
-      if (transaction.type === 'PAYMENT' || transaction.type === 'CREDIT_NOTE') {
+      if (
+        transaction.type === 'PAYMENT' ||
+        transaction.type === 'CREDIT_NOTE'
+      ) {
         balanceChange = balanceChange.negated();
       }
       balanceChange = balanceChange.negated(); // Reverse it
@@ -474,7 +488,9 @@ export class CustomersService {
         where: { id: transaction.customerId },
       });
 
-      const newBalance = new Prisma.Decimal(customer!.currentBalance).add(balanceChange);
+      const newBalance = new Prisma.Decimal(customer!.currentBalance).add(
+        balanceChange,
+      );
 
       // Void the transaction
       await tx.customerTransaction.update({
@@ -587,7 +603,11 @@ export class CustomersService {
     });
   }
 
-  async updateSubArea(id: string, data: UpdateCustomerSubAreaDto, tenantId: string) {
+  async updateSubArea(
+    id: string,
+    data: UpdateCustomerSubAreaDto,
+    tenantId: string,
+  ) {
     const subArea = await this.prisma.customerSubArea.findFirst({
       where: { id, tenantId, deletedAt: null },
     });
@@ -637,7 +657,10 @@ export class CustomersService {
     });
   }
 
-  async listSalespeople(tenantId: string, filters?: { areaId?: string; subAreaId?: string }) {
+  async listSalespeople(
+    tenantId: string,
+    filters?: { areaId?: string; subAreaId?: string },
+  ) {
     return this.prisma.salesperson.findMany({
       where: {
         tenantId,
@@ -655,7 +678,11 @@ export class CustomersService {
     });
   }
 
-  async updateSalesperson(id: string, data: UpdateSalespersonDto, tenantId: string) {
+  async updateSalesperson(
+    id: string,
+    data: UpdateSalespersonDto,
+    tenantId: string,
+  ) {
     const salesperson = await this.prisma.salesperson.findFirst({
       where: { id, tenantId, deletedAt: null },
     });
@@ -692,10 +719,14 @@ export class CustomersService {
 
   // ==================== REPORTS & ANALYTICS ====================
 
-  async getAccountStatement(customerId: string, tenantId: string, filters?: {
-    startDate?: string;
-    endDate?: string;
-  }) {
+  async getAccountStatement(
+    customerId: string,
+    tenantId: string,
+    filters?: {
+      startDate?: string;
+      endDate?: string;
+    },
+  ) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId, deletedAt: null },
     });
@@ -733,13 +764,13 @@ export class CustomersService {
       },
       transactions,
       summary: {
-        totalInvoices: transactions.filter(t => t.type === 'INVOICE').length,
-        totalPayments: transactions.filter(t => t.type === 'PAYMENT').length,
+        totalInvoices: transactions.filter((t) => t.type === 'INVOICE').length,
+        totalPayments: transactions.filter((t) => t.type === 'PAYMENT').length,
         totalInvoiced: transactions
-          .filter(t => t.type === 'INVOICE')
+          .filter((t) => t.type === 'INVOICE')
           .reduce((sum, t) => sum.add(t.amount), new Prisma.Decimal(0)),
         totalPaid: transactions
-          .filter(t => t.type === 'PAYMENT')
+          .filter((t) => t.type === 'PAYMENT')
           .reduce((sum, t) => sum.add(t.amount), new Prisma.Decimal(0)),
         currentBalance: customer.currentBalance,
       },
@@ -756,68 +787,117 @@ export class CustomersService {
       },
       include: {
         transactions: {
-          where: {
-            type: 'INVOICE',
-            isVoided: false,
-          },
+          where: { type: 'INVOICE', isVoided: false },
           orderBy: { transactionDate: 'asc' },
         },
       },
     });
 
     const now = new Date();
-    const aging = customers.map(customer => {
-      const overdueInvoices = customer.transactions.filter(t => {
-        if (!t.dueDate) return false;
-        return t.dueDate < now;
-      });
+    let current = new Prisma.Decimal(0);
+    let days30 = new Prisma.Decimal(0);
+    let days60 = new Prisma.Decimal(0);
+    let days90 = new Prisma.Decimal(0);
+    let over90 = new Prisma.Decimal(0);
 
-      const daysOverdue = overdueInvoices.length > 0
-        ? Math.floor((now.getTime() - overdueInvoices[0].dueDate!.getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
+    for (const customer of customers) {
+      const balance = new Prisma.Decimal(customer.currentBalance);
+      if (balance.lte(0)) continue;
 
-      return {
-        customerId: customer.id,
-        customerName: customer.name,
-        taxId: customer.taxId,
-        currentBalance: customer.currentBalance,
-        creditLimit: customer.creditLimit,
-        daysOverdue,
-        overdueAmount: overdueInvoices.reduce(
-          (sum, t) => sum.add(t.amount),
-          new Prisma.Decimal(0),
-        ),
-      };
-    });
+      // If no invoice due dates, use the customer balance as current
+      if (customer.transactions.length === 0) {
+        current = current.add(balance);
+        continue;
+      }
 
-    return aging.sort((a, b) => b.daysOverdue - a.daysOverdue);
+      // Use the oldest unpaid invoice's due date to bucket
+      const oldestInvoice = customer.transactions[0];
+      const dueDate = oldestInvoice.dueDate || oldestInvoice.transactionDate;
+      const daysDiff = Math.floor(
+        (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (daysDiff <= 0) current = current.add(balance);
+      else if (daysDiff <= 30) days30 = days30.add(balance);
+      else if (daysDiff <= 60) days60 = days60.add(balance);
+      else if (daysDiff <= 90) days90 = days90.add(balance);
+      else over90 = over90.add(balance);
+    }
+
+    const total = current
+      .add(days30)
+      .add(days60)
+      .add(days90)
+      .add(over90)
+      .toNumber();
+
+    return {
+      current: current.toFixed(2),
+      days30: days30.toFixed(2),
+      days60: days60.toFixed(2),
+      days90: days90.toFixed(2),
+      over90: over90.toFixed(2),
+      total,
+    };
   }
 
   async getSegmentationStats(tenantId: string) {
-    const stats = await this.prisma.customer.groupBy({
-      by: ['priceLevel'],
-      where: {
-        tenantId,
-        deletedAt: null,
-      },
-      _count: {
+    const customers = await this.prisma.customer.findMany({
+      where: { tenantId, deletedAt: null },
+      select: {
         id: true,
-      },
-      _sum: {
-        currentBalance: true,
+        name: true,
+        customerType: true,
+        priceLevel: true,
         creditLimit: true,
+        currentBalance: true,
+        paymentTermDays: true,
+        transactions: {
+          where: { type: 'INVOICE', isVoided: false },
+          select: { dueDate: true, amount: true },
+          orderBy: { transactionDate: 'asc' },
+        },
       },
     });
 
-    // Also get total sales volume by priceLevel (Requires joining, which groupBy doesn't support directly efficiently for aggregate relationships in one go, 
-    // but we can do a raw query or separate aggregation. For simplicity, let's stick to balance/limit/count first 
-    // and maybe total sales count if needed, but sales are in another table).
+    const now = new Date();
 
-    return stats.map(s => ({
-      priceLevel: s.priceLevel,
-      count: s._count.id,
-      totalBalance: s._sum.currentBalance || new Prisma.Decimal(0),
-      totalCreditLimit: s._sum.creditLimit || new Prisma.Decimal(0),
-    }));
+    return customers.map((c) => {
+      const balance = parseFloat(c.currentBalance?.toString() || '0');
+      const limit = parseFloat(c.creditLimit?.toString() || '0');
+      const utilization = limit > 0 ? (balance / limit) * 100 : 0;
+
+      const oldestInvoice = c.transactions[0];
+      let daysDue = 0;
+      if (oldestInvoice?.dueDate) {
+        daysDue = Math.floor(
+          (now.getTime() - oldestInvoice.dueDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+        );
+      }
+
+      let segmento_antiguedad = 'Corriente';
+      if (daysDue > 90) segmento_antiguedad = '> 90 días';
+      else if (daysDue > 60) segmento_antiguedad = '61-90 días';
+      else if (daysDue > 30) segmento_antiguedad = '31-60 días';
+      else if (daysDue > 0) segmento_antiguedad = '1-30 días';
+
+      let nivel_riesgo = 'BAJO_RIESGO';
+      if (daysDue > 60 || utilization > 90)
+        nivel_riesgo = 'ALTO_RIESGO';
+      else if (daysDue > 30 || utilization > 60)
+        nivel_riesgo = 'RIESGO_MEDIO';
+
+      return {
+        customer_id: c.id,
+        name: c.name,
+        customerType: c.customerType,
+        priceLevel: c.priceLevel,
+        creditLimit: c.creditLimit?.toString() || '0',
+        currentBalance: c.currentBalance?.toString() || '0',
+        segmento_antiguedad,
+        nivel_riesgo,
+      };
+    });
   }
 }

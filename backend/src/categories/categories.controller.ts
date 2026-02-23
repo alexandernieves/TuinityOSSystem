@@ -38,8 +38,10 @@ export class CategoriesController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createCategorySchema))
-  create(@Body() createCategoryDto: CreateCategoryDto) {
+  create(
+    @Body(new ZodValidationPipe(createCategorySchema))
+    createCategoryDto: CreateCategoryDto,
+  ) {
     const { tenantId } = this.getContext();
     return this.categoriesService.create(createCategoryDto, tenantId);
   }
@@ -59,10 +61,10 @@ export class CategoriesController {
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateCategorySchema))
   update(
     @Param('id') id: string,
-    @Body() updateCategoryDto: UpdateCategoryDto,
+    @Body(new ZodValidationPipe(updateCategorySchema))
+    updateCategoryDto: UpdateCategoryDto,
   ) {
     const { tenantId } = this.getContext();
     return this.categoriesService.update(id, updateCategoryDto, tenantId);

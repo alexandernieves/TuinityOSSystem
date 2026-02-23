@@ -20,9 +20,11 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   }
 
   const url = `${API_BASE_URL}${cleanPath}`;
-  const headers: Record<string, string> = {
-    'content-type': 'application/json',
-  };
+  const headers: Record<string, string> = {};
+
+  if (!(options.body instanceof FormData)) {
+    headers['content-type'] = 'application/json';
+  }
 
   // Always try to include x-tenant-slug if we have it in the session
   const tenantSlug = options.tenantSlug || session?.tenantSlug;
@@ -39,7 +41,9 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   const res = await fetch(url, {
     method: options.method ?? 'GET',
     headers,
-    body: options.body == null ? undefined : JSON.stringify(options.body),
+    body: options.body == null
+      ? undefined
+      : (options.body instanceof FormData ? options.body : JSON.stringify(options.body)),
   });
 
   const text = await res.text();

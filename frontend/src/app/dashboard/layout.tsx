@@ -30,8 +30,8 @@ export default function DashboardLayout({
                     <Topbar />
 
                     {/* Page Content */}
-                    <main className="flex-1 overflow-auto bg-bg-base p-6 pt-4">
-                        <div className="mx-auto max-w-7xl space-y-4">
+                    <main className="flex-1 overflow-auto bg-bg-base p-6 pt-8">
+                        <div className="mx-auto max-w-7xl space-y-6">
                             <Breadcrumb />
                             {children}
                         </div>

@@ -20,8 +20,17 @@ export class ProductsService {
     tenantId: string,
     userId: string,
   ) {
-    const { barcodes, forceCreate, categoryId, brandId, ...productData } =
-      createProductDto;
+    const {
+      barcodes,
+      forceCreate,
+      categoryId,
+      brandId,
+      originId,
+      tariffId,
+      compositionId,
+      supplierId,
+      ...productData
+    } = createProductDto;
 
     if (!forceCreate) {
       await this.detectDuplicates(createProductDto, tenantId);
@@ -44,12 +53,41 @@ export class ProductsService {
       if (!brand) throw new NotFoundException(`Brand ${brandId} not found`);
     }
 
+    // Validate Origin
+    if (originId && originId !== '') {
+      const origin = await this.prisma.origin.findFirst({
+        where: { id: originId, tenantId, deletedAt: null },
+      });
+      if (!origin) throw new NotFoundException(`Origin ${originId} not found`);
+    }
+
+    // Validate Tariff
+    if (tariffId && tariffId !== '') {
+      const tariff = await this.prisma.tariff.findFirst({
+        where: { id: tariffId, tenantId, deletedAt: null },
+      });
+      if (!tariff) throw new NotFoundException(`Tariff ${tariffId} not found`);
+    }
+
+    // Validate Composition
+    if (compositionId && compositionId !== '') {
+      const composition = await this.prisma.composition.findFirst({
+        where: { id: compositionId, tenantId, deletedAt: null },
+      });
+      if (!composition)
+        throw new NotFoundException(`Composition ${compositionId} not found`);
+    }
+
     return this.prisma.product.create({
       data: {
         ...productData,
         tenantId,
         categoryId,
         brandId,
+        originId: originId === '' ? null : originId,
+        tariffId: tariffId === '' ? null : tariffId,
+        compositionId: compositionId === '' ? null : compositionId,
+        supplierId: supplierId === '' ? null : supplierId,
         createdBy: userId,
         updatedBy: userId,
         barcodes:
@@ -65,6 +103,8 @@ export class ProductsService {
         barcodes: true,
         category: true,
         brand: true,
+        origin: true,
+        tariff: true,
       },
     });
   }
@@ -130,12 +170,17 @@ export class ProductsService {
   }
 
   async findAll(query: ProductQueryDto, tenantId: string) {
-    const { page, limit, search } = query;
+    const { page, limit, search, categoryId, brandId } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = {
       tenantId,
       deletedAt: null,
+      categoryId: categoryId || undefined,
+      brandId: brandId || undefined,
+      originId: query.originId || undefined,
+      tariffId: (query as any).tariffId || undefined,
+      supplierId: (query as any).supplierId || undefined,
       ...(search
         ? {
           OR: [
@@ -162,7 +207,11 @@ export class ProductsService {
         include: {
           barcodes: true,
           category: true,
-          brand: true
+          brand: true,
+          origin: true,
+          tariff: true,
+          supplier: true,
+          inventory: true,
         },
       }),
       this.prisma.product.count({ where }),
@@ -186,7 +235,10 @@ export class ProductsService {
         barcodes: true,
         category: true,
         brand: true,
-        inventory: true
+        origin: true,
+        tariff: true,
+        supplier: true,
+        inventory: true,
       },
     });
 
@@ -231,12 +283,69 @@ export class ProductsService {
   ) {
     await this.findOne(id, tenantId);
 
-    const { barcodes, ...data } = updateProductDto;
+    const {
+      barcodes,
+      categoryId,
+      brandId,
+      originId,
+      tariffId,
+      supplierId,
+      compositionId,
+      ...data
+    } = updateProductDto;
+
+    // Validate Category
+    if (categoryId && categoryId !== '') {
+      await this.prisma.category.findFirstOrThrow({
+        where: { id: categoryId, tenantId, deletedAt: null },
+      });
+    }
+
+    // Validate Brand
+    if (brandId && brandId !== '') {
+      await this.prisma.brand.findFirstOrThrow({
+        where: { id: brandId, tenantId, deletedAt: null },
+      });
+    }
+
+    // Validate Origin
+    if (originId && originId !== '') {
+      await this.prisma.origin.findFirstOrThrow({
+        where: { id: originId, tenantId, deletedAt: null },
+      });
+    }
+
+    // Validate Tariff
+    if (tariffId && tariffId !== '') {
+      await this.prisma.tariff.findFirstOrThrow({
+        where: { id: tariffId, tenantId, deletedAt: null },
+      });
+    }
+
+    // Validate Supplier
+    if (supplierId && supplierId !== '') {
+      await this.prisma.supplier.findFirstOrThrow({
+        where: { id: supplierId, tenantId, deletedAt: null },
+      });
+    }
+
+    // Validate Composition
+    if (compositionId && compositionId !== '') {
+      await this.prisma.composition.findFirstOrThrow({
+        where: { id: compositionId, tenantId, deletedAt: null },
+      });
+    }
 
     return this.prisma.product.update({
       where: { id },
       data: {
         ...data,
+        categoryId: categoryId === '' ? null : categoryId,
+        brandId: brandId === '' ? null : brandId,
+        originId: originId === '' ? null : originId,
+        tariffId: tariffId === '' ? null : tariffId,
+        supplierId: supplierId === '' ? null : supplierId,
+        compositionId: compositionId === '' ? null : compositionId,
         updatedBy: userId,
         barcodes: barcodes
           ? {
@@ -247,7 +356,13 @@ export class ProductsService {
           }
           : undefined,
       },
-      include: { barcodes: true },
+      include: {
+        barcodes: true,
+        category: true,
+        brand: true,
+        origin: true,
+        tariff: true,
+      },
     });
   }
 
@@ -347,29 +462,33 @@ export class ProductsService {
       errors: [] as { row: number; error: string }[],
     };
 
-    // Pre-fetch categories and brands for the tenant to optimize lookups
-    const categories = await this.prisma.category.findMany({
-      where: { tenantId },
-    });
-    const brands = await this.prisma.brand.findMany({ where: { tenantId } });
+    // Pre-fetch related entities to optimize lookups
+    const [categories, brands, origins, tariffs, compositions, suppliers] = await Promise.all([
+      this.prisma.category.findMany({ where: { tenantId, deletedAt: null } }),
+      this.prisma.brand.findMany({ where: { tenantId, deletedAt: null } }),
+      this.prisma.origin.findMany({ where: { tenantId, deletedAt: null } }),
+      this.prisma.tariff.findMany({ where: { tenantId, deletedAt: null } }),
+      this.prisma.composition.findMany({ where: { tenantId, deletedAt: null } }),
+      this.prisma.supplier.findMany({ where: { tenantId, deletedAt: null } }),
+    ]);
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      const description = row.Description || row.description;
+      const reference = (row.Referencia || row.referencia || row.internalReference || row.InternalReference)?.toString();
+      const description = (row.Descripcion || row.descripcion || row.Description || row.description)?.toString();
 
-      if (!description) {
-        results.errors.push({ row: i + 2, error: 'Missing description' });
+      if (!reference && !description) {
+        results.errors.push({ row: i + 2, error: 'Falta Referencia o Descripción' });
         continue;
       }
 
       try {
         // Find or handle Category
         let categoryId: string | null = null;
-        const categoryName = row.Category || row.category;
+        const categoryName = row.Categoria || row.categoria || row.Category || row.category || row.Grupo || row.grupo;
         if (categoryName) {
           let category = categories.find(
-            (c) =>
-              c.name.toLowerCase() === categoryName.toString().toLowerCase(),
+            (c) => c.name.toLowerCase() === categoryName.toString().toLowerCase(),
           );
           if (!category) {
             category = await this.prisma.category.create({
@@ -382,7 +501,7 @@ export class ProductsService {
 
         // Find or handle Brand
         let brandId: string | null = null;
-        const brandName = row.Brand || row.brand;
+        const brandName = row.Marca || row.marca || row.Brand || row.brand;
         if (brandName) {
           let brand = brands.find(
             (b) => b.name.toLowerCase() === brandName.toString().toLowerCase(),
@@ -396,51 +515,93 @@ export class ProductsService {
           brandId = brand.id;
         }
 
-        const productData = {
-          description: description.toString(),
-          description_es: (
-            row.Description_ES || row.description_es
-          )?.toString(),
-          description_en: (
-            row.Description_EN || row.description_en
-          )?.toString(),
-          codigoArancelario: (
-            row.TariffCode ||
-            row.tariffCode ||
-            row.codigoArancelario
-          )?.toString(),
-          paisOrigen: (row.Origin || row.origin || row.paisOrigen)?.toString(),
-          weight:
-            row.Weight || row.weight
-              ? new Prisma.Decimal(row.Weight || row.weight)
-              : null,
-          volume:
-            row.Volume || row.volume
-              ? new Prisma.Decimal(row.Volume || row.volume)
-              : null,
-          unitsPerBox:
-            row.UnitsPerBox || row.unitsPerBox
-              ? parseInt(row.UnitsPerBox || row.unitsPerBox)
-              : 1,
-          price_a: new Prisma.Decimal(row.PriceA || row.price_a || 0),
-          price_b: new Prisma.Decimal(row.PriceB || row.price_b || 0),
-          price_c: new Prisma.Decimal(row.PriceC || row.price_c || 0),
-          price_d: new Prisma.Decimal(row.PriceD || row.price_d || 0),
-          price_e: new Prisma.Decimal(row.PriceE || row.price_e || 0),
+        // Find Origin
+        let originId: string | null = null;
+        const originName = row.Pais_Origen || row.pais_origen || row.Origin || row.origin || row.paisOrigen;
+        if (originName) {
+          const matchedOrigin = origins.find(
+            (o) =>
+              o.name.toLowerCase() === originName.toString().toLowerCase() ||
+              (o.code && o.code.toLowerCase() === originName.toString().toLowerCase()),
+          );
+          if (matchedOrigin) originId = matchedOrigin.id;
+        }
+
+        // Find Tariff
+        let tariffId: string | null = null;
+        const tariffCode = row.Arancel || row.arancel || row.TariffCode || row.tariffCode || row.codigoArancelario;
+        if (tariffCode) {
+          const matchedTariff = tariffs.find(
+            (t) => t.code.toString().toLowerCase() === tariffCode.toString().toLowerCase(),
+          );
+          if (matchedTariff) tariffId = matchedTariff.id;
+        }
+
+        // Find Composition
+        let compositionId: string | null = null;
+        const compName = row.Composicion || row.composicion || row.Composition || row.composition;
+        if (compName) {
+          let comp = compositions.find((c) => c.name.toLowerCase() === compName.toString().toLowerCase());
+          if (!comp) {
+            comp = await this.prisma.composition.create({
+              data: { name: compName.toString(), tenantId },
+            });
+            compositions.push(comp);
+          }
+          compositionId = comp.id;
+        }
+
+        // Find Supplier
+        let supplierId: string | null = null;
+        const suppName = row.Proveedor || row.proveedor || row.Supplier || row.supplier;
+        if (suppName) {
+          let supp = suppliers.find((s) => s.name.toLowerCase() === suppName.toString().toLowerCase());
+          if (supp) supplierId = supp.id;
+        }
+
+        const productData: any = {
+          description: description || reference,
+          description_es: row.Description_ES || row.description_es || description,
+          description_en: row.Description_EN || row.description_en || row.Description_Ingles,
+          description_pt: row.Description_PT || row.description_pt || row.Description_Portugues,
+          internalReference: reference,
+          showroomCode: row.Referencia_2 || row.referencia_2 || row.ShowroomCode,
+          codigoArancelario: tariffCode?.toString(),
+          paisOrigen: originName?.toString(),
+          weight: row.Peso || row.peso || row.Weight ? new Prisma.Decimal(row.Peso || row.peso || row.Weight) : null,
+          volume: row.Metros_Cubicos || row.Volume ? new Prisma.Decimal(row.Metros_Cubicos || row.Volume) : null,
+          volumeCubicFeet: row.Pies_Cubicos || row.VolumeCubicFeet ? new Prisma.Decimal(row.Pies_Cubicos || row.VolumeCubicFeet) : null,
+          unitsPerBox: parseInt(row.Cantidad_x_Bulto || row.UnitsPerBox || row.unitsPerBox || 1),
+          price_a: new Prisma.Decimal(row.PriceA || row.price_a || row.Precio_A || 0),
+          price_b: new Prisma.Decimal(row.PriceB || row.price_b || row.Precio_B || 0),
+          price_c: new Prisma.Decimal(row.PriceC || row.price_c || row.Precio_C || 0),
+          price_d: new Prisma.Decimal(row.PriceD || row.price_d || row.Precio_D || 0),
+          price_e: new Prisma.Decimal(row.PriceE || row.price_e || row.Precio_E || 0),
+          lastCifCost: row.Costo_CIF || row.CostoCIF || row.lastCifCost ? new Prisma.Decimal(row.Costo_CIF || row.CostoCIF || row.lastCifCost) : undefined,
+          lastFobCost: row.Costo_FOB || row.CostoFOB || row.lastFobCost ? new Prisma.Decimal(row.Costo_FOB || row.CostoFOB || row.lastFobCost) : undefined,
           categoryId,
           brandId,
+          originId,
+          tariffId,
+          compositionId,
+          supplierId,
           tenantId,
           updatedBy: userId,
         };
 
-        // Look for existing product by description (Exact match)
-        const existingProduct = await this.prisma.product.findFirst({
-          where: {
-            description: productData.description,
-            tenantId,
-            deletedAt: null,
-          },
-        });
+        // Matching Strategy: First by internalReference, then by description
+        let existingProduct: any = null;
+        if (reference) {
+          existingProduct = await this.prisma.product.findFirst({
+            where: { internalReference: reference, tenantId, deletedAt: null },
+          });
+        }
+
+        if (!existingProduct && description) {
+          existingProduct = await this.prisma.product.findFirst({
+            where: { description: description, tenantId, deletedAt: null },
+          });
+        }
 
         if (existingProduct) {
           await this.prisma.product.update({
@@ -449,12 +610,25 @@ export class ProductsService {
           });
           results.updated++;
         } else {
-          await this.prisma.product.create({
+          const newProduct = await this.prisma.product.create({
             data: {
               ...productData,
               createdBy: userId,
             },
           });
+
+          // Handle Barcode for new products or as additional barcodes
+          const barcode = row.Codigo_Barra || row.barcode || row.Barcode;
+          if (barcode) {
+            await this.prisma.productBarcode.create({
+              data: {
+                barcode: barcode.toString(),
+                productId: newProduct.id,
+                tenantId,
+                isDefault: true,
+              },
+            });
+          }
           results.created++;
         }
       } catch (error) {

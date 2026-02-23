@@ -18,12 +18,22 @@ const customerSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   customerType: z.enum(['CASH', 'CREDIT']),
-  creditLimit: z.preprocess((val) => Number(val), z.number().min(0).default(0)),
-  paymentTermDays: z.preprocess((val) => Number(val), z.number().int().min(0).default(0)),
+  creditLimit: z.number().min(0).default(0),
+  paymentTermDays: z.number().int().min(0).default(0),
   notes: z.string().optional(),
 });
 
-type CustomerFormData = z.infer<typeof customerSchema>;
+type CustomerFormData = {
+  name: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  customerType: 'CASH' | 'CREDIT';
+  creditLimit: number;
+  paymentTermDays: number;
+  notes?: string;
+};
 
 export default function CustomerFormPage() {
   const router = useRouter();
@@ -34,7 +44,7 @@ export default function CustomerFormPage() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
 
-  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<CustomerFormData>({
+  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<any>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
       name: '',
@@ -71,7 +81,7 @@ export default function CustomerFormPage() {
         } catch (error) {
           console.error('Error fetching customer:', error);
           toast.error('Error al cargar datos del cliente');
-          router.push('/dashboard/clientes/consulta');
+          router.push('/dashboard/clientes/administracion');
         } finally {
           setInitialLoading(false);
         }
@@ -96,7 +106,7 @@ export default function CustomerFormPage() {
         });
         toast.success('Cliente creado exitosamente');
       }
-      router.push('/dashboard/clientes/consulta');
+      router.push('/dashboard/clientes/administracion');
     } catch (error: any) {
       console.error('Error saving customer:', error);
       toast.error(error.message || 'Error al guardar cliente');
@@ -159,7 +169,7 @@ export default function CustomerFormPage() {
                       labelPlacement="outside"
                       startContent={<User className="text-text-tertiary w-4 h-4" />}
                       isInvalid={!!errors.name}
-                      errorMessage={errors.name?.message}
+                      errorMessage={errors.name?.message as string}
                       classNames={{
                         inputWrapper: "bg-bg-base border-border-subtle group-data-[focus=true]:border-brand-primary group-data-[focus=true]:ring-1 group-data-[focus=true]:ring-brand-primary/20 transition-all",
                         label: "text-text-secondary font-medium"
@@ -219,7 +229,7 @@ export default function CustomerFormPage() {
                       labelPlacement="outside"
                       startContent={<Mail className="text-text-tertiary w-4 h-4" />}
                       isInvalid={!!errors.email}
-                      errorMessage={errors.email?.message}
+                      errorMessage={errors.email?.message as string}
                       classNames={{
                         inputWrapper: "bg-bg-base border-border-subtle group-data-[focus=true]:border-brand-primary transition-all",
                         label: "text-text-secondary font-medium"
@@ -299,10 +309,10 @@ export default function CustomerFormPage() {
                         label: "text-text-secondary font-medium"
                       }}
                     >
-                      <SelectItem key="CASH" value="CASH" startContent={<div className="w-2 h-2 rounded-full bg-brand-accent" />}>
+                      <SelectItem key="CASH" startContent={<div className="w-2 h-2 rounded-full bg-brand-accent" />}>
                         Contado
                       </SelectItem>
-                      <SelectItem key="CREDIT" value="CREDIT" startContent={<div className="w-2 h-2 rounded-full bg-brand-secondary" />}>
+                      <SelectItem key="CREDIT" startContent={<div className="w-2 h-2 rounded-full bg-brand-secondary" />}>
                         Crédito
                       </SelectItem>
                     </Select>
@@ -317,6 +327,8 @@ export default function CustomerFormPage() {
                       render={({ field }) => (
                         <Input
                           {...field}
+                          value={field.value?.toString() || ''}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                           type="number"
                           label="Límite de Crédito"
                           placeholder="0.00"
@@ -324,7 +336,7 @@ export default function CustomerFormPage() {
                           labelPlacement="outside"
                           startContent={<span className="text-text-tertiary font-semibold">$</span>}
                           isInvalid={!!errors.creditLimit}
-                          errorMessage={errors.creditLimit?.message}
+                          errorMessage={errors.creditLimit?.message as string}
                           classNames={{
                             inputWrapper: "bg-bg-base border-border-subtle group-data-[focus=true]:border-brand-primary transition-all",
                             label: "text-text-secondary font-medium"
@@ -338,6 +350,8 @@ export default function CustomerFormPage() {
                       render={({ field }) => (
                         <Input
                           {...field}
+                          value={field.value?.toString() || ''}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
                           type="number"
                           label="Días de Crédito"
                           placeholder="30"

@@ -125,9 +125,7 @@ export default function InventoryHubPage() {
             icon: BarChart2,
             iconColor: 'text-success',
             iconBgColor: 'bg-success/10',
-            href: '/dashboard/inventario/reportes',
-            hasSubmodules: true,
-            submodulesCount: 5 // Placeholder based on generic reporting needs
+            href: '/dashboard/inventario/reportes'
         },
         {
             title: 'Herramientas',

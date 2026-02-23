@@ -20,6 +20,8 @@ import { receivePurchaseOrderSchema } from './dto/receive-purchase-order.dto';
 import type { ReceivePurchaseOrderDto } from './dto/receive-purchase-order.dto';
 import { purchaseQuerySchema } from './dto/purchase-query.dto';
 import type { PurchaseQueryDto } from './dto/purchase-query.dto';
+import { purchaseEntryQuerySchema } from './dto/purchase-entry-query.dto';
+import type { PurchaseEntryQueryDto } from './dto/purchase-entry-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ZodValidationPipe } from '../products/pipes/zod-validation.pipe';
 import { RequestContext } from '../common/request-context';
@@ -27,7 +29,7 @@ import { RequestContext } from '../common/request-context';
 @Controller('purchases')
 @UseGuards(JwtAuthGuard)
 export class PurchasesController {
-  constructor(private readonly purchasesService: PurchasesService) {}
+  constructor(private readonly purchasesService: PurchasesService) { }
 
   private getContext() {
     const store = RequestContext.getStore();
@@ -38,8 +40,10 @@ export class PurchasesController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createPurchaseOrderSchema))
-  create(@Body() createPurchaseOrderDto: CreatePurchaseOrderDto) {
+  create(
+    @Body(new ZodValidationPipe(createPurchaseOrderSchema))
+    createPurchaseOrderDto: CreatePurchaseOrderDto,
+  ) {
     const { tenantId, userId } = this.getContext();
     return this.purchasesService.create(
       createPurchaseOrderDto,
@@ -50,7 +54,7 @@ export class PurchasesController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  uploadFromExcel(@UploadedFile() file: Express.Multer.File) {
+  uploadFromExcel(@UploadedFile() file: any) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -59,10 +63,9 @@ export class PurchasesController {
   }
 
   @Patch(':id/receive')
-  @UsePipes(new ZodValidationPipe(receivePurchaseOrderSchema))
   receive(
     @Param('id') id: string,
-    @Body() receivePurchaseOrderDto: ReceivePurchaseOrderDto,
+    @Body(new ZodValidationPipe(receivePurchaseOrderSchema)) receivePurchaseOrderDto: ReceivePurchaseOrderDto,
   ) {
     const { tenantId, userId } = this.getContext();
     return this.purchasesService.receive(
@@ -81,6 +84,14 @@ export class PurchasesController {
     return this.purchasesService.findAll(query, tenantId);
   }
 
+  @Get('entries/history')
+  getEntries(
+    @Query(new ZodValidationPipe(purchaseEntryQuerySchema)) query: PurchaseEntryQueryDto,
+  ) {
+    const { tenantId } = this.getContext();
+    return this.purchasesService.getPurchaseEntries(query, tenantId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     const { tenantId } = this.getContext();
@@ -91,5 +102,11 @@ export class PurchasesController {
   getPurchaseHistory(@Param('productId') productId: string) {
     const { tenantId } = this.getContext();
     return this.purchasesService.getPurchaseHistory(productId, tenantId);
+  }
+
+  @Post(':id/reverse')
+  reverse(@Param('id') id: string) {
+    const { tenantId, userId } = this.getContext();
+    return this.purchasesService.reverse(id, tenantId, userId);
   }
 }

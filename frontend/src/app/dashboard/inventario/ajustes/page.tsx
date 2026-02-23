@@ -62,12 +62,12 @@ export default function InventoryAdjustmentPage() {
         if (!session?.accessToken) return;
 
         try {
-            const [prodData, branchData] = await Promise.all([
-                api<Product[]>('/products', { method: 'GET', accessToken: session.accessToken }),
+            const [prodResponse, branchData] = await Promise.all([
+                api<{ items: Product[] }>('/products?limit=100', { method: 'GET', accessToken: session.accessToken }),
                 api<Branch[]>('/branches', { method: 'GET', accessToken: session.accessToken }),
             ]);
-            setProducts(prodData);
-            setBranches(branchData);
+            setProducts(prodResponse?.items || []);
+            setBranches(branchData || []);
         } catch (err) {
             toast.error('Error al cargar datos básicos');
         } finally {
@@ -199,11 +199,19 @@ export default function InventoryAdjustmentPage() {
                                 className="w-full"
                                 isLoading={loading}
                                 onSelectionChange={(key) => setFormData({ ...formData, productId: key as string })}
+                                classNames={{
+                                    popoverContent: "bg-white shadow-xl border border-[#E2E8F0]",
+                                    listbox: "bg-white",
+                                }}
                             >
                                 {products.map((p) => (
-                                    <AutocompleteItem key={p.id} textValue={p.description}>
+                                    <AutocompleteItem
+                                        key={p.id}
+                                        textValue={p.description}
+                                        className="hover:bg-[#F8FAFC]"
+                                    >
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-medium">{p.description}</span>
+                                            <span className="text-sm font-medium text-[#2C3E50]">{p.description}</span>
                                             <span className="text-xs text-[#5A6C7D]">{p.brand?.name || 'Evolution ZL'}</span>
                                         </div>
                                     </AutocompleteItem>
@@ -222,10 +230,18 @@ export default function InventoryAdjustmentPage() {
                                 className="w-full"
                                 isLoading={loading}
                                 onSelectionChange={(key) => setFormData({ ...formData, branchId: key as string })}
+                                classNames={{
+                                    popoverContent: "bg-white shadow-xl border border-[#E2E8F0]",
+                                    listbox: "bg-white",
+                                }}
                             >
                                 {branches.map((b) => (
-                                    <AutocompleteItem key={b.id} textValue={b.name}>
-                                        <span className="text-sm font-medium">{b.name}</span>
+                                    <AutocompleteItem
+                                        key={b.id}
+                                        textValue={b.name}
+                                        className="hover:bg-[#F8FAFC]"
+                                    >
+                                        <span className="text-sm font-medium text-[#2C3E50]">{b.name}</span>
                                     </AutocompleteItem>
                                 ))}
                             </Autocomplete>

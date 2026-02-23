@@ -11,7 +11,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <HeroUIProvider navigate={router.push}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
         <AppModalProvider>
           <Toaster richColors position="top-center" />
           {children}

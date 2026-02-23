@@ -48,16 +48,14 @@ import type {
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) { }
 
-  // ==================== CUSTOMERS ====================
+  // ==================== CUSTOMERS LIST & CREATE ====================
 
   @Post()
   async createCustomer(
     @Body(new ZodValidationPipe(createCustomerSchema)) dto: CreateCustomerDto,
   ) {
     const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
     return this.customersService.createCustomer(dto, store.tenantId, store.userId);
   }
 
@@ -73,7 +71,6 @@ export class CustomersController {
   ) {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
-
     return this.customersService.listCustomers(store.tenantId, {
       search,
       customerType,
@@ -85,82 +82,23 @@ export class CustomersController {
     });
   }
 
-  @Get(':id')
-  async getCustomer(@Param('id') id: string) {
+  // ==================== REPORTS (static, must be before :id) ====================
+
+  @Get('reports/aging')
+  async getAgingReport() {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
-    return this.customersService.getCustomer(id, store.tenantId);
+    return this.customersService.getAgingReport(store.tenantId);
   }
 
-  @Put(':id')
-  async updateCustomer(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(updateCustomerSchema)) dto: UpdateCustomerDto,
-  ) {
-    const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
-    return this.customersService.updateCustomer(id, dto, store.tenantId, store.userId);
-  }
-
-  @Delete(':id')
-  async deleteCustomer(@Param('id') id: string) {
-    const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
-    return this.customersService.deleteCustomer(id, store.tenantId, store.userId);
-  }
-
-  @Post(':id/block')
-  async blockCustomer(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(blockCustomerSchema)) dto: BlockCustomerDto,
-  ) {
-    const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
-    return this.customersService.blockCustomer(id, dto, store.tenantId, store.userId);
-  }
-
-  @Post(':id/unblock')
-  async unblockCustomer(@Param('id') id: string) {
-    const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
-    return this.customersService.unblockCustomer(id, store.tenantId, store.userId);
-  }
-
-  @Post(':id/approve')
-  async approveCustomer(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(approveCustomerSchema)) dto: ApproveCustomerDto,
-  ) {
-    const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
-    return this.customersService.approveCustomer(id, dto, store.tenantId, store.userId);
-  }
-
-  @Get(':id/statement')
-  async getAccountStatement(
-    @Param('id') id: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
+  @Get('reports/segmentation')
+  async getSegmentationReport() {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
-    return this.customersService.getAccountStatement(id, store.tenantId, {
-      startDate,
-      endDate,
-    });
+    return this.customersService.getSegmentationStats(store.tenantId);
   }
 
-  // ==================== CUSTOMER TRANSACTIONS (CxC) ====================
+  // ==================== TRANSACTIONS (static routes before :id) ====================
 
   @Post('transactions')
   async createTransaction(
@@ -168,9 +106,7 @@ export class CustomersController {
     dto: CreateCustomerTransactionDto,
   ) {
     const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
     return this.customersService.createTransaction(dto, store.tenantId, store.userId);
   }
 
@@ -186,7 +122,6 @@ export class CustomersController {
   ) {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
-
     return this.customersService.listTransactions(store.tenantId, {
       customerId,
       branchId,
@@ -204,13 +139,11 @@ export class CustomersController {
     @Body(new ZodValidationPipe(voidTransactionSchema)) dto: VoidTransactionDto,
   ) {
     const store = RequestContext.getStore();
-    if (!store?.tenantId || !store?.userId) {
-      throw new UnauthorizedException();
-    }
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
     return this.customersService.voidTransaction(id, dto, store.tenantId, store.userId);
   }
 
-  // ==================== CUSTOMER AREAS ====================
+  // ==================== AREAS (static before :id) ====================
 
   @Post('areas')
   async createArea(
@@ -245,12 +178,11 @@ export class CustomersController {
     return this.customersService.deleteArea(id, store.tenantId);
   }
 
-  // ==================== CUSTOMER SUB-AREAS ====================
+  // ==================== SUB-AREAS (static before :id) ====================
 
   @Post('sub-areas')
   async createSubArea(
-    @Body(new ZodValidationPipe(createCustomerSubAreaSchema))
-    dto: CreateCustomerSubAreaDto,
+    @Body(new ZodValidationPipe(createCustomerSubAreaSchema)) dto: CreateCustomerSubAreaDto,
   ) {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
@@ -267,8 +199,7 @@ export class CustomersController {
   @Put('sub-areas/:id')
   async updateSubArea(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(updateCustomerSubAreaSchema))
-    dto: UpdateCustomerSubAreaDto,
+    @Body(new ZodValidationPipe(updateCustomerSubAreaSchema)) dto: UpdateCustomerSubAreaDto,
   ) {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
@@ -282,7 +213,7 @@ export class CustomersController {
     return this.customersService.deleteSubArea(id, store.tenantId);
   }
 
-  // ==================== SALESPEOPLE ====================
+  // ==================== SALESPEOPLE (static before :id) ====================
 
   @Post('salespeople')
   async createSalesperson(
@@ -320,18 +251,67 @@ export class CustomersController {
     return this.customersService.deleteSalesperson(id, store.tenantId);
   }
 
-  // ==================== REPORTS ====================
+  // ==================== DYNAMIC :id CUSTOMER ROUTES ====================
 
-  @Get('reports/aging')
-  async getAgingReport() {
+  @Get(':id/statement')
+  async getAccountStatement(
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
-    return this.customersService.getAgingReport(store.tenantId);
+    return this.customersService.getAccountStatement(id, store.tenantId, { startDate, endDate });
   }
-  @Get('reports/segmentation')
-  async getSegmentationReport() {
+
+  @Post(':id/block')
+  async blockCustomer(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(blockCustomerSchema)) dto: BlockCustomerDto,
+  ) {
+    const store = RequestContext.getStore();
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
+    return this.customersService.blockCustomer(id, dto, store.tenantId, store.userId);
+  }
+
+  @Post(':id/unblock')
+  async unblockCustomer(@Param('id') id: string) {
+    const store = RequestContext.getStore();
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
+    return this.customersService.unblockCustomer(id, store.tenantId, store.userId);
+  }
+
+  @Post(':id/approve')
+  async approveCustomer(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(approveCustomerSchema)) dto: ApproveCustomerDto,
+  ) {
+    const store = RequestContext.getStore();
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
+    return this.customersService.approveCustomer(id, dto, store.tenantId, store.userId);
+  }
+
+  @Get(':id')
+  async getCustomer(@Param('id') id: string) {
     const store = RequestContext.getStore();
     if (!store?.tenantId) throw new UnauthorizedException();
-    return this.customersService.getSegmentationStats(store.tenantId);
+    return this.customersService.getCustomer(id, store.tenantId);
+  }
+
+  @Put(':id')
+  async updateCustomer(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateCustomerSchema)) dto: UpdateCustomerDto,
+  ) {
+    const store = RequestContext.getStore();
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
+    return this.customersService.updateCustomer(id, dto, store.tenantId, store.userId);
+  }
+
+  @Delete(':id')
+  async deleteCustomer(@Param('id') id: string) {
+    const store = RequestContext.getStore();
+    if (!store?.tenantId || !store?.userId) throw new UnauthorizedException();
+    return this.customersService.deleteCustomer(id, store.tenantId, store.userId);
   }
 }

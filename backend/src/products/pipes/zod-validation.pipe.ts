@@ -13,8 +13,12 @@ export class ZodValidationPipe implements PipeTransform {
       return this.schema.parse(value);
     } catch (error) {
       if (error instanceof ZodError) {
+        const detail = error.issues
+          .map((i) => `${i.path.join('.')}: ${i.message}`)
+          .join(', ');
+        console.error('❌ Validation Error:', detail);
         throw new BadRequestException({
-          message: 'Validation failed',
+          message: `Validation failed: ${detail}`,
           errors: error.issues,
         });
       }

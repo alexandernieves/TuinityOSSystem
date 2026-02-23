@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   UsePipes,
+  UseGuards,
 } from '@nestjs/common';
 import { BranchesService } from './branches.service';
 import {
@@ -19,7 +20,10 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PermissionKey } from '../auth/enums/permission-key.enum';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
 @Controller('branches')
+@UseGuards(JwtAuthGuard)
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 

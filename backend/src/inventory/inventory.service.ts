@@ -12,7 +12,7 @@ import { Prisma, InventoryMovementType } from '@prisma/client';
 export class InventoryService {
   private readonly logger = new Logger(InventoryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createMovement(
     dto: CreateMovementDto,
@@ -112,7 +112,7 @@ export class InventoryService {
       if (Number(inventory.quantity) < Number(inventory.reserved)) {
         throw new BadRequestException(
           `Insufficient stock. Cannot reduce quantity below reserved amount (${inventory.reserved}). ` +
-            `Current: ${inventory.quantity}`,
+          `Current: ${inventory.quantity}`,
         );
       }
 
@@ -136,47 +136,125 @@ export class InventoryService {
   }
 
   async findGlobalInventory(tenantId: string) {
-    // Return products and their stock summed across all branches
-    const inventories = await this.prisma.inventory.findMany({
-      where: { tenantId },
+    const products = await this.prisma.product.findMany({
+      where: { tenantId, deletedAt: null },
       include: {
-        product: {
-          select: {
-            id: true,
-            description: true,
-            brand: { select: { name: true } },
-          },
+        brand: { select: { name: true } },
+        category: { select: { name: true } },
+        inventory: {
+          include: { branch: { select: { name: true } } },
         },
-        branch: { select: { name: true } },
+        barcodes: { where: { isDefault: true }, take: 1 },
       },
     });
 
-    // Group by product
-    const productsMap = new Map();
-    inventories.forEach((inv: any) => {
-      if (!productsMap.has(inv.productId)) {
-        productsMap.set(inv.productId, {
-          id: inv.product.id,
-          description: inv.product.description,
-          brandName: inv.product.brand?.name || 'N/A',
-          totalQuantity: 0,
-          minStock: 0, // Initialize to 0 and accumulate
-          lastFobCost: Number(inv.product.lastFobCost || 0),
-          lastCifCost: Number(inv.product.lastCifCost || 0),
-          branches: [],
-        });
-      }
-      const p = productsMap.get(inv.productId);
-      const qty = Number(inv.quantity);
-      p.totalQuantity += qty;
-      p.minStock += inv.minStock || 0; // Accumulate minStock from all branches
-      p.branches.push({
-        branchName: inv.branch.name,
-        quantity: qty,
-      });
+    return products.map((p) => {
+      const existencias = p.inventory.reduce((sum, inv) => sum + Number(inv.quantity), 0);
+      const reservas = p.inventory.reduce((sum, inv) => sum + Number(inv.reserved), 0);
+      const disponible = existencias - reservas;
+
+      return {
+        id: p.id,
+        reference: p.internalReference || '---',
+        barcode: p.barcodes[0]?.barcode || '---',
+        description: p.description,
+        brandName: p.brand?.name || '---',
+        categoryName: p.category?.name || '---',
+        minStock: p.minStock || 0,
+        totalQuantity: existencias,
+        totalReserved: reservas,
+        totalAvailable: disponible,
+        branchDetails: p.inventory.map((inv) => ({
+          branchId: inv.branchId,
+          branchName: inv.branch.name,
+          quantity: Number(inv.quantity),
+          reserved: Number(inv.reserved),
+          available: Number(inv.quantity) - Number(inv.reserved),
+        })),
+      };
+    });
+  }
+
+  async getLowStockProducts(tenantId: string) {
+    this.logger.log(`Fetching low stock products for tenant: ${tenantId}`);
+
+    // 1. Get all products with minStock > 0 that are not deleted
+    const products = await this.prisma.product.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        minStock: { gt: 0 }
+      },
+      include: {
+        brand: { select: { name: true } },
+        inventory: true,
+        barcodes: { where: { isDefault: true }, take: 1 },
+      },
     });
 
-    return Array.from(productsMap.values());
+    const lowStockList: any[] = [];
+
+    for (const p of products) {
+      // 2. Calculate current stock across all branches
+      const existencias = p.inventory.reduce((sum, inv) => sum + Number(inv.quantity), 0);
+      const reservas = p.inventory.reduce((sum, inv) => sum + Number(inv.reserved), 0);
+
+      // 3. Get incoming stock from pending/partial purchase orders
+      const incomingItems = await this.prisma.purchaseOrderItem.findMany({
+        where: {
+          productId: p.id,
+          tenantId,
+          purchaseOrder: {
+            status: { in: ['DRAFT', 'PARTIAL'] }
+          }
+        }
+      });
+      const porLlegar = incomingItems.reduce((sum, item) => sum + (item.quantity - item.receivedQuantity), 0);
+
+      const disponible = existencias - reservas + porLlegar;
+
+      if (disponible <= (p.minStock || 0)) {
+        // 4. Get last purchase date
+        const lastPurchase = await this.prisma.purchaseOrder.findFirst({
+          where: {
+            tenantId,
+            items: { some: { productId: p.id } },
+            status: 'RECEIVED'
+          },
+          orderBy: { receivedDate: 'desc' },
+          select: { receivedDate: true }
+        });
+
+        // 5. Get last sale date
+        const lastSale = await this.prisma.invoiceLine.findFirst({
+          where: {
+            tenantId,
+            productId: p.id,
+            invoice: { status: 'ISSUED' }
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true }
+        });
+
+        lowStockList.push({
+          id: p.id,
+          reference: p.internalReference || '---',
+          barcode: p.barcodes[0]?.barcode || '---',
+          description: p.description,
+          minStock: p.minStock || 0,
+          quantity: existencias,
+          incoming: porLlegar,
+          reserved: reservas,
+          available: disponible,
+          lastPurchaseDate: lastPurchase?.receivedDate || null,
+          lastSaleDate: lastSale?.createdAt || null,
+          brandName: p.brand?.name || '---',
+        });
+      }
+    }
+
+    this.logger.log(`Returning ${lowStockList.length} low stock products for tenant ${tenantId}`);
+    return lowStockList;
   }
 
   async getMovementsByProduct(
@@ -416,5 +494,317 @@ export class InventoryService {
     }
 
     return Array.from(resultMap.values());
+  }
+
+  async createCountSession(tenantId: string, branchId: string, userId: string, description?: string) {
+    return this.prisma.inventoryCount.create({
+      data: {
+        tenantId,
+        branchId,
+        createdBy: userId,
+        description,
+        status: 'DRAFT',
+      },
+      include: {
+        items: true,
+      }
+    });
+  }
+
+  async getActiveCountSession(tenantId: string, branchId: string) {
+    const session = await this.prisma.inventoryCount.findFirst({
+      where: {
+        tenantId,
+        branchId,
+        status: { in: ['DRAFT', 'IN_PROGRESS'] },
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                description: true,
+                barcodes: { where: { isDefault: true }, take: 1 },
+                internalReference: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!session) return null;
+
+    return {
+      ...session,
+      totalItems: session.items.reduce((sum, item) => sum + item.countedQuantity, 0),
+      totalEntries: session.items.length
+    };
+  }
+
+  async addCountItem(countId: string, productId: string, quantity: number, tenantId: string) {
+    const inventory = await this.prisma.inventory.findFirst({
+      where: { tenantId, productId }
+    });
+
+    const expected = inventory ? Number(inventory.quantity) : 0;
+
+    return this.prisma.inventoryCountItem.upsert({
+      where: {
+        inventoryCountId_productId: {
+          inventoryCountId: countId,
+          productId,
+        }
+      },
+      create: {
+        inventoryCountId: countId,
+        productId,
+        expectedQuantity: expected,
+        countedQuantity: quantity,
+        variance: quantity - expected,
+      },
+      update: {
+        countedQuantity: { increment: quantity },
+        // Variance will be recalculated on close or UI can do it
+      }
+    });
+  }
+
+  async completeCountSession(countId: string, tenantId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const count = await tx.inventoryCount.findUnique({
+        where: { id: countId },
+        include: { items: true }
+      });
+
+      if (!count || count.tenantId !== tenantId) throw new NotFoundException('Conteo no encontrado');
+
+      return tx.inventoryCount.update({
+        where: { id: countId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        }
+      });
+    });
+  }
+
+  async transferBulk(dto: any, tenantId: string, userId: string) {
+    const { fromBranchId, toBranchId, reason, items } = dto;
+
+    if (fromBranchId === toBranchId) {
+      throw new BadRequestException('Las sucursales de origen y destino deben ser diferentes');
+    }
+
+    const referenceId = `TRF-${Date.now().toString().slice(-6)}`;
+
+    return this.prisma.$transaction(async (tx) => {
+      const results: any[] = [];
+
+      for (const item of items) {
+        const { productId, quantity } = item;
+
+        // 1. Check source stock
+        const sourceInventory = await tx.inventory.findUnique({
+          where: {
+            tenantId_branchId_productId: {
+              tenantId,
+              branchId: fromBranchId,
+              productId,
+            },
+          },
+        });
+
+        if (!sourceInventory || Number(sourceInventory.quantity) < quantity) {
+          const product = await tx.product.findUnique({ where: { id: productId }, select: { description: true } });
+          throw new BadRequestException(`Stock insuficiente para ${product?.description || 'producto'} en sucursal origen`);
+        }
+
+        // 2. Decrement source
+        await tx.inventory.update({
+          where: { id: sourceInventory.id },
+          data: { quantity: { decrement: quantity } },
+        });
+
+        // 3. Create OUT movement
+        await tx.inventoryMovement.create({
+          data: {
+            tenantId,
+            branchId: fromBranchId,
+            productId,
+            type: 'TRANSFER_OUT',
+            quantity: -quantity, // Must be negative to correctly sum stock
+            reason: reason || 'Transferencia Bulk',
+            referenceId,
+            createdBy: userId,
+          },
+        });
+
+        // 4. Increment destination
+        await tx.inventory.upsert({
+          where: {
+            tenantId_branchId_productId: {
+              tenantId,
+              branchId: toBranchId,
+              productId,
+            },
+          },
+          create: {
+            tenantId,
+            branchId: toBranchId,
+            productId,
+            quantity: quantity,
+          },
+          update: {
+            quantity: { increment: quantity },
+          },
+        });
+
+        // 5. Create IN movement
+        await tx.inventoryMovement.create({
+          data: {
+            tenantId,
+            branchId: toBranchId,
+            productId,
+            type: 'TRANSFER_IN',
+            quantity,
+            reason: reason || 'Transferencia Bulk',
+            referenceId,
+            createdBy: userId,
+          },
+        });
+
+        results.push({ productId, quantity, status: 'success' });
+      }
+
+      return {
+        referenceId,
+        itemsProcessed: results.length,
+        status: 'COMPLETED'
+      };
+    });
+  }
+
+  async recalculateInventory(tenantId: string) {
+    const startTime = Date.now();
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Sum up all movements summary by Product and Branch
+      const movementSummaries = await tx.inventoryMovement.groupBy({
+        by: ['productId', 'branchId'],
+        where: { tenantId },
+        _sum: {
+          quantity: true,
+        },
+      });
+
+      // 2. Aggregate all reserved quantities from pending sales
+      const salesItems = await tx.saleItem.findMany({
+        where: {
+          tenantId,
+          sale: {
+            status: { in: ['PENDING', 'APPROVED_ORDER', 'PACKING', 'PARTIAL'] as any }
+          }
+        },
+        include: {
+          sale: { select: { branchId: true } }
+        }
+      });
+
+      const reservedMap = new Map<string, number>();
+      salesItems.forEach(item => {
+        const key = `${item.productId}-${item.sale.branchId}`;
+        reservedMap.set(key, (reservedMap.get(key) || 0) + Number(item.quantity));
+      });
+
+      // 3. Get all current Inventory records
+      const currentInventories = await tx.inventory.findMany({
+        where: { tenantId },
+      });
+
+      // Create a map for quick lookup
+      const invMap = new Map<string, { id: string, qty: number, reserved: number }>();
+      currentInventories.forEach(inv => {
+        invMap.set(`${inv.productId}-${inv.branchId}`, {
+          id: inv.id,
+          qty: Number(inv.quantity),
+          reserved: Number(inv.reserved)
+        });
+      });
+
+      let itemsProcessed = 0;
+      let discrepanciesFound = 0;
+      const processedKeys = new Set<string>();
+
+      // 4. Process all branch/product pairs that HAVE movements
+      for (const summary of movementSummaries) {
+        const key = `${summary.productId}-${summary.branchId}`;
+        const calcQty = Number(summary._sum.quantity || 0);
+        const calcReserved = reservedMap.get(key) || 0;
+
+        const current = invMap.get(key);
+
+        if (!current || current.qty !== calcQty || current.reserved !== calcReserved) {
+          discrepanciesFound++;
+          await tx.inventory.upsert({
+            where: {
+              tenantId_branchId_productId: {
+                tenantId,
+                productId: summary.productId,
+                branchId: summary.branchId,
+              }
+            },
+            create: {
+              tenantId,
+              productId: summary.productId,
+              branchId: summary.branchId,
+              quantity: calcQty,
+              reserved: calcReserved
+            },
+            update: {
+              quantity: calcQty,
+              reserved: calcReserved
+            }
+          });
+        }
+        processedKeys.add(key);
+        itemsProcessed++;
+      }
+
+      // 5. Reset to 0 any inventory record that has NO movements but exists
+      for (const inv of currentInventories) {
+        const key = `${inv.productId}-${inv.branchId}`;
+        if (!processedKeys.has(key)) {
+          const calcReserved = reservedMap.get(key) || 0;
+          if (Number(inv.quantity) !== 0 || Number(inv.reserved) !== calcReserved) {
+            discrepanciesFound++;
+            await tx.inventory.update({
+              where: { id: inv.id },
+              data: {
+                quantity: 0,
+                reserved: calcReserved
+              }
+            });
+          }
+          itemsProcessed++;
+        }
+      }
+
+      const timeElapsed = ((Date.now() - startTime) / 1000).toFixed(2) + 's';
+
+      return {
+        success: true,
+        message: 'Recálculo finalizado con éxito',
+        details: {
+          itemsProcessed,
+          discrepanciesFound,
+          timeElapsed
+        }
+      };
+    }, {
+      timeout: 60000 // 1 minute timeout for heavy calculations
+    });
   }
 }

@@ -16,9 +16,8 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { ProductsService } from './products.service';
+import { StorageService } from '../storage/storage.service';
 import { createProductSchema } from './dto/create-product.dto';
 import type { CreateProductDto } from './dto/create-product.dto';
 import { updateProductSchema } from './dto/update-product.dto';
@@ -36,7 +35,10 @@ import { RequestContext } from '../common/request-context';
 @Controller('products')
 @UseGuards(JwtAuthGuard)
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly storageService: StorageService,
+  ) {}
 
   private getContext() {
     const store = RequestContext.getStore();
@@ -48,9 +50,19 @@ export class ProductsController {
 
   @Post()
   @RequirePermissions(PermissionKey.EDIT_PRODUCTS)
-  @UsePipes(new ZodValidationPipe(createProductSchema))
-  create(@Body() createProductDto: CreateProductDto) {
+  @UseInterceptors(FileInterceptor('image'))
+  async create(
+    @Body(new ZodValidationPipe(createProductSchema))
+    createProductDto: CreateProductDto,
+    @UploadedFile() file?: any,
+  ) {
     const { tenantId, userId } = this.getContext();
+    if (file) {
+      createProductDto.mainImageUrl = await this.storageService.uploadFile(
+        file,
+        'products',
+      );
+    }
     return this.productsService.create(createProductDto, tenantId, userId);
   }
 
@@ -70,9 +82,20 @@ export class ProductsController {
 
   @Patch(':id')
   @RequirePermissions(PermissionKey.EDIT_PRODUCTS)
-  @UsePipes(new ZodValidationPipe(updateProductSchema))
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+  @UseInterceptors(FileInterceptor('image'))
+  async update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateProductSchema))
+    updateProductDto: UpdateProductDto,
+    @UploadedFile() file?: any,
+  ) {
     const { tenantId, userId } = this.getContext();
+    if (file) {
+      updateProductDto.mainImageUrl = await this.storageService.uploadFile(
+        file,
+        'products',
+      );
+    }
     return this.productsService.update(id, updateProductDto, tenantId, userId);
   }
 
@@ -86,41 +109,26 @@ export class ProductsController {
 
   @Post('bulk/prices')
   @RequirePermissions(PermissionKey.BULK_EDIT_PRICES)
-  @UsePipes(new ZodValidationPipe(bulkUpdatePricesSchema))
-  bulkUpdatePrices(@Body() dto: BulkUpdatePricesDto) {
+  bulkUpdatePrices(
+    @Body(new ZodValidationPipe(bulkUpdatePricesSchema))
+    dto: BulkUpdatePricesDto,
+  ) {
     const { tenantId, userId } = this.getContext();
     return this.productsService.bulkUpdatePrices(dto.updates, tenantId, userId);
   }
 
   @Post(':id/image')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/products/images',
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(
-            null,
-            `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
-          );
-        },
-      }),
-    }),
-  )
-  async uploadImage(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@Param('id') id: string, @UploadedFile() file: any) {
     if (!file) throw new BadRequestException('No file uploaded');
     const { tenantId, userId } = this.getContext();
-    const imageUrl = `/uploads/products/images/${file.filename}`;
+    const imageUrl = await this.storageService.uploadFile(file, 'products');
     return this.productsService.updateImage(id, imageUrl, tenantId, userId);
   }
 
   @Post('bulk/import')
   @UseInterceptors(FileInterceptor('file'))
-  async import(@UploadedFile() file: Express.Multer.File) {
+  async import(@UploadedFile() file: any) {
     if (!file) throw new BadRequestException('No file uploaded');
     const { tenantId, userId } = this.getContext();
     return this.productsService.bulkImport(file.buffer, tenantId, userId);

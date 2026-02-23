@@ -42,11 +42,11 @@ const FeatureItem = ({ title, desc, delay }: { title: string, desc: string, dela
     transition={{ delay, type: "spring", stiffness: 50 }}
     className="flex items-start gap-6 group"
   >
-    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/5 border border-white/10 transition-all duration-500 group-hover:bg-[#D4AF37]/20 group-hover:border-[#D4AF37]/40 group-hover:scale-110">
-      <div className="h-3 w-3 rounded-full bg-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.6)]"></div>
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/5 border border-white/10 transition-all duration-500 group-hover:bg-[var(--brand-accent)]/20 group-hover:border-[var(--brand-accent)]/40 group-hover:scale-110">
+      <div className="h-3 w-3 rounded-full bg-[var(--brand-accent)] shadow-[0_0_15px_rgba(56,189,248,0.6)]"></div>
     </div>
     <div>
-      <h3 className="font-bold text-white text-lg tracking-wide group-hover:text-[#D4AF37] transition-colors">{title}</h3>
+      <h3 className="font-bold text-white text-lg tracking-wide group-hover:text-[var(--brand-accent)] transition-colors">{title}</h3>
       <p className="mt-1 text-base text-white/40 leading-snug font-medium">{desc}</p>
     </div>
   </motion.div>
@@ -70,9 +70,9 @@ const BrandingSide = ({ mode }: { mode: AuthMode }) => (
         className="text-5xl font-bold tracking-tight leading-[1.1]"
       >
         {mode === 'login' ? (
-          <>Gestión Empresarial<br /><span className="text-[#D4AF37]">de Clase Mundial</span></>
+          <>Gestión Empresarial<br /><span className="text-[var(--brand-accent)]">de Clase Mundial</span></>
         ) : (
-          <>Únete a la <span className="text-[#D4AF37]">Evolución Digital</span><br />de tu Negocio</>
+          <>Únete a la <span className="text-[var(--brand-accent)]">Evolución Digital</span><br />de tu Negocio</>
         )}
       </motion.h2>
       <motion.p
@@ -204,7 +204,7 @@ function AuthPageContent() {
   }
 
   return (
-    <div className="flex min-h-screen overflow-hidden bg-[#F4F7F6]">
+    <div className="flex min-h-screen overflow-hidden bg-[var(--bg-base)]">
       {/* Container that flips */}
       <motion.div
         layout
@@ -220,19 +220,19 @@ function AuthPageContent() {
         )}
       >
         {/* Form Area */}
-        <div className="flex w-full items-center justify-center px-6 lg:w-1/2 lg:px-12 bg-[#F4F7F6] relative z-20">
+        <div className="flex w-full items-center justify-center px-6 lg:w-1/2 lg:px-12 bg-[var(--bg-base)] relative z-20">
           <div className="w-full max-w-md py-12">
             {/* Logo */}
             <motion.div
               layout
               className="mb-14 flex items-center gap-5"
             >
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#1A2B3C] shadow-2xl border border-white/5 ring-4 ring-[#1A2B3C]/5">
-                <Package className="h-8 w-8 text-[#D4AF37]" />
+              <div className="flex h-32 w-32 items-center justify-center p-1">
+                <img src="/logozona.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h1 className="text-4xl font-black tracking-tighter text-[#1A2B3C] leading-none">Tuinity<span className="text-[#D4AF37]">OS</span></h1>
-                <p className="mt-1 text-[11px] font-black uppercase tracking-[0.3em] text-[#5A6C7D]">Enterprise Edition</p>
+                <h1 className="text-3xl font-black tracking-tighter text-[var(--brand-primary)] leading-none">Tuinity<span className="text-[var(--brand-accent)]">OSsystem</span></h1>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)]">Enterprise Edition</p>
               </div>
             </motion.div>
 
@@ -245,9 +245,9 @@ function AuthPageContent() {
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: 30, scale: 0.95 }}
                   whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15)" }}
-                  className="overflow-hidden rounded-3xl border border-[#E1E8ED] bg-white shadow-2xl transition-shadow duration-300"
+                  className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-white shadow-2xl transition-shadow duration-300"
                 >
-                  <div className="bg-[#1A2B3C] p-8">
+                  <div className="bg-[var(--brand-primary)] p-8">
                     <h2 className="text-2xl font-bold text-white tracking-tight">Bienvenido</h2>
                     <p className="mt-1 text-sm text-white/50">Ingresa tus credenciales premium</p>
                   </div>
@@ -286,9 +286,8 @@ function AuthPageContent() {
                     />
                     <Button
                       type="submit"
-                      variant="primary"
                       size="lg"
-                      className="w-full h-14 text-lg shadow-lg shadow-[#1A2B3C]/10"
+                      className="w-full h-14 text-lg shadow-lg shadow-[var(--brand-primary)]/10 bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary)]/90"
                       disabled={loading || redirecting}
                       isLoading={loading || redirecting}
                     >
@@ -304,16 +303,16 @@ function AuthPageContent() {
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: -30, scale: 0.95 }}
                   whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15)" }}
-                  className="overflow-hidden rounded-3xl border border-[#E1E8ED] bg-white shadow-2xl transition-shadow duration-300"
+                  className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-white shadow-2xl transition-shadow duration-300"
                 >
-                  <div className="bg-[#1A2B3C] p-8 flex items-center justify-between">
+                  <div className="bg-[var(--brand-primary)] p-8 flex items-center justify-between">
                     <div>
                       <h2 className="text-2xl font-bold text-white tracking-tight">Registro Maestro</h2>
                       <p className="mt-1 text-xs text-white/50">Configuración de cuenta corporativa</p>
                     </div>
                     <div className="flex gap-1">
                       {[1, 2, 3].map(s => (
-                        <div key={s} className={clsx("h-1.5 w-4 rounded-full transition-all", regStep === s ? "bg-[#D4AF37] w-8" : "bg-white/20")} />
+                        <div key={s} className={clsx("h-1.5 w-4 rounded-full transition-all", regStep === s ? "bg-[var(--brand-accent)] w-8" : "bg-white/20")} />
                       ))}
                     </div>
                   </div>
@@ -324,7 +323,7 @@ function AuthPageContent() {
                         <Input label="Razón Social *" placeholder="Ej. Corporación X" value={companyData.businessName} onChange={e => setCompanyData({ ...companyData, businessName: e.target.value })} />
                         <Input label="RUC / Tax ID *" placeholder="ID Fiscal" value={companyData.taxId} onChange={e => setCompanyData({ ...companyData, taxId: e.target.value })} />
                         <Input label="Dirección *" placeholder="Calle, Ave., Edificio" value={companyData.address} onChange={e => setCompanyData({ ...companyData, address: e.target.value })} />
-                        <Button className="w-full mt-6 h-14 text-lg" onClick={() => setRegStep(2)} rightIcon={<ChevronRight className="h-5 w-5" />}>Continuar</Button>
+                        <Button className="w-full mt-6 h-14 text-lg bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary)]/90" onClick={() => setRegStep(2)} rightIcon={<ChevronRight className="h-5 w-5" />}>Continuar</Button>
                       </div>
                     )}
 
@@ -348,8 +347,8 @@ function AuthPageContent() {
                         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#2D8A4E]/10 mb-6">
                           <Check className="h-10 w-10 text-[#2D8A4E]" />
                         </div>
-                        <h3 className="text-2xl font-bold text-[#1A2B3C]">Solicitud Enviada</h3>
-                        <p className="mt-3 text-base text-[#5A6C7D] leading-relaxed">Tu registro requiere aprobación de RRHH.<br />Te avisaremos por email institucional.</p>
+                        <h3 className="text-2xl font-bold text-[var(--brand-primary)]">Solicitud Enviada</h3>
+                        <p className="mt-3 text-base text-[var(--text-secondary)] leading-relaxed">Tu registro requiere aprobación de RRHH.<br />Te avisaremos por email institucional.</p>
                         <Button variant="secondary" className="mt-10 w-full h-14" onClick={() => setMode('login')}>Regresar al Login</Button>
                       </div>
                     )}
@@ -360,20 +359,20 @@ function AuthPageContent() {
 
             {/* Switch Mode Action */}
             <div className="mt-10 text-center">
-              <p className="text-base text-[#5A6C7D]">
+              <p className="text-base text-[var(--text-secondary)]">
                 {mode === 'login' ? (
-                  <>¿No tienes cuenta? <button onClick={() => setMode('register')} className="font-black text-[#1A2B3C] hover:underline decoration-[#D4AF37] decoration-2 underline-offset-8">Regístrate aquí</button></>
+                  <>¿No tienes cuenta? <button onClick={() => setMode('register')} className="font-black text-[var(--brand-primary)] hover:underline decoration-[var(--brand-accent)] decoration-2 underline-offset-8">Regístrate aquí</button></>
                 ) : (
-                  <>¿Ya tienes cuenta? <button onClick={() => setMode('login')} className="font-black text-[#1A2B3C] hover:underline decoration-[#D4AF37] decoration-2 underline-offset-8">Inicia sesión aquí</button></>
+                  <>¿Ya tienes cuenta? <button onClick={() => setMode('login')} className="font-black text-[var(--brand-primary)] hover:underline decoration-[var(--brand-accent)] decoration-2 underline-offset-8">Inicia sesión aquí</button></>
                 )}
               </p>
-              <p className="mt-6 text-sm text-[#5A6C7D]/60 hover:text-[#1A2B3C] transition-colors cursor-pointer font-bold uppercase tracking-widest">¿Necesitas ayuda? Contacta con soporte técnico</p>
+              <p className="mt-6 text-sm text-[var(--text-secondary)]/60 hover:text-[var(--brand-primary)] transition-colors cursor-pointer font-bold uppercase tracking-widest">¿Necesitas ayuda? Contacta con soporte técnico</p>
             </div>
           </div>
         </div>
 
         {/* Branding Area (Blue) */}
-        <div className="hidden lg:flex lg:w-1/2 lg:bg-[#1A2B3C] items-center relative overflow-hidden">
+        <div className="hidden lg:flex lg:w-1/2 lg:bg-[var(--brand-primary)] items-center relative overflow-hidden">
           {/* Decorative background stripes */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 h-full w-full bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%)] bg-[length:150px_150px] animate-pulse" />
@@ -392,14 +391,14 @@ function AuthPageContent() {
             </motion.div>
           </AnimatePresence>
         </div>
-      </motion.div>
-    </div>
+      </motion.div >
+    </div >
   );
 }
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#F4F7F6]"><Loader2 className="h-8 w-8 animate-spin text-[#1A2B3C]" /></div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]"><Loader2 className="h-8 w-8 animate-spin text-[var(--brand-primary)]" /></div>}>
       <AuthPageContent />
     </Suspense>
   );

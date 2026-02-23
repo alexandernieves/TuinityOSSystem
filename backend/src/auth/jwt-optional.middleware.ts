@@ -15,7 +15,7 @@ export class JwtOptionalMiddleware implements NestMiddleware {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   use(req: RequestWithJwtUser, _res: Response, next: NextFunction) {
     const authorizationRaw = req.header('authorization');

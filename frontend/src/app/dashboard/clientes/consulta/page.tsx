@@ -113,13 +113,6 @@ export default function CustomersPage() {
                     <h1 className="text-3xl font-bold text-text-primary tracking-tight">Directorio de Clientes</h1>
                     <p className="text-text-secondary mt-1 font-light">Consulta y gestiona tu base de datos de clientes activos.</p>
                 </div>
-                <Button
-                    className="bg-brand-accent text-brand-primary font-medium"
-                    startContent={<Plus size={18} />}
-                    onPress={() => router.push('/dashboard/clientes/nuevo')}
-                >
-                    Nuevo Cliente
-                </Button>
             </div>
 
             {/* Filters Card */}
@@ -153,9 +146,9 @@ export default function CustomersPage() {
                                     trigger: "bg-bg-base border-border-subtle"
                                 }}
                             >
-                                <SelectItem key="" value="">Todos</SelectItem>
-                                <SelectItem key="CASH" value="CASH">Contado</SelectItem>
-                                <SelectItem key="CREDIT" value="CREDIT">Crédito</SelectItem>
+                                <SelectItem key="all">Todos</SelectItem>
+                                <SelectItem key="CASH">Contado</SelectItem>
+                                <SelectItem key="CREDIT">Crédito</SelectItem>
                             </Select>
                         </div>
                     </div>
@@ -257,15 +250,6 @@ export default function CustomersPage() {
                                                         onPress={() => router.push(`/dashboard/clientes/${customer.id}`)}
                                                     >
                                                         <Eye size={18} />
-                                                    </Button>
-                                                    <Button
-                                                        isIconOnly
-                                                        size="sm"
-                                                        variant="light"
-                                                        className="text-text-secondary hover:text-brand-secondary"
-                                                        onPress={() => router.push(`/dashboard/clientes/nuevo?id=${customer.id}`)}
-                                                    >
-                                                        <Edit size={18} />
                                                     </Button>
                                                 </div>
                                             </TableCell>

@@ -14,7 +14,11 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
-    "types": ["node", "jest"],
+    "types": [
+      "node",
+      "jest",
+      "multer"
+    ],
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,

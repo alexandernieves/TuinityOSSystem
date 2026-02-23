@@ -50,6 +50,10 @@ export async function registerPushNotifications() {
 
         return newSubscription;
     } catch (error) {
-        console.error('Error during push registration:', error);
+        if (error instanceof Error && error.name === 'AbortError') {
+            console.warn('Push registration aborted or timed out.');
+        } else {
+            console.warn('Push notification registration failed (non-critical):', error);
+        }
     }
 }

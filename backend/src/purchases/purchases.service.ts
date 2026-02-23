@@ -13,7 +13,7 @@ import { Prisma } from '@prisma/client';
 export class PurchasesService {
   private readonly logger = new Logger(PurchasesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Create a new purchase order with automatic CIF calculation
@@ -52,17 +52,17 @@ export class PurchasesService {
         row['Producto'];
       const qty = Number(
         row['Quantity'] ||
-          row['quantity'] ||
-          row['Cantidad'] ||
-          row['Qty'] ||
-          row['Unidades'],
+        row['quantity'] ||
+        row['Cantidad'] ||
+        row['Qty'] ||
+        row['Unidades'],
       );
       const price = Number(
         row['UnitPrice'] ||
-          row['price'] ||
-          row['Precio'] ||
-          row['FOB'] ||
-          row['Costo Unitario'],
+        row['price'] ||
+        row['Precio'] ||
+        row['FOB'] ||
+        row['Costo Unitario'],
       );
 
       if (!sku && !name) {
@@ -552,11 +552,11 @@ export class PurchasesService {
       ...(status ? { status: status as any } : {}),
       ...(startDate || endDate
         ? {
-            orderDate: {
-              ...(startDate ? { gte: new Date(startDate) } : {}),
-              ...(endDate ? { lte: new Date(endDate) } : {}),
-            },
-          }
+          orderDate: {
+            ...(startDate ? { gte: new Date(startDate) } : {}),
+            ...(endDate ? { lte: new Date(endDate) } : {}),
+          },
+        }
         : {}),
     };
 
@@ -567,6 +567,7 @@ export class PurchasesService {
         take: limit,
         orderBy: { orderDate: 'desc' },
         include: {
+          branch: true,
           items: {
             include: {
               product: {
@@ -597,12 +598,15 @@ export class PurchasesService {
     const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
       where: { id, tenantId },
       include: {
+        branch: true,
         items: {
           include: {
             product: {
               select: {
                 id: true,
                 description: true,
+                mainImageUrl: true,
+                internalReference: true,
                 lastFobCost: true,
                 weightedAvgCost: true,
               },
@@ -651,5 +655,145 @@ export class PurchasesService {
     });
 
     return history;
+  }
+
+  /**
+   * Get purchase entry history (physical receptions)
+   */
+  async getPurchaseEntries(
+    query: {
+      page: number;
+      limit: number;
+      startDate?: string;
+      endDate?: string;
+      branchId?: string;
+      productId?: string;
+    },
+    tenantId: string,
+  ) {
+    const { page, limit, startDate, endDate, branchId, productId } = query;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.InventoryMovementWhereInput = {
+      tenantId,
+      type: 'IN',
+      reason: { startsWith: 'Purchase Order' },
+      ...(branchId ? { branchId } : {}),
+      ...(productId ? { productId } : {}),
+      ...(startDate || endDate
+        ? {
+          createdAt: {
+            ...(startDate ? { gte: new Date(startDate) } : {}),
+            ...(endDate ? { lte: new Date(endDate) } : {}),
+          },
+        }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.inventoryMovement.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          product: {
+            select: { id: true, description: true, internalReference: true, mainImageUrl: true },
+          },
+          branch: {
+            select: { id: true, name: true },
+          },
+        },
+      }),
+      this.prisma.inventoryMovement.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async reverse(id: string, tenantId: string, userId: string) {
+    const purchaseOrder = await this.prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!purchaseOrder || purchaseOrder.tenantId !== tenantId) {
+      throw new NotFoundException('Entrada de mercancía no encontrada');
+    }
+
+    if (purchaseOrder.status === 'CANCELLED') {
+      throw new BadRequestException('Esta entrada ya ha sido reversada');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Process items
+      for (const item of purchaseOrder.items) {
+        if (Number(item.receivedQuantity) <= 0) continue;
+
+        const qtyToReverse = Number(item.receivedQuantity);
+
+        // Update Inventory (Decrement)
+        await tx.inventory.updateMany({
+          where: {
+            tenantId,
+            branchId: purchaseOrder.branchId,
+            productId: item.productId,
+          },
+          data: {
+            quantity: { decrement: qtyToReverse },
+          },
+        });
+
+        // Create Reversal Movement
+        await tx.inventoryMovement.create({
+          data: {
+            tenantId,
+            branchId: purchaseOrder.branchId,
+            productId: item.productId,
+            type: 'PURCHASE_REVERSAL' as any,
+            quantity: qtyToReverse,
+            reason: `Reversión de Entrada ${purchaseOrder.invoiceNumber || purchaseOrder.id}`,
+            referenceId: id,
+            createdBy: userId,
+          },
+        });
+
+        // Reset received quantity in item
+        await tx.purchaseOrderItem.update({
+          where: { id: item.id },
+          data: { receivedQuantity: 0 },
+        });
+      }
+
+      // 2. Update PO status
+      const updated = await tx.purchaseOrder.update({
+        where: { id },
+        data: {
+          status: 'CANCELLED' as any,
+          receivedDate: null,
+        },
+      });
+
+      // 3. Audit
+      await tx.purchaseAuditLog.create({
+        data: {
+          tenantId,
+          purchaseOrderId: id,
+          action: 'REVERSED',
+          details: JSON.stringify({ reversedAt: new Date() }),
+          createdBy: userId,
+        },
+      });
+
+      return updated;
+    });
   }
 }

@@ -17,8 +17,8 @@ export class TrafficService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService
-  ) { }
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   /**
    * Create a shipment by grouping selected sales (invoices).
@@ -72,13 +72,13 @@ export class TrafficService {
             tariffCode: item.product.codigoArancelario,
             weight: item.product.weight
               ? new Prisma.Decimal(item.product.weight).mul(
-                new Prisma.Decimal(item.quantity),
-              )
+                  new Prisma.Decimal(item.quantity),
+                )
               : null,
             volume: item.product.volume
               ? new Prisma.Decimal(item.product.volume).mul(
-                new Prisma.Decimal(item.quantity),
-              )
+                  new Prisma.Decimal(item.quantity),
+                )
               : null,
           });
         }
@@ -141,11 +141,11 @@ export class TrafficService {
         : {}),
       ...(startDate || endDate
         ? {
-          createdAt: {
-            ...(startDate ? { gte: new Date(startDate) } : {}),
-            ...(endDate ? { lte: new Date(endDate) } : {}),
-          },
-        }
+            createdAt: {
+              ...(startDate ? { gte: new Date(startDate) } : {}),
+              ...(endDate ? { lte: new Date(endDate) } : {}),
+            },
+          }
         : {}),
     };
 

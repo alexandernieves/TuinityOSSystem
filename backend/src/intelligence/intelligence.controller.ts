@@ -1,5 +1,13 @@
-
-import { Controller, Get, Query, Patch, Post, Body, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Patch,
+  Post,
+  Body,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { IntelligenceService } from './intelligence.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RequestContext } from '../common/request-context';
@@ -7,7 +15,7 @@ import { RequestContext } from '../common/request-context';
 @Controller('intelligence')
 @UseGuards(JwtAuthGuard)
 export class IntelligenceController {
-  constructor(private readonly intelligenceService: IntelligenceService) { }
+  constructor(private readonly intelligenceService: IntelligenceService) {}
 
   private getContext() {
     const store = RequestContext.getStore();
@@ -48,9 +56,13 @@ export class IntelligenceController {
   }
 
   @Post('apply-price')
-  applyPrice(@Body() dto: { productId: string, prices: any }) {
+  applyPrice(@Body() dto: { productId: string; prices: any }) {
     const { tenantId } = this.getContext();
-    return this.intelligenceService.applyPriceSuggestion(tenantId, dto.productId, dto.prices);
+    return this.intelligenceService.applyPriceSuggestion(
+      tenantId,
+      dto.productId,
+      dto.prices,
+    );
   }
 
   @Get('query')

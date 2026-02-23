@@ -1,13 +1,35 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, User, PanelLeft } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { useSidebar } from '@/components/layout/SidebarContext';
 import { Button } from '@/components/ui/Button';
+import { loadSession } from '@/lib/auth-storage';
+import { api } from '@/lib/api';
 
 export const Topbar: React.FC = () => {
     const { toggleSidebar } = useSidebar();
+    const [user, setUser] = useState<{ name: string; role?: string } | null>(null);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const session = loadSession();
+            if (session?.accessToken) {
+                try {
+                    const profile = await api<{ name: string; role?: string }>('/auth/me');
+                    setUser(profile);
+                } catch (e) {
+                    console.error("Failed to load user profile in topbar", e);
+                }
+            }
+        };
+        fetchUser();
+    }, []);
+
+    const name = user?.name || 'Usuario';
+    const role = user?.role || 'User';
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     return (
         <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border-subtle bg-surface px-4 md:px-6 gap-4">
@@ -45,11 +67,11 @@ export const Topbar: React.FC = () => {
 
                 <div className="flex items-center gap-3 pl-2">
                     <div className="hidden md:flex flex-col items-end">
-                        <span className="text-sm font-semibold text-text-primary">Admin Usuario</span>
-                        <span className="text-[10px] text-text-secondary uppercase tracking-wider">Owner</span>
+                        <span className="text-sm font-semibold text-text-primary">{name}</span>
+                        <span className="text-[10px] text-text-secondary uppercase tracking-wider">{role}</span>
                     </div>
                     <div className="h-9 w-9 overflow-hidden rounded-full bg-brand-primary text-white flex items-center justify-center font-bold text-sm ring-2 ring-white shadow-sm">
-                        <span>AU</span>
+                        <span>{initials}</span>
                     </div>
                 </div>
             </div>
