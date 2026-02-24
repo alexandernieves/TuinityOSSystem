@@ -729,7 +729,7 @@ export class PurchasesService {
       throw new NotFoundException('Entrada de mercancía no encontrada');
     }
 
-    if (purchaseOrder.status === 'CANCELLED') {
+    if ((purchaseOrder.status as any) === 'CANCELLED') {
       throw new BadRequestException('Esta entrada ya ha sido reversada');
     }
 

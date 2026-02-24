@@ -94,11 +94,13 @@ model User {
   tenantId     String
   email        String
   passwordHash String
-  status       UserStatus    @default(ACTIVE)
+  status       UserStatus    @default(PENDING)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   role         UserRoleType  @default(CLIENT)
   name         String?
+  avatarUrl    String?
+  description  String?
   auditLogs    AuditLog[]
   cashSessions CashSession[]
   sales        Sale[]
@@ -1319,6 +1321,7 @@ enum TenantStatus {
 }
 
 enum UserStatus {
+  PENDING
   ACTIVE
   DISABLED
 }
@@ -1342,6 +1345,9 @@ enum UserRoleType {
   SALES
   WAREHOUSE
   TRAFFIC
+  ACCOUNTING
+  PURCHASING
+  SUPERVISOR
 }
 
 enum InventoryMovementType {

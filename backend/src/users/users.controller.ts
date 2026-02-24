@@ -12,6 +12,9 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadedFile, UseInterceptors } from '@nestjs/common';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { Request } from 'express';
 
 type RequestWithUser = Request & {
@@ -24,7 +27,7 @@ type RequestWithUser = Request & {
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   private async assertOwner(req: RequestWithUser) {
     const userId = req.user?.sub;
@@ -57,22 +60,30 @@ export class UsersController {
   @Post()
   async createUser(
     @Req() req: RequestWithUser,
-    @Body()
-    body: { email: string; name: string; password?: string; role: string },
+    @Body() body: {
+      email: string;
+      name: string;
+      password?: string;
+      role: string;
+    },
   ) {
     await this.assertOwner(req);
     const tenantId = req.user?.tenantId;
 
     const bcrypt = require('bcryptjs');
-    const password = body.password || 'Evolution2026'; // Default password if not provided
-    const passwordHash = await bcrypt.hash(password, 12);
 
-    return this.usersService.createUser(tenantId!, {
+    // Asignación de contraseña manual
+    const finalPassword = body.password || 'Evolution2026';
+    const passwordHash = await bcrypt.hash(finalPassword, 12);
+
+    const user = await this.usersService.createUser(tenantId!, {
       email: body.email,
       name: body.name,
       passwordHash,
       role: body.role as any,
     });
+
+    return user;
   }
 
   // SUPER-ADMIN: obtener todos los usuarios de todos los tenants
@@ -89,6 +100,55 @@ export class UsersController {
     return this.usersService.findAllTenantsWithStats();
   }
 
+  @Patch('me')
+  @UseInterceptors(FileInterceptor('avatar'))
+  async updateMyProfile(
+    @Req() req: RequestWithUser,
+    @Body() body: { name?: string; description?: string },
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const userId = req.user?.sub;
+    const tenantId = req.user?.tenantId;
+
+    if (!userId || !tenantId) {
+      throw new ForbiddenException('Acceso denegado');
+    }
+
+    let avatarUrl: string | undefined = undefined;
+
+    if (file) {
+      const region = process.env.AWS_REGION || 'us-east-1';
+      const s3 = new S3Client({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        },
+      });
+
+      const bucketName = process.env.AWS_S3_BUCKET || 'evolution-479664684511-assets-v1';
+      const fileExt = file.originalname.split('.').pop();
+      const fileName = `user-profiles/${userId}-${Date.now()}.${fileExt}`;
+
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: bucketName,
+          Key: fileName,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+        }),
+      );
+
+      avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${fileName}`;
+    }
+
+    return this.usersService.updateProfile(userId, tenantId, {
+      name: body.name,
+      description: body.description,
+      avatarUrl,
+    });
+  }
+
   @Patch(':id/role')
   async updateUserRole(
     @Req() req: RequestWithUser,
@@ -96,18 +156,32 @@ export class UsersController {
     @Body()
     body: {
       role:
-        | 'CLIENT'
-        | 'MEMBER'
-        | 'ADMIN'
-        | 'OWNER'
-        | 'SALES'
-        | 'WAREHOUSE'
-        | 'TRAFFIC';
+      | 'CLIENT'
+      | 'MEMBER'
+      | 'ADMIN'
+      | 'OWNER'
+      | 'SALES'
+      | 'WAREHOUSE'
+      | 'TRAFFIC'
+      | 'ACCOUNTING'
+      | 'PURCHASING'
+      | 'SUPERVISOR';
     },
   ) {
     await this.assertOwner(req);
     const tenantId = req.user?.tenantId;
     return this.usersService.updateUserRole(userId, tenantId!, body.role);
+  }
+
+  @Patch(':id')
+  async updateUser(
+    @Req() req: RequestWithUser,
+    @Param('id') userId: string,
+    @Body() body: { name?: string; role?: string },
+  ) {
+    await this.assertOwner(req);
+    const tenantId = req.user?.tenantId;
+    return this.usersService.updateUserInfo(userId, tenantId!, body);
   }
 
   @Delete(':id')

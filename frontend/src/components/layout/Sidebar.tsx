@@ -13,14 +13,15 @@ import {
     Settings,
     LogOut,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { loadSession, clearSession } from '@/lib/auth-storage';
 import { api } from '@/lib/api';
 import { useSidebar } from '@/components/layout/SidebarContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Tooltip } from '@heroui/react';
+import { canAccessNav } from '@/lib/rbac';
 
 interface NavItem {
     label: string;
@@ -83,14 +84,14 @@ export const Sidebar: React.FC = () => {
     const pathname = usePathname();
     const router = useRouter();
     const { isCollapsed } = useSidebar();
-    const [user, setUser] = useState<{ name: string; email: string; role?: string } | null>(null);
+    const [user, setUser] = useState<{ name: string; email: string; role?: string; avatarUrl?: string } | null>(null);
 
     useEffect(() => {
         const fetchUser = async () => {
             const session = loadSession();
             if (session?.accessToken) {
                 try {
-                    const profile = await api<{ name: string; email: string; role?: string }>('/auth/me');
+                    const profile = await api<{ name: string; email: string; role?: string; avatarUrl?: string }>('/auth/me');
                     setUser(profile);
                     // Also get tenant info
                     const sessionData = loadSession();
@@ -148,30 +149,11 @@ export const Sidebar: React.FC = () => {
 
             {/* Navigation */}
             <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-6 scrollbar-hide">
-                {navigation.map((item) => {
-                    const active = isActive(item.href);
-
-                    if (isCollapsed) {
-                        return (
-                            <Tooltip key={item.href} content={item.label} placement="right" color="primary">
-                                <Link href={item.href} className="block mb-1">
-                                    <NavItemContent item={item} active={active} isCollapsed={isCollapsed} />
-                                </Link>
-                            </Tooltip>
-                        );
-                    }
-
-                    return (
-                        <Link key={item.href} href={item.href} className="block mb-1">
-                            <NavItemContent item={item} active={active} isCollapsed={isCollapsed} />
-                        </Link>
-                    );
-                })}
-
-                {/* Settings Separator */}
-                <div className="mt-8 border-t border-white/10 pt-4">
-                    {settingsNav.map((item) => {
+                {navigation
+                    .filter((item) => canAccessNav(user?.role, item.href))
+                    .map((item) => {
                         const active = isActive(item.href);
+
                         if (isCollapsed) {
                             return (
                                 <Tooltip key={item.href} content={item.label} placement="right" color="primary">
@@ -181,21 +163,49 @@ export const Sidebar: React.FC = () => {
                                 </Tooltip>
                             );
                         }
+
                         return (
                             <Link key={item.href} href={item.href} className="block mb-1">
                                 <NavItemContent item={item} active={active} isCollapsed={isCollapsed} />
                             </Link>
                         );
                     })}
+
+                {/* Settings Separator */}
+                <div className="mt-8 border-t border-white/10 pt-4">
+                    {settingsNav
+                        .filter((item) => canAccessNav(user?.role, item.href))
+                        .map((item) => {
+                            const active = isActive(item.href);
+                            if (isCollapsed) {
+                                return (
+                                    <Tooltip key={item.href} content={item.label} placement="right" color="primary">
+                                        <Link href={item.href} className="block mb-1">
+                                            <NavItemContent item={item} active={active} isCollapsed={isCollapsed} />
+                                        </Link>
+                                    </Tooltip>
+                                );
+                            }
+                            return (
+                                <Link key={item.href} href={item.href} className="block mb-1">
+                                    <NavItemContent item={item} active={active} isCollapsed={isCollapsed} />
+                                </Link>
+                            );
+                        })}
                 </div>
             </nav>
 
-            {/* User Profile Footer */}
             <div className="border-t border-white/10 p-4 overflow-hidden">
-                <div className={clsx("flex items-center gap-3 group cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors", isCollapsed && "justify-center")}>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-gold text-sm font-bold text-brand-primary uppercase shrink-0">
-                        {user?.name?.substring(0, 2) || 'AD'}
-                    </div>
+                <div className={clsx("flex items-center gap-3 group cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors", isCollapsed && "justify-center")} onClick={() => router.push('/dashboard/perfil')}>
+                    {user?.avatarUrl ? (
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden shrink-0 border border-white/20">
+                            <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        </div>
+                    ) : (
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-gold text-sm font-bold text-brand-primary uppercase shrink-0">
+                            {user?.name?.substring(0, 2) || 'AD'}
+                        </div>
+                    )}
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0 flex items-center justify-between overflow-hidden transition-all duration-200">
                             <div className="overflow-hidden">

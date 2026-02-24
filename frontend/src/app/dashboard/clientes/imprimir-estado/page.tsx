@@ -1,262 +1,364 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Spinner } from '@heroui/react';
 import {
-    Card,
-    CardBody,
-    Button,
-    Table,
-    TableHeader,
-    TableColumn,
-    TableBody,
-    TableRow,
-    TableCell,
-    Spinner,
-    Autocomplete,
-    AutocompleteItem,
-    Divider,
-} from '@heroui/react';
-import { ArrowLeft, Printer, FileText } from 'lucide-react';
+    Printer, FileText, Search, ChevronDown,
+    User, CreditCard, Calendar, Hash, ArrowUpRight, ArrowDownLeft, SlidersHorizontal, Building2,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
-interface Customer {
+interface Customer { id: string; name: string; taxId: string; }
+interface Transaction {
     id: string;
-    name: string;
-    taxId: string;
+    type: string;
+    description: string;
+    amount: string;
+    createdAt: string;
+    transactionNumber?: string;
 }
-
 interface Statement {
     customer: Customer;
     openingBalance: number;
-    transactions: any[];
+    transactions: Transaction[];
     closingBalance: number;
 }
 
-export default function StatementPage() {
-    const router = useRouter();
+const TYPE_LABELS: Record<string, string> = {
+    INVOICE: 'Factura',
+    PAYMENT: 'Pago / Abono',
+    CREDIT_NOTE: 'Nota de Crédito',
+    DEBIT_NOTE: 'Nota de Débito',
+    ADJUSTMENT: 'Ajuste',
+};
+
+const isCargo = (type: string) => ['INVOICE', 'DEBIT_NOTE'].includes(type);
+const isAbono = (type: string) => ['PAYMENT', 'CREDIT_NOTE', 'ADJUSTMENT'].includes(type);
+
+const fmt = (val: number | string) =>
+    `$${parseFloat(val.toString()).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+export default function ImprimirEstadoPage() {
+    const [loadingCustomers, setLoadingCustomers] = useState(false);
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
-    const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [showList, setShowList] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [statement, setStatement] = useState<Statement | null>(null);
 
     useEffect(() => {
-        const fetchCustomers = async () => {
-            try {
-                const response = await api<{ items: Customer[] }>('/customers?customerType=CREDIT&limit=100');
-                setCustomers(response.items || []);
-            } catch (error) {
-                toast.error('Error al cargar clientes');
-            }
-        };
-        fetchCustomers();
+        setLoadingCustomers(true);
+        api<{ items: Customer[] }>('/customers?customerType=CREDIT&limit=200')
+            .then(r => setCustomers(r.items || []))
+            .catch(() => toast.error('Error al cargar clientes'))
+            .finally(() => setLoadingCustomers(false));
     }, []);
 
-    const handleFetchStatement = async () => {
-        if (!selectedCustomerId) {
-            toast.error('Seleccione un cliente');
-            return;
-        }
+    const filtered = customers.filter(c =>
+        c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        (c.taxId || '').toLowerCase().includes(customerSearch.toLowerCase())
+    );
+
+    const handleGenerate = async () => {
+        if (!selectedCustomer) { toast.error('Selecciona un cliente primero'); return; }
         setLoading(true);
         try {
-            const res = await api<Statement>(`/customers/${selectedCustomerId}/statement?startDate=2020-01-01`);
+            const res = await api<Statement>(`/customers/${selectedCustomer.id}/statement?startDate=2020-01-01`);
             setStatement(res);
-        } catch (error: any) {
-            toast.error(error.message || 'Error al generar estado de cuenta');
+        } catch (e: any) {
+            toast.error(e.message || 'Error al generar estado de cuenta');
         } finally {
             setLoading(false);
         }
     };
 
-    const handlePrint = () => {
-        window.print();
-    };
-
-    const formatCurrency = (val: number) => {
-        return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-    };
-
     return (
-        <div className="p-6 md:p-8 space-y-6 bg-bg-base min-h-screen">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
-                <div>
-                    <h1 className="text-3xl font-bold text-text-primary tracking-tight">Imprimir Estado de Cuentas</h1>
-                    <p className="text-text-secondary mt-1 font-light">
-                        Genera e imprime el estado de cuenta y movimientos de un cliente.
-                    </p>
+        <div className="p-4 sm:p-6 max-w-5xl mx-auto pb-20 space-y-6">
+
+            {/* ── PRINT STYLES ── */}
+            <style>{`
+                @media print {
+                    body > * { visibility: hidden !important; }
+                    #statement-doc, #statement-doc * { visibility: visible !important; }
+                    #statement-doc {
+                        position: fixed; top: 0; left: 0;
+                        width: 100%; background: #fff;
+                        padding: 32px; box-shadow: none; border: none;
+                    }
+                }
+            `}</style>
+
+            {/* ── HEADER ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-[#2563EB]/10 border border-[#2563EB]/20 flex items-center justify-center shrink-0">
+                        <Printer className="w-6 h-6 text-[#2563EB]" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-semibold text-[#0F172A]">Imprimir Estado de Cuentas</h1>
+                        <p className="text-sm text-[#475569] mt-0.5">Genera e imprime el estado de cuenta de un cliente de crédito.</p>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="light"
-                        startContent={<ArrowLeft size={18} />}
-                        onPress={() => router.push('/dashboard/clientes')}
+                {statement && (
+                    <button
+                        onClick={() => window.print()}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] transition-colors shadow-sm"
                     >
-                        Volver
-                    </Button>
-                    {statement && (
-                        <Button
-                            color="primary"
-                            className="bg-brand-primary"
-                            startContent={<Printer size={18} />}
-                            onPress={handlePrint}
+                        <Printer className="w-4 h-4" />
+                        Imprimir / PDF
+                    </button>
+                )}
+            </div>
+
+            {/* ── SELECTOR CARD ── */}
+            <div className="bg-white border border-[#E2E8F0] rounded-lg shadow-sm overflow-visible print:hidden">
+                <div className="px-5 py-3 bg-[#F7F9FC] border-b border-[#E2E8F0] flex items-center gap-2">
+                    <User className="w-4 h-4 text-[#2563EB]" />
+                    <span className="text-sm font-semibold text-[#0F172A]">Seleccionar Cliente</span>
+                </div>
+                <div className="p-5 flex flex-col sm:flex-row gap-4 items-end">
+                    {/* Custom autocomplete */}
+                    <div className="flex-1 relative">
+                        <label className="block text-sm font-medium text-[#0F172A] mb-1.5 flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-[#94A3B8]" />
+                            Cliente (Solo Crédito) <span className="text-[#DC2626]">*</span>
+                        </label>
+                        <div
+                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#E2E8F0] bg-white cursor-pointer hover:border-[#2563EB]/40 transition-colors"
+                            onClick={() => setShowList(v => !v)}
                         >
-                            Imprimir / PDF
-                        </Button>
-                    )}
+                            {selectedCustomer ? (
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className="w-7 h-7 rounded-full bg-[#2563EB]/10 text-[#2563EB] flex items-center justify-center font-bold text-xs shrink-0">
+                                        {selectedCustomer.name.charAt(0)}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-[#0F172A] truncate">{selectedCustomer.name}</p>
+                                        {selectedCustomer.taxId && <p className="text-xs text-[#94A3B8]">{selectedCustomer.taxId}</p>}
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className="text-[#94A3B8] flex-1 text-sm">
+                                    {loadingCustomers ? 'Cargando clientes...' : 'Buscar y seleccionar cliente...'}
+                                </span>
+                            )}
+                            <ChevronDown className="w-4 h-4 text-[#94A3B8] shrink-0" />
+                        </div>
+
+                        {showList && (
+                            <div
+                                className="absolute z-50 mt-1 w-full bg-white border border-[#E2E8F0] rounded-lg shadow-xl overflow-hidden"
+                                style={{ animation: 'dropdownIn 0.15s ease-out' }}
+                            >
+                                <div className="p-2 border-b border-[#E2E8F0]">
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Buscar por nombre o RIF..."
+                                            value={customerSearch}
+                                            onChange={e => setCustomerSearch(e.target.value)}
+                                            onClick={e => e.stopPropagation()}
+                                            className="w-full pl-8 pr-3 py-2 text-xs border border-[#E2E8F0] rounded-md focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="max-h-52 overflow-y-auto">
+                                    {filtered.length === 0 ? (
+                                        <p className="text-xs text-[#94A3B8] text-center py-4">Sin resultados</p>
+                                    ) : filtered.map(c => (
+                                        <button
+                                            type="button"
+                                            key={c.id}
+                                            className="w-full text-left flex items-center gap-3 px-3 py-2.5 hover:bg-[#F7F9FC] transition-colors"
+                                            onClick={() => {
+                                                setSelectedCustomer(c);
+                                                setStatement(null);
+                                                setShowList(false);
+                                                setCustomerSearch('');
+                                            }}
+                                        >
+                                            <div className="w-7 h-7 rounded-full bg-[#2563EB]/10 text-[#2563EB] flex items-center justify-center font-bold text-xs shrink-0">
+                                                {c.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-[#0F172A]">{c.name}</p>
+                                                {c.taxId && <p className="text-xs text-[#94A3B8]">{c.taxId}</p>}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={handleGenerate}
+                        disabled={loading || !selectedCustomer}
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 shadow-sm whitespace-nowrap"
+                    >
+                        {loading ? (
+                            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generando...</>
+                        ) : (
+                            <><FileText className="w-4 h-4" /> Generar Estado</>
+                        )}
+                    </button>
                 </div>
             </div>
 
-            <Card className="border border-border-subtle bg-surface shadow-sm print:hidden" radius="lg">
-                <CardBody className="p-4 flex flex-col md:flex-row gap-4 items-end">
-                    <Autocomplete
-                        label="Seleccione un Cliente"
-                        placeholder="Buscar por nombre..."
-                        variant="bordered"
-                        labelPlacement="outside"
-                        selectedKey={selectedCustomerId}
-                        onSelectionChange={(k) => setSelectedCustomerId(k as string)}
-                        className="flex-1"
-                    >
-                        {customers.map((c) => (
-                            <AutocompleteItem key={c.id} value={c.id}>
-                                {c.name} - {c.taxId || 'S/N'}
-                            </AutocompleteItem>
-                        ))}
-                    </Autocomplete>
-                    <Button
-                        color="primary"
-                        onPress={handleFetchStatement}
-                        isLoading={loading}
-                        className="bg-brand-accent text-brand-primary font-semibold"
-                    >
-                        Generar Estado
-                    </Button>
-                </CardBody>
-            </Card>
-
+            {/* ── STATEMENT DOCUMENT ── */}
             {statement && (
-                <div className="bg-white p-8 md:p-12 shadow-md rounded-xl space-y-8 border border-gray-200">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">ESTADO DE CUENTA</h1>
-                            <p className="text-sm text-gray-500 font-medium tracking-widest mt-1 uppercase">Tuinity OS System</p>
-                        </div>
-                        <div className="text-right space-y-1">
-                            <p className="text-sm font-semibold text-gray-700">Fecha de Emisión</p>
-                            <p className="text-gray-600 font-mono text-sm">{new Date().toLocaleDateString()}</p>
-                        </div>
-                    </div>
+                <div id="statement-doc" className="bg-white border border-[#E2E8F0] rounded-lg shadow-sm overflow-hidden">
 
-                    <Divider className="bg-gray-200" />
-
-                    <div className="flex justify-between items-start bg-gray-50 p-6 rounded-lg border border-gray-100">
-                        <div>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Cliente</p>
-                            <h2 className="text-xl font-bold text-gray-900">{statement.customer.name}</h2>
-                            <p className="text-gray-600 font-mono text-sm mt-1">RIF/NIT: {statement.customer.taxId || 'N/A'}</p>
+                    {/* Doc Header */}
+                    <div className="px-8 py-6 border-b border-[#E2E8F0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-[#2563EB]/10 flex items-center justify-center">
+                                <Building2 className="w-5 h-5 text-[#2563EB]" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest">Estado de Cuenta</p>
+                                <p className="text-lg font-bold text-[#0F172A]">TuinityOS System</p>
+                            </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Saldo Actual</p>
-                            <p className="text-3xl font-black text-brand-primary">{formatCurrency(statement.closingBalance)}</p>
-                            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">
-                                Al {new Date().toLocaleDateString('es-VE')}
-                            </p>
+                            <p className="text-xs text-[#475569] font-medium uppercase tracking-wider">Fecha de Emisión</p>
+                            <p className="text-sm font-mono text-[#0F172A] mt-0.5">{new Date().toLocaleDateString('es-VE')}</p>
                         </div>
                     </div>
 
-                    <div className="pt-4">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <FileText className="text-gray-400" size={20} /> Historial de Movimientos
-                        </h3>
-                        <Table
-                            removeWrapper
-                            aria-label="Movimientos"
-                            classNames={{
-                                th: "bg-gray-100 text-gray-600 font-bold uppercase tracking-wider border-y border-gray-200",
-                                td: "py-4 text-gray-800 border-b border-gray-100 font-medium text-sm",
-                                base: "shadow-none"
-                            }}
-                        >
-                            <TableHeader>
-                                <TableColumn>FECHA</TableColumn>
-                                <TableColumn>TIPO DE DOC.</TableColumn>
-                                <TableColumn>Nº REFERENCIA</TableColumn>
-                                <TableColumn>DESCRIPCIÓN</TableColumn>
-                                <TableColumn align="right">CARGOS (+)</TableColumn>
-                                <TableColumn align="right">ABONOS (-)</TableColumn>
-                                <TableColumn align="right">SALDO</TableColumn>
-                            </TableHeader>
-                            <TableBody emptyContent="No hay movimientos registrados en el período.">
-                                {statement.transactions.map((tx, idx) => {
-                                    const isCargo = ['INVOICE', 'DEBIT_NOTE'].includes(tx.type);
-                                    const isAbono = ['PAYMENT', 'CREDIT_NOTE', 'ADJUSTMENT'].includes(tx.type);
-                                    // Basic running balance logic for display purposes only since backend just gives transactions
-                                    // But backend actually computes it? The requirement asks to just show interactions.
-                                    return (
-                                        <TableRow key={idx}>
-                                            <TableCell className="font-mono">{new Date(tx.createdAt).toLocaleDateString()}</TableCell>
-                                            <TableCell>{tx.type}</TableCell>
-                                            <TableCell className="font-mono">{tx.transactionNumber || tx.id.slice(0, 8)}</TableCell>
-                                            <TableCell className="max-w-[150px] truncate" title={tx.description}>{tx.description || '-'}</TableCell>
-                                            <TableCell className="text-right font-mono text-brand-secondary">
-                                                {isCargo ? formatCurrency(parseFloat(tx.amount)) : '-'}
-                                            </TableCell>
-                                            <TableCell className="text-right font-mono text-success">
-                                                {isAbono ? formatCurrency(parseFloat(tx.amount)) : '-'}
-                                            </TableCell>
-                                            <TableCell className="text-right font-bold font-mono">
-                                                -
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                    {/* Customer info + balance */}
+                    <div className="px-8 py-5 bg-[#F7F9FC] border-b border-[#E2E8F0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Cliente</p>
+                            <p className="text-xl font-bold text-[#0F172A]">{statement.customer.name}</p>
+                            <p className="text-sm text-[#475569] font-mono mt-0.5">RIF/NIT: {statement.customer.taxId || 'N/A'}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Saldo Actual</p>
+                            <p className={`text-3xl font-black ${statement.closingBalance > 0 ? 'text-[#DC2626]' : 'text-[#16A34A]'}`}>
+                                {fmt(statement.closingBalance)}
+                            </p>
+                            <p className="text-xs text-[#475569] mt-1">Al {new Date().toLocaleDateString('es-VE')}</p>
+                        </div>
                     </div>
 
-                    <div className="flex justify-end pt-8">
-                        <div className="w-64 border-t border-gray-300 pt-2 text-center">
-                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Firma Autorizada</p>
+                    {/* Summary pills */}
+                    <div className="px-8 py-4 border-b border-[#E2E8F0] flex flex-wrap gap-3">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#F7F9FC] rounded-lg border border-[#E2E8F0]">
+                            <Calendar className="w-3.5 h-3.5 text-[#94A3B8]" />
+                            <span className="text-xs text-[#475569]">Saldo inicial: <strong className="text-[#0F172A]">{fmt(statement.openingBalance)}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#F7F9FC] rounded-lg border border-[#E2E8F0]">
+                            <Hash className="w-3.5 h-3.5 text-[#94A3B8]" />
+                            <span className="text-xs text-[#475569]">Movimientos: <strong className="text-[#0F172A]">{statement.transactions.length}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#DC2626]/5 rounded-lg border border-[#DC2626]/20">
+                            <ArrowUpRight className="w-3.5 h-3.5 text-[#DC2626]" />
+                            <span className="text-xs text-[#DC2626]">
+                                Cargos: <strong>
+                                    {fmt(statement.transactions
+                                        .filter(t => isCargo(t.type))
+                                        .reduce((s, t) => s + parseFloat(t.amount), 0))}
+                                </strong>
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#16A34A]/5 rounded-lg border border-[#16A34A]/20">
+                            <ArrowDownLeft className="w-3.5 h-3.5 text-[#16A34A]" />
+                            <span className="text-xs text-[#16A34A]">
+                                Abonos: <strong>
+                                    {fmt(statement.transactions
+                                        .filter(t => isAbono(t.type))
+                                        .reduce((s, t) => s + parseFloat(t.amount), 0))}
+                                </strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Movements table */}
+                    <div className="px-8 py-5">
+                        <div className="flex items-center gap-2 mb-4">
+                            <SlidersHorizontal className="w-4 h-4 text-[#2563EB]" />
+                            <h3 className="text-sm font-semibold text-[#0F172A]">Historial de Movimientos</h3>
+                        </div>
+
+                        {statement.transactions.length === 0 ? (
+                            <div className="py-12 text-center border border-[#E2E8F0] rounded-lg">
+                                <FileText className="w-8 h-8 text-[#94A3B8] mx-auto mb-2" />
+                                <p className="text-sm text-[#475569]">No hay movimientos registrados en el período.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg border border-[#E2E8F0]">
+                                <table className="w-full">
+                                    <thead className="bg-[#F7F9FC] border-b border-[#E2E8F0]">
+                                        <tr>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-[#475569] uppercase tracking-wider">Fecha</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-[#475569] uppercase tracking-wider">Tipo</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-[#475569] uppercase tracking-wider">N° Ref.</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-[#475569] uppercase tracking-wider">Descripción</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-[#475569] uppercase tracking-wider">Cargos (+)</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-[#475569] uppercase tracking-wider">Abonos (-)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#E2E8F0]">
+                                        {statement.transactions.map((tx, idx) => (
+                                            <tr key={idx} className="hover:bg-[#F7F9FC] transition-colors">
+                                                <td className="px-4 py-3 text-xs font-mono text-[#475569]">
+                                                    {new Date(tx.createdAt).toLocaleDateString('es-VE')}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isCargo(tx.type)
+                                                        ? 'bg-[#DC2626]/10 text-[#DC2626]'
+                                                        : 'bg-[#16A34A]/10 text-[#16A34A]'
+                                                        }`}>
+                                                        {isCargo(tx.type) ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
+                                                        {TYPE_LABELS[tx.type] || tx.type}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-xs font-mono text-[#475569]">
+                                                    {tx.transactionNumber || tx.id.slice(0, 8).toUpperCase()}
+                                                </td>
+                                                <td className="px-4 py-3 text-xs text-[#0F172A] max-w-[180px] truncate" title={tx.description}>
+                                                    {tx.description || '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-sm font-semibold font-mono text-[#DC2626]">
+                                                    {isCargo(tx.type) ? fmt(parseFloat(tx.amount)) : '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-sm font-semibold font-mono text-[#16A34A]">
+                                                    {isAbono(tx.type) ? fmt(parseFloat(tx.amount)) : '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="border-t-2 border-[#E2E8F0] bg-[#F7F9FC]">
+                                        <tr>
+                                            <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-[#0F172A]">Saldo Final</td>
+                                            <td colSpan={2} className="px-4 py-3 text-right">
+                                                <span className={`text-lg font-bold font-mono ${statement.closingBalance > 0 ? 'text-[#DC2626]' : 'text-[#16A34A]'}`}>
+                                                    {fmt(statement.closingBalance)}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer firma */}
+                    <div className="px-8 py-5 border-t border-[#E2E8F0] bg-[#F7F9FC] flex justify-between items-center text-xs text-[#94A3B8]">
+                        <span>Generado el {new Date().toLocaleString('es-VE')}</span>
+                        <div className="text-center">
+                            <div className="w-48 border-t border-[#475569]/30 pt-2">
+                                <p className="text-xs font-semibold text-[#475569] uppercase tracking-widest">Firma Autorizada</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
-
-            <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-            background: #fff;
-          }
-          .bg-surface { background: #fff !important; }
-          .bg-bg-base { background: #fff !important; }
-          .bg-gray-50 { background: #f9fafb !important; -webkit-print-color-adjust: exact; }
-          .bg-gray-100 { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
-          .text-brand-primary { color: #020817 !important; -webkit-print-color-adjust: exact; }
-          .text-success { color: #16a34a !important; -webkit-print-color-adjust: exact; }
-          
-          #printable-area, #printable-area * {
-            visibility: visible;
-          }
-          
-          /* Just make the statement container the only visible thing */
-          .bg-white.p-8, .bg-white.p-8 * {
-            visibility: visible;
-          }
-          
-          .bg-white.p-8 {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            box-shadow: none;
-            border: none;
-          }
-        }
-      `}</style>
         </div>
     );
 }

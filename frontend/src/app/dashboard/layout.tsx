@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
+import { RoleGuard } from '@/components/layout/RoleGuard';
 import { registerPushNotifications } from '@/lib/push-notifications';
 
 import { SidebarProvider } from '@/components/layout/SidebarContext';
@@ -29,11 +30,13 @@ export default function DashboardLayout({
                     {/* Topbar */}
                     <Topbar />
 
-                    {/* Page Content */}
+                    {/* Page Content — wrapped in RoleGuard for route-level RBAC */}
                     <main className="flex-1 overflow-auto bg-bg-base p-6 pt-8">
                         <div className="mx-auto max-w-7xl space-y-6">
                             <Breadcrumb />
-                            {children}
+                            <RoleGuard>
+                                {children}
+                            </RoleGuard>
                         </div>
                     </main>
                 </div>
@@ -41,3 +44,4 @@ export default function DashboardLayout({
         </SidebarProvider>
     );
 }
+

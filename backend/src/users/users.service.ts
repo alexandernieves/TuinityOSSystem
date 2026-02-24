@@ -4,7 +4,7 @@ import { RequestContext } from '../common/request-context';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findByTenantAndEmail(tenantId: string, email: string) {
     return this.prisma.user.findUnique({
@@ -147,6 +147,24 @@ export class UsersService {
     });
   }
 
+  async updateProfile(
+    userId: string,
+    tenantId: string,
+    data: { name?: string; description?: string; avatarUrl?: string },
+  ) {
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      // Ensure we only update for the correct tenant
+      data: {
+        name: data.name,
+        description: data.description,
+        avatarUrl: data.avatarUrl,
+      },
+    });
+  }
+
   async updateUserRole(
     userId: string,
     tenantId: string,
@@ -157,7 +175,10 @@ export class UsersService {
       | 'OWNER'
       | 'SALES'
       | 'WAREHOUSE'
-      | 'TRAFFIC',
+      | 'TRAFFIC'
+      | 'ACCOUNTING'
+      | 'PURCHASING'
+      | 'SUPERVISOR',
   ) {
     return this.prisma.$transaction(async (tx) => {
       // 1. Actualizar el enum en el modelo User
@@ -198,6 +219,40 @@ export class UsersService {
       where: {
         id: userId,
       },
+    });
+  }
+
+  async updateUserInfo(
+    userId: string,
+    tenantId: string,
+    data: { name?: string; role?: string },
+  ) {
+    // If role changed, update it with the correct enum and re-link UserRole
+    if (data.role) {
+      return this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.update({
+          where: { id: userId },
+          data: { name: data.name, role: data.role as any },
+        });
+
+        await tx.userRole.deleteMany({ where: { userId } });
+
+        const roleRecord = await tx.role.findFirst({
+          where: { tenantId, name: data.role },
+        });
+        if (roleRecord) {
+          await tx.userRole.create({
+            data: { userId, roleId: roleRecord.id },
+          });
+        }
+
+        return user;
+      });
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { name: data.name },
     });
   }
 }

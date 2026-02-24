@@ -58,7 +58,7 @@ export const subMenus: Record<string, MenuSection> = {
     pos: {
         title: 'Punto de Venta',
         description: 'Gestión de facturación y cobros',
-        roles: ['OWNER', 'ADMIN', 'SALES'],
+        roles: ['OWNER', 'ADMIN', 'SALES', 'SUPERVISOR', 'ACCOUNTING'],
         items: [
             { label: 'Terminal Punto de Venta', icon: <ShoppingCart />, href: '/dashboard/pos' },
             { label: 'Consulta de Facturas', icon: <FileText />, href: '/dashboard/pos/facturas' },
@@ -78,14 +78,14 @@ export const subMenus: Record<string, MenuSection> = {
     inventory: {
         title: 'Inventario',
         description: 'Control de stock y productos',
-        roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'TRAFFIC'],
+        roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'TRAFFIC', 'PURCHASING', 'SUPERVISOR', 'ACCOUNTING'],
         items: [
             { label: 'Consulta de Stock', icon: <Search />, href: '/dashboard/inventario' },
             { label: 'Administración de Productos', icon: <Package />, href: '/dashboard/productos' },
             {
                 label: 'Registro de Compras',
                 icon: <ShoppingCart />,
-                roles: ['OWNER', 'ADMIN', 'WAREHOUSE'],
+                roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'PURCHASING', 'SUPERVISOR'],
                 subItems: [
                     { label: 'Órdenes de Compra', icon: <FileText />, href: '/dashboard/compras' },
                     { label: 'Importar Factura Proveedor', icon: <Calculator />, href: '/dashboard/compras/importar' },
@@ -105,7 +105,7 @@ export const subMenus: Record<string, MenuSection> = {
     customers: {
         title: 'Clientes',
         description: 'Directorio y estados de cuenta',
-        roles: ['OWNER', 'ADMIN', 'SALES', 'TRAFFIC'],
+        roles: ['OWNER', 'ADMIN', 'SALES', 'TRAFFIC', 'SUPERVISOR', 'ACCOUNTING'],
         items: [
             { label: 'Consulta de Clientes', icon: <Search />, href: '/dashboard/clientes/consulta' },
             { label: 'Administración de Clientes', icon: <Settings />, href: '/dashboard/clientes/administracion' },
@@ -149,7 +149,7 @@ export const subMenus: Record<string, MenuSection> = {
     accounting: {
         title: 'Contabilidad',
         description: 'Gestión financiera y bancaria',
-        roles: ['OWNER', 'ADMIN'],
+        roles: ['OWNER', 'ADMIN', 'ACCOUNTING', 'SUPERVISOR'],
         items: [
             { label: 'Transacciones del Mayor', icon: <Activity /> },
             { label: 'Catálogo de Cuentas', icon: <FileText /> },
@@ -181,7 +181,7 @@ export const subMenus: Record<string, MenuSection> = {
     traffic: {
         title: 'Tráfico y Logística',
         description: 'Gestión de despachos y documentos',
-        roles: ['OWNER', 'ADMIN', 'TRAFFIC'],
+        roles: ['OWNER', 'ADMIN', 'TRAFFIC', 'SUPERVISOR'],
         items: [
             { label: 'Monitor de Despachos', icon: <Activity />, href: '/dashboard/trafico' },
             { label: 'Generar DMC / BL', icon: <FileText />, href: '/dashboard/trafico/documentos' },
@@ -192,7 +192,7 @@ export const subMenus: Record<string, MenuSection> = {
     vSales: {
         title: 'Ventas B2B',
         description: 'Gestión comercial de mayoristas',
-        roles: ['OWNER', 'ADMIN', 'SALES', 'TRAFFIC'],
+        roles: ['OWNER', 'ADMIN', 'SALES', 'TRAFFIC', 'SUPERVISOR'],
         items: [
             { label: 'Pipeline de Ventas', icon: <Briefcase />, href: '/dashboard/ventas' },
             { label: 'Control de Aprobaciones', icon: <FileCheck />, href: '/dashboard/ventas/aprobaciones' },
@@ -204,7 +204,7 @@ export const subMenus: Record<string, MenuSection> = {
     settings: {
         title: 'Configuración',
         description: 'Ajustes del sistema',
-        roles: ['OWNER', 'ADMIN'],
+        roles: ['OWNER', 'ADMIN', 'SUPERVISOR'],
         items: [
             { label: 'Gestión de Sucursales', icon: <Building2 />, href: '/dashboard/configuracion/sucursales' },
             { label: 'Herramientas del Sistema', icon: <Settings /> },
@@ -267,7 +267,7 @@ export const subMenus: Record<string, MenuSection> = {
     warehouse: {
         title: 'Gestión de Almacén',
         description: 'Operaciones de picking, packing y bodega',
-        roles: ['OWNER', 'ADMIN', 'WAREHOUSE'],
+        roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'SUPERVISOR'],
         items: [
             { label: 'Monitor de Picking', icon: <Activity />, href: '/dashboard/almacen/picking' },
             { label: 'Control de Inventario', icon: <Package />, href: '/dashboard/inventario' },

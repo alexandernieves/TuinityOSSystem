@@ -28,9 +28,10 @@ type LoginResponse = {
   refreshToken: string;
   tenantId: string;
   userId: string;
+  requiresPasswordChange?: boolean;
 };
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'change-password';
 type RegisterStep = 1 | 2 | 3;
 
 // --- Helper Components (Stability outside to prevent re-animation on Parent state change) ---
@@ -83,7 +84,9 @@ const BrandingSide = ({ mode }: { mode: AuthMode }) => (
       >
         {mode === 'login' ?
           "Control total de inventario, ventas, finanzas y operaciones en una sola plataforma." :
-          "La plataforma ERP diseñada para la Zona Libre, optimizando cada proceso de tu empresa."
+          mode === 'register' ?
+            "La plataforma ERP diseñada para la Zona Libre, optimizando cada proceso de tu empresa." :
+            "Tu seguridad es lo primero. Establece una contraseña personal para proteger tu cuenta."
         }
       </motion.p>
 
@@ -105,6 +108,7 @@ function AuthPageContent() {
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Login Form State
   const [loginData, setLoginData] = useState({
@@ -112,6 +116,14 @@ function AuthPageContent() {
     email: '',
     password: '',
   });
+
+  // Change Password State
+  const [changePasswordData, setChangePasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordChangeStep, setPasswordChangeStep] = useState<'form' | 'success'>('form');
 
   // Register Form State
   const [regStep, setRegStep] = useState<RegisterStep>(1);
@@ -169,9 +181,16 @@ function AuthPageContent() {
       });
 
       saveSession({ ...response, tenantSlug });
-      toast.success('¡Bienvenido!', { id: toastId });
-      setRedirecting(true);
-      router.push('/dashboard');
+
+      if (response.requiresPasswordChange) {
+        toast.info('Primer acceso: Por favor cambia tu contraseña', { id: toastId });
+        setChangePasswordData(prev => ({ ...prev, currentPassword: loginData.password }));
+        setMode('change-password');
+      } else {
+        toast.success('¡Bienvenido!', { id: toastId });
+        setRedirecting(true);
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Error al iniciar sesión', { id: toastId });
       setLoading(false);
@@ -198,6 +217,36 @@ function AuthPageContent() {
       setRegStep(3);
     } catch (e: any) {
       toast.error(e.message || 'Error al procesar el registro', { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onChangePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+    if (changePasswordData.newPassword.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setLoading(true);
+    const toastId = toast.loading('Actualizando contraseña...');
+    try {
+      await api('/auth/change-password', {
+        method: 'PATCH',
+        body: {
+          currentPassword: changePasswordData.currentPassword || loginData.password,
+          newPassword: changePasswordData.newPassword,
+        },
+      });
+      toast.success('¡Contraseña actualizada!', { id: toastId });
+      setPasswordChangeStep('success');
+    } catch (error: any) {
+      toast.error(error.message || 'Error al cambiar contraseña', { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -295,7 +344,7 @@ function AuthPageContent() {
                     </Button>
                   </form>
                 </motion.div>
-              ) : (
+              ) : mode === 'register' ? (
                 <motion.div
                   key="register-card"
                   layout
@@ -354,19 +403,98 @@ function AuthPageContent() {
                     )}
                   </div>
                 </motion.div>
+              ) : (
+                <motion.div
+                  key="change-password-card"
+                  layout
+                  initial={{ opacity: 0, x: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -30, scale: 0.95 }}
+                  whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15)" }}
+                  className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-white shadow-2xl transition-shadow duration-300"
+                >
+                  <div className="bg-[var(--brand-primary)] p-8">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Cambio de Contraseña</h2>
+                    <p className="mt-1 text-sm text-white/50">Establece tu contraseña personal</p>
+                  </div>
+
+                  <div className="p-8">
+                    {passwordChangeStep === 'form' ? (
+                      <form onSubmit={onChangePassword} className="space-y-6">
+                        <Input
+                          label="Contraseña Actual"
+                          type={showChangePassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={changePasswordData.currentPassword}
+                          onChange={(e) => setChangePasswordData({ ...changePasswordData, currentPassword: e.target.value })}
+                          required
+                          disabled={loading}
+                        />
+                        <Input
+                          label="Nueva Contraseña"
+                          type={showChangePassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={changePasswordData.newPassword}
+                          onChange={(e) => setChangePasswordData({ ...changePasswordData, newPassword: e.target.value })}
+                          required
+                          disabled={loading}
+                          rightIcon={
+                            <button type="button" onClick={() => setShowChangePassword(!showChangePassword)}>
+                              {showChangePassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </button>
+                          }
+                        />
+                        <Input
+                          label="Confirmar Contraseña"
+                          type={showChangePassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={changePasswordData.confirmPassword}
+                          onChange={(e) => setChangePasswordData({ ...changePasswordData, confirmPassword: e.target.value })}
+                          required
+                          disabled={loading}
+                        />
+                        <Button
+                          type="submit"
+                          size="lg"
+                          className="w-full h-14 text-lg bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary)]/90"
+                          disabled={loading}
+                          isLoading={loading}
+                        >
+                          Actualizar y Entrar
+                        </Button>
+                      </form>
+                    ) : (
+                      <div className="py-8 text-center animate-in zoom-in duration-500">
+                        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#2D8A4E]/10 mb-6">
+                          <Check className="h-10 w-10 text-[#2D8A4E]" />
+                        </div>
+                        <h3 className="text-xl font-bold text-[var(--brand-primary)]">¡Contraseña Cambiada!</h3>
+                        <p className="mt-2 text-sm text-[var(--text-secondary)]">Redirigiendo al panel principal...</p>
+                        <Button
+                          variant="primary"
+                          className="mt-8 w-full h-14"
+                          onClick={() => {
+                            setRedirecting(true);
+                            router.push('/dashboard');
+                          }}
+                        >
+                          Ir al Dashboard
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Switch Mode Action */}
+            {/* Support link only */}
             <div className="mt-10 text-center">
-              <p className="text-base text-[var(--text-secondary)]">
-                {mode === 'login' ? (
-                  <>¿No tienes cuenta? <button onClick={() => setMode('register')} className="font-black text-[var(--brand-primary)] hover:underline decoration-[var(--brand-accent)] decoration-2 underline-offset-8">Regístrate aquí</button></>
-                ) : (
+              {mode !== 'login' && (
+                <p className="text-base text-[var(--text-secondary)] mb-6">
                   <>¿Ya tienes cuenta? <button onClick={() => setMode('login')} className="font-black text-[var(--brand-primary)] hover:underline decoration-[var(--brand-accent)] decoration-2 underline-offset-8">Inicia sesión aquí</button></>
-                )}
-              </p>
-              <p className="mt-6 text-sm text-[var(--text-secondary)]/60 hover:text-[var(--brand-primary)] transition-colors cursor-pointer font-bold uppercase tracking-widest">¿Necesitas ayuda? Contacta con soporte técnico</p>
+                </p>
+              )}
+              <p className="text-sm text-[var(--text-secondary)]/60 hover:text-[var(--brand-primary)] transition-colors cursor-pointer font-bold uppercase tracking-widest">¿Necesitas ayuda? Contacta con soporte técnico</p>
             </div>
           </div>
         </div>

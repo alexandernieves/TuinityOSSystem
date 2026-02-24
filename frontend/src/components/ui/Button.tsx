@@ -9,6 +9,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: ButtonSize;
   children: React.ReactNode;
   isLoading?: boolean;
+  isIconOnly?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }
@@ -27,6 +28,12 @@ const sizeStyles: Record<ButtonSize, string> = {
   lg: 'px-6 py-3 text-lg',
 };
 
+const iconSizeStyles: Record<ButtonSize, string> = {
+  sm: 'p-1.5',
+  md: 'p-2',
+  lg: 'p-3',
+};
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
@@ -36,6 +43,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       className,
       disabled,
       isLoading,
+      isIconOnly,
       leftIcon,
       rightIcon,
       ...props
@@ -53,7 +61,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1A2B3C]',
           'active:scale-95',
           variantStyles[variant],
-          sizeStyles[size],
+          isIconOnly ? iconSizeStyles[size] : sizeStyles[size],
           (disabled || isLoading) && 'opacity-50 cursor-not-allowed pointer-events-none',
           className
         )}
@@ -81,10 +89,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             ></path>
           </svg>
         ) : (
-          leftIcon
+          <>
+            {leftIcon}
+            {children}
+            {rightIcon}
+          </>
         )}
-        {children}
-        {rightIcon}
       </button>
     );
   }

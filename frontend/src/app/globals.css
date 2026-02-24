@@ -256,6 +256,18 @@ body {
   }
 }
 
+/* Dropdown animated entry */
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
 @keyframes slide-right {
   from {
     opacity: 0;

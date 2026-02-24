@@ -18,7 +18,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   private getAccessTokenTtlSeconds() {
     const raw = this.configService.get<string>('JWT_ACCESS_TTL_SECONDS');
@@ -356,10 +356,23 @@ export class AuthService {
       throw new ForbiddenException('Invalid credentials');
     }
 
+    if (user.status === 'DISABLED') {
+      throw new ForbiddenException('User is disabled');
+    }
+
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) {
       throw new ForbiddenException('Invalid credentials');
     }
+
+    if (user.status === 'PENDING') {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'ACTIVE' },
+      });
+    }
+
+    const wasFirstLogin = user.status === 'PENDING';
 
     const accessTokenTtlSeconds = this.getAccessTokenTtlSeconds();
     const accessToken = await this.jwtService.signAsync(
@@ -391,6 +404,7 @@ export class AuthService {
       refreshToken,
       tenantId: tenant.id,
       userId: user.id,
+      requiresPasswordChange: wasFirstLogin,
     };
   }
 
@@ -506,6 +520,28 @@ export class AuthService {
       await tx.salesAnalytics.deleteMany({ where: { tenantId } });
       await tx.product.deleteMany({ where: { tenantId } });
       await tx.tenant.delete({ where: { id: tenantId } });
+    });
+
+    return { ok: true };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new ForbiddenException('Usuario no encontrado');
+    }
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) {
+      throw new ForbiddenException('La contraseña actual es incorrecta');
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
     });
 
     return { ok: true };
