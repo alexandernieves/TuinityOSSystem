@@ -1,15 +1,13 @@
 require('dotenv/config');
-
+const { Pool } = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
 const { faker } = require('@faker-js/faker');
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is required to run prisma seed');
-}
-
-const prisma = new PrismaClient({
-  log: ['info', 'warn', 'error']
-});
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter, log: ['info', 'warn', 'error'] });
 
 // Helper functions
 const randomChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -119,7 +117,7 @@ async function main() {
     invoiceDate.setHours(randomInt(8, 18), randomInt(0, 59), 0, 0);
 
     const invoicesPerDay = randomInt(3, 12);
-    
+
     for (let i = 0; i < invoicesPerDay; i++) {
       const branch = randomChoice(branches);
       const sequence = await prisma.invoiceSequence.findUnique({
@@ -153,11 +151,11 @@ async function main() {
         const quantity = randomInt(1, 5);
         const unitPrice = randomFloat(product.basePrice * 0.9, product.basePrice * 1.1);
         const lineSubtotal = quantity * unitPrice;
-        
-        const discountType = Math.random() > 0.8 ? 'PERCENTAGE' : 'NONE';
-        const discountValue = discountType === 'PERCENTAGE' ? randomFloat(5, 15) : 0;
-        const lineDiscount = discountType === 'PERCENTAGE' ? lineSubtotal * (discountValue / 100) : 0;
-        
+
+        const discountType = Math.random() > 0.8 ? 'PERCENT' : 'NONE';
+        const discountValue = discountType === 'PERCENT' ? randomFloat(5, 15) : 0;
+        const lineDiscount = discountType === 'PERCENT' ? lineSubtotal * (discountValue / 100) : 0;
+
         const taxable = Math.random() > 0.1;
         const taxRate = 0.07;
         const lineTax = taxable ? (lineSubtotal - lineDiscount) * taxRate : 0;
@@ -193,7 +191,7 @@ async function main() {
         tenantId: tenant.id,
         branchId: branch.id,
         issuedByUserId: null, // Will be set later if needed
-        status: randomChoice(['ISSUED', 'PAID', 'CANCELLED']),
+        status: randomChoice(['ISSUED', 'ISSUED', 'VOID']),
         invoiceNumber: invoiceNumber,
         sequenceNumber: newSequenceNumber,
         currency: 'USD',
@@ -219,7 +217,7 @@ async function main() {
       });
 
       // Generate payment
-      if (invoice.status !== 'CANCELLED') {
+      if (invoice.status !== 'VOID') {
         const paymentMethod = randomChoice(paymentMethods);
         const paymentData = {
           id: faker.string.uuid(),
@@ -248,7 +246,7 @@ async function main() {
       }
 
       // Generate returns (10% chance)
-      if (Math.random() < 0.1 && invoice.status === 'PAID') {
+      if (Math.random() < 0.1 && invoice.status === 'ISSUED') {
         const returnAmount = total * randomFloat(0.1, 0.8);
         const returnData = {
           id: faker.string.uuid(),

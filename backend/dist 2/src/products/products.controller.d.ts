@@ -1,0 +1,174 @@
+import { ProductsService } from './products.service';
+import type { CreateProductDto } from './dto/create-product.dto';
+import type { UpdateProductDto } from './dto/update-product.dto';
+import type { ProductQueryDto } from './dto/product-query.dto';
+import type { BulkUpdatePricesDto } from './dto/bulk-update-prices.dto';
+export declare class ProductsController {
+    private readonly productsService;
+    constructor(productsService: ProductsService);
+    private getContext;
+    create(createProductDto: CreateProductDto): Promise<{
+        barcodes: {
+            id: string;
+            tenantId: string;
+            barcode: string;
+            productId: string;
+        }[];
+        category: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            description: string | null;
+            deletedAt: Date | null;
+            parentId: string | null;
+        } | null;
+        brand: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            description: string | null;
+            deletedAt: Date | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        internalReference: string | null;
+        showroomCode: string | null;
+        description: string;
+        description_es: string | null;
+        description_en: string | null;
+        description_pt: string | null;
+        composition: string | null;
+        mainImageUrl: string | null;
+        codigoArancelario: string | null;
+        paisOrigen: string | null;
+        unitOfMeasure: string | null;
+        weight: import("@prisma/client-runtime-utils").Decimal | null;
+        volume: import("@prisma/client-runtime-utils").Decimal | null;
+        volumeCubicFeet: import("@prisma/client-runtime-utils").Decimal | null;
+        unitsPerBox: number | null;
+        boxesPerPallet: number | null;
+        minStock: number | null;
+        price_a: import("@prisma/client-runtime-utils").Decimal;
+        price_b: import("@prisma/client-runtime-utils").Decimal;
+        price_c: import("@prisma/client-runtime-utils").Decimal;
+        price_d: import("@prisma/client-runtime-utils").Decimal;
+        price_e: import("@prisma/client-runtime-utils").Decimal;
+        lastFobCost: import("@prisma/client-runtime-utils").Decimal;
+        lastCifCost: import("@prisma/client-runtime-utils").Decimal;
+        weightedAvgCost: import("@prisma/client-runtime-utils").Decimal;
+        createdBy: string | null;
+        updatedBy: string | null;
+        deletedAt: Date | null;
+        categoryId: string | null;
+        brandId: string | null;
+    }>;
+    findAll(query: ProductQueryDto): Promise<{
+        items: any[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+    }>;
+    findOne(id: string): Promise<any>;
+    update(id: string, updateProductDto: UpdateProductDto): Promise<{
+        barcodes: {
+            id: string;
+            tenantId: string;
+            barcode: string;
+            productId: string;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        internalReference: string | null;
+        showroomCode: string | null;
+        description: string;
+        description_es: string | null;
+        description_en: string | null;
+        description_pt: string | null;
+        composition: string | null;
+        mainImageUrl: string | null;
+        codigoArancelario: string | null;
+        paisOrigen: string | null;
+        unitOfMeasure: string | null;
+        weight: import("@prisma/client-runtime-utils").Decimal | null;
+        volume: import("@prisma/client-runtime-utils").Decimal | null;
+        volumeCubicFeet: import("@prisma/client-runtime-utils").Decimal | null;
+        unitsPerBox: number | null;
+        boxesPerPallet: number | null;
+        minStock: number | null;
+        price_a: import("@prisma/client-runtime-utils").Decimal;
+        price_b: import("@prisma/client-runtime-utils").Decimal;
+        price_c: import("@prisma/client-runtime-utils").Decimal;
+        price_d: import("@prisma/client-runtime-utils").Decimal;
+        price_e: import("@prisma/client-runtime-utils").Decimal;
+        lastFobCost: import("@prisma/client-runtime-utils").Decimal;
+        lastCifCost: import("@prisma/client-runtime-utils").Decimal;
+        weightedAvgCost: import("@prisma/client-runtime-utils").Decimal;
+        createdBy: string | null;
+        updatedBy: string | null;
+        deletedAt: Date | null;
+        categoryId: string | null;
+        brandId: string | null;
+    }>;
+    remove(id: string): Promise<void>;
+    bulkUpdatePrices(dto: BulkUpdatePricesDto): Promise<{
+        updated: number;
+        errors: string[];
+    }>;
+    uploadImage(id: string, file: Express.Multer.File): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        internalReference: string | null;
+        showroomCode: string | null;
+        description: string;
+        description_es: string | null;
+        description_en: string | null;
+        description_pt: string | null;
+        composition: string | null;
+        mainImageUrl: string | null;
+        codigoArancelario: string | null;
+        paisOrigen: string | null;
+        unitOfMeasure: string | null;
+        weight: import("@prisma/client-runtime-utils").Decimal | null;
+        volume: import("@prisma/client-runtime-utils").Decimal | null;
+        volumeCubicFeet: import("@prisma/client-runtime-utils").Decimal | null;
+        unitsPerBox: number | null;
+        boxesPerPallet: number | null;
+        minStock: number | null;
+        price_a: import("@prisma/client-runtime-utils").Decimal;
+        price_b: import("@prisma/client-runtime-utils").Decimal;
+        price_c: import("@prisma/client-runtime-utils").Decimal;
+        price_d: import("@prisma/client-runtime-utils").Decimal;
+        price_e: import("@prisma/client-runtime-utils").Decimal;
+        lastFobCost: import("@prisma/client-runtime-utils").Decimal;
+        lastCifCost: import("@prisma/client-runtime-utils").Decimal;
+        weightedAvgCost: import("@prisma/client-runtime-utils").Decimal;
+        createdBy: string | null;
+        updatedBy: string | null;
+        deletedAt: Date | null;
+        categoryId: string | null;
+        brandId: string | null;
+    }>;
+    import(file: Express.Multer.File): Promise<{
+        created: number;
+        updated: number;
+        errors: {
+            row: number;
+            error: string;
+        }[];
+    }>;
+}

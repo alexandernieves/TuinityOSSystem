@@ -1,0 +1,1 @@
+{"version":3,"file":"open-session.dto.js","sourceRoot":"","sources":["../../../../../src/pos/cash-sessions/dto/open-session.dto.ts"],"names":[],"mappings":";;;AAAA,6BAAwB;AAEX,QAAA,iBAAiB,GAAG,OAAC,CAAC,MAAM,CAAC;IACxC,QAAQ,EAAE,OAAC,CAAC,MAAM,EAAE,CAAC,IAAI,EAAE;IAC3B,cAAc,EAAE,OAAC,CAAC,MAAM,EAAE,CAAC,WAAW,EAAE;CACzC,CAAC,CAAC"}

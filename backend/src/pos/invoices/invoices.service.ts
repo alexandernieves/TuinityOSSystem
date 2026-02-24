@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, InvoiceLineDiscountType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RequestContext } from '../../common/request-context';
@@ -12,7 +16,11 @@ export class InvoicesService {
     return new Prisma.Decimal(value);
   }
 
-  private clampDecimal(value: Prisma.Decimal, min: Prisma.Decimal, max: Prisma.Decimal) {
+  private clampDecimal(
+    value: Prisma.Decimal,
+    min: Prisma.Decimal,
+    max: Prisma.Decimal,
+  ) {
     if (value.lessThan(min)) return min;
     if (value.greaterThan(max)) return max;
     return value;
@@ -31,7 +39,9 @@ export class InvoicesService {
       throw new Error('Missing tenantId in request context');
     }
 
-    const take = Number.isFinite(params.take) ? Math.max(1, Math.min(100, params.take!)) : 25;
+    const take = Number.isFinite(params.take)
+      ? Math.max(1, Math.min(100, params.take!))
+      : 25;
     const skip = Number.isFinite(params.skip) ? Math.max(0, params.skip!) : 0;
     const q = params.q?.trim();
 
@@ -177,7 +187,8 @@ export class InvoicesService {
         const lineSubtotal = quantity.mul(unitPrice);
 
         let discount = new Prisma.Decimal(0);
-        const discountType = (line.discountType ?? 'NONE') as InvoiceLineDiscountType;
+        const discountType = (line.discountType ??
+          'NONE') as InvoiceLineDiscountType;
         const discountValue = this.toDecimal(line.discountValue ?? 0);
 
         if (discountType === 'PERCENT') {
@@ -186,12 +197,18 @@ export class InvoicesService {
           discount = discountValue;
         }
 
-        discount = this.clampDecimal(discount, new Prisma.Decimal(0), lineSubtotal);
+        discount = this.clampDecimal(
+          discount,
+          new Prisma.Decimal(0),
+          lineSubtotal,
+        );
 
         const taxable = line.taxable ?? true;
         const taxRate = this.toDecimal(line.taxRate ?? 0.07);
         const taxableBase = lineSubtotal.sub(discount);
-        const lineTax = taxable ? taxableBase.mul(taxRate) : new Prisma.Decimal(0);
+        const lineTax = taxable
+          ? taxableBase.mul(taxRate)
+          : new Prisma.Decimal(0);
         const lineTotal = taxableBase.add(lineTax);
 
         subtotal = subtotal.add(lineSubtotal);
@@ -201,6 +218,7 @@ export class InvoicesService {
 
         return {
           tenantId,
+          productId: line.productId,
           description: line.description,
           quantity,
           unitPrice,
@@ -238,6 +256,67 @@ export class InvoicesService {
           lines: true,
           branch: { select: { id: true, code: true, name: true } },
         },
+      });
+
+      // --- NEW: INVENTORY INTEGRATION ---
+      for (const line of dto.lines) {
+        if (line.productId) {
+          const qty = Number(line.quantity);
+          // 1. Decrement Inventory
+          await tx.inventory.upsert({
+            where: {
+              tenantId_branchId_productId: {
+                tenantId,
+                branchId: branch.id,
+                productId: line.productId,
+              },
+            },
+            update: { quantity: { decrement: qty } },
+            create: {
+              tenantId,
+              branchId: branch.id,
+              productId: line.productId,
+              quantity: -qty,
+            },
+          });
+
+          // 2. Record Movement
+          await tx.inventoryMovement.create({
+            data: {
+              tenantId,
+              branchId: branch.id,
+              productId: line.productId,
+              type: 'OUT',
+              quantity: -qty,
+              reason: `Venta B2C #${invoiceNumber}`,
+              referenceId: created.id,
+              createdBy: userId || 'system',
+            },
+          });
+        }
+      }
+      // ----------------------------------
+
+      // 3. Create Payment and Link to CashSession
+      const activeSession = await (tx as any).cashSession.findFirst({
+        where: {
+          tenantId,
+          userId: userId || undefined,
+          status: 'OPEN',
+          branchId: branch.id,
+        },
+      });
+
+      await (tx as any).payment.create({
+        data: {
+          tenantId,
+          invoiceId: created.id,
+          amount: total,
+          method: dto.paymentMethod || 'CASH',
+          status: 'COMPLETED',
+          paidAt: new Date(),
+          sessionId: activeSession?.id,
+        } as any,
       });
 
       return created;

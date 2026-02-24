@@ -12,7 +12,8 @@ export type RequestWithTenant = Request & {
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
   use(req: RequestWithTenant, res: Response, next: NextFunction) {
-    const path = req.path ?? '';
+    const rawUrl = (req.originalUrl ?? req.url ?? req.path ?? '').trim();
+    const path = rawUrl.split('?')[0];
 
     if (path.startsWith('/health') || path.startsWith('/auth')) {
       return next();
@@ -47,7 +48,8 @@ export class TenantMiddleware implements NestMiddleware {
     }
 
     return res.status(400).json({
-      message: 'Missing tenant context. Provide x-tenant-slug header or use subdomain.',
+      message:
+        'Missing tenant context. Provide x-tenant-slug header or use subdomain.',
     });
   }
 }

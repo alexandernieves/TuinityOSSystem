@@ -27,7 +27,11 @@ export function AppModal({
   maxWidthClassName,
   contentClassName,
 }: AppModalProps) {
-  const canUseDOM = typeof window !== 'undefined' && typeof document !== 'undefined';
+  const [mounted, setMounted] = React.useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -50,8 +54,6 @@ export function AppModal({
       document.body.style.overflow = original;
     };
   }, [open]);
-
-  if (!open) return null;
 
   const modal = (
     <AnimatePresence>
@@ -106,6 +108,6 @@ export function AppModal({
     </AnimatePresence>
   );
 
-  if (!canUseDOM) return modal;
+  if (!mounted || !open) return null;
   return createPortal(modal, document.body);
 }

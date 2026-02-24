@@ -15,7 +15,7 @@ export class JwtOptionalMiddleware implements NestMiddleware {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   use(req: RequestWithJwtUser, _res: Response, next: NextFunction) {
     const authorizationRaw = req.header('authorization');
@@ -32,10 +32,7 @@ export class JwtOptionalMiddleware implements NestMiddleware {
     const secret = this.configService.get<string>('JWT_SECRET') ?? 'dev-secret';
 
     try {
-      const payload = this.jwtService.verify(token, { secret }) as {
-        sub?: string;
-        tenantId?: string;
-      };
+      const payload = this.jwtService.verify(token, { secret });
 
       if (payload?.sub && payload?.tenantId) {
         req.user = { sub: payload.sub, tenantId: payload.tenantId };
