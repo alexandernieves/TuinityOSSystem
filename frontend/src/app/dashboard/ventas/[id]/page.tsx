@@ -160,7 +160,7 @@ export default function SalesDetailsPage() {
 
     if (!sale) return null;
 
-    const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info' | 'critical'; step: number }> = {
+    const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info'; step: number }> = {
         QUOTE: { label: 'Cotización', variant: 'info', step: 1 },
         APPROVED_QUOTE: { label: 'Cotiz. Aprobada', variant: 'info', step: 2 },
         PENDING: { label: 'Pedido Pendiente', variant: 'warning', step: 3 },

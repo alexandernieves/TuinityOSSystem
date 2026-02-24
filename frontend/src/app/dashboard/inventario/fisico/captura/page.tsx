@@ -465,7 +465,7 @@ export default function PhysicalInventoryCapturePage() {
             </div>
 
             {/* Modal de Inicialización */}
-            <Modal isOpen={isNewOpen} onOpenChange={onNewOpenChange} backdrop="blur" size="md" radius="3xl">
+            <Modal isOpen={isNewOpen} onOpenChange={onNewOpenChange} backdrop="blur" size="md" radius="lg">
                 <ModalContent className="bg-white border-none shadow-2xl">
                     <ModalHeader className="px-8 pt-8 pb-4 flex flex-col gap-1">
                         <div className="w-12 h-12 bg-[#EFF6FF] rounded-2xl flex items-center justify-center mb-2">
@@ -481,7 +481,7 @@ export default function PhysicalInventoryCapturePage() {
                                 placeholder="Escoja la bodega sucursal..."
                                 onSelectionChange={(key) => setNewSessionData({ ...newSessionData, branchId: key as string })}
                                 variant="bordered"
-                                radius="xl"
+                                radius="lg"
                                 classNames={{
                                     popoverContent: "bg-white border-none shadow-2xl"
                                 }}

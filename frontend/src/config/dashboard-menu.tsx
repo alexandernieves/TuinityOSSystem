@@ -40,7 +40,7 @@ import {
 
 export type MenuItem = {
     label: string;
-    icon: JSX.Element;
+    icon: React.ReactNode;
     subItems?: MenuItem[];
 };
 
