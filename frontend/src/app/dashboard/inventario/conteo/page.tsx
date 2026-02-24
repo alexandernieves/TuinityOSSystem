@@ -205,7 +205,7 @@ export default function InventoryCountListPage() {
                                     onChange={(e) => setBranchId(e.target.value)}
                                 >
                                     {branches.map(b => (
-                                        <SelectItem key={b.id} value={b.id} textValue={b.name}>
+                                        <SelectItem key={b.id} textValue={b.name}>
                                             {b.name}
                                         </SelectItem>
                                     ))}

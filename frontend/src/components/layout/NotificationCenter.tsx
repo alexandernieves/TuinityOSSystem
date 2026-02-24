@@ -32,12 +32,10 @@ export const NotificationCenter: React.FC = () => {
 
         try {
             const data = await api('/notifications', {
-                skipAuthRedirect: true // Component handles its own state
             }) as any[];
             setNotifications(data || []);
 
             const unread = await api('/notifications/unread-count', {
-                skipAuthRedirect: true
             }) as number;
             setUnreadCount(unread || 0);
         } catch (e: any) {

@@ -147,7 +147,7 @@ export default function SegmentationPage() {
                         <motion.div
                             key={level}
                             whileHover={{ scale: 1.02 }}
-                            transition={{ type: 'spring', stiffness: 300 }}
+                            transition={{ type: 'spring' as const, stiffness: 300 }}
                             onClick={() => {
                                 setSelectedSegment(selectedSegment === level ? '' : level);
                                 setPage(1);

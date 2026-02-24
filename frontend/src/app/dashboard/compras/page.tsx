@@ -58,7 +58,7 @@ export default function ComprasPage() {
         }
     };
 
-    const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info' | 'critical'; icon: React.ReactNode }> = {
+    const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info'; icon: React.ReactNode }> = {
         PENDING: { label: 'Borrador', variant: 'warning', icon: <Clock className="w-4 h-4" /> },
         ORDERED: { label: 'Pedido', variant: 'info', icon: <FileText className="w-4 h-4" /> },
         RECEIVED: { label: 'Recibido', variant: 'success', icon: <CheckCircle className="w-4 h-4" /> },

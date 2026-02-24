@@ -17,7 +17,7 @@ const transactionSchema = z.object({
     customerId: z.string().min(1, 'Debe seleccionar un cliente'),
     type: z.enum(['INVOICE', 'PAYMENT', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ADJUSTMENT']),
     description: z.string().min(1, 'Descripción requerida'),
-    amount: z.coerce.number().min(0.01, 'El monto debe ser mayor a 0'),
+    amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
     notes: z.string().optional(),
 });
 

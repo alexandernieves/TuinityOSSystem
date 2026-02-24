@@ -9,7 +9,7 @@ import { Menu, X } from "lucide-react";
 interface Links {
     label: string;
     href: string;
-    icon: React.JSX.Element | React.ReactNode;
+    icon: React.ReactNode;
 }
 
 interface SidebarContextProps {

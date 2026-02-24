@@ -92,8 +92,8 @@ export default function ProcesosEspecialesPage() {
                             </div>
                         </div>
                         <Button
-                            variant="flat"
-                            startContent={<ArrowLeft className="w-4 h-4" />}
+                            variant="secondary"
+                            leftIcon={<ArrowLeft className="w-4 h-4" />}
                             onClick={() => router.push('/dashboard/contabilidad')}
                             className="bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
                         >

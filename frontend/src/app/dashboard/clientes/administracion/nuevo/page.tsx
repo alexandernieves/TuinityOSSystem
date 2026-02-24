@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,7 +35,20 @@ type CustomerFormData = {
   notes?: string;
 };
 
+
 export default function CustomerFormPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-[50vh] items-center justify-center bg-bg-base">
+        <Spinner size="lg" color="primary" label="Cargando..." />
+      </div>
+    }>
+      <CustomerFormContent />
+    </Suspense>
+  );
+}
+
+function CustomerFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
