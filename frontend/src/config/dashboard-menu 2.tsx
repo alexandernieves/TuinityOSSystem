@@ -36,17 +36,21 @@ import {
     Briefcase,
     Key,
     Webhook,
+    Plus,
 } from 'lucide-react';
 
 export type MenuItem = {
     label: string;
-    icon: JSX.Element;
+    icon: React.ReactElement;
+    href?: string;
+    roles?: string[];
     subItems?: MenuItem[];
 };
 
 export type MenuSection = {
     title: string;
     description: string;
+    roles?: string[];
     items: MenuItem[];
 };
 
@@ -54,9 +58,10 @@ export const subMenus: Record<string, MenuSection> = {
     pos: {
         title: 'Punto de Venta',
         description: 'Gestión de facturación y cobros',
+        roles: ['OWNER', 'ADMIN', 'SALES', 'SUPERVISOR', 'ACCOUNTING'],
         items: [
-            { label: 'Crear Factura', icon: <ShoppingCart /> },
-            { label: 'Consulta de Facturas', icon: <FileText /> },
+            { label: 'Terminal Punto de Venta', icon: <ShoppingCart />, href: '/dashboard/pos' },
+            { label: 'Consulta de Facturas', icon: <FileText />, href: '/dashboard/pos/facturas' },
             { label: 'Consulta de Utilidad por Factura', icon: <TrendingUp /> },
             { label: 'Consulta de Cobros por Factura', icon: <BadgeDollarSign /> },
             { label: 'Consulta de Cobros por Tarjetas', icon: <CreditCard /> },
@@ -73,21 +78,23 @@ export const subMenus: Record<string, MenuSection> = {
     inventory: {
         title: 'Inventario',
         description: 'Control de stock y productos',
+        roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'TRAFFIC', 'PURCHASING', 'SUPERVISOR', 'ACCOUNTING'],
         items: [
-            { label: 'Consulta de Producto', icon: <Search /> },
-            { label: 'Administración de Productos', icon: <Package /> },
+            { label: 'Consulta de Stock', icon: <Search />, href: '/dashboard/inventario' },
+            { label: 'Administración de Productos', icon: <Package />, href: '/dashboard/productos' },
             {
                 label: 'Registro de Compras',
                 icon: <ShoppingCart />,
+                roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'PURCHASING', 'SUPERVISOR'],
                 subItems: [
-                    { label: 'Registro de Ordenes de Compra', icon: <FileText /> },
-                    { label: 'Consulta de Orden de Compra', icon: <Search /> },
+                    { label: 'Órdenes de Compra', icon: <FileText />, href: '/dashboard/compras' },
+                    { label: 'Importar Factura Proveedor', icon: <Calculator />, href: '/dashboard/compras/importar' },
                     { label: 'Consulta de Costos por Entrada', icon: <BadgeDollarSign /> },
                     { label: 'Consulta de Entradas', icon: <Package /> },
                 ]
             },
-            { label: 'Ajustes de Inventario', icon: <Settings /> },
-            { label: 'Transferencia de Mercancía', icon: <Activity /> },
+            { label: 'Ajustes de Inventario', icon: <Settings />, href: '/dashboard/inventario/ajustes', roles: ['OWNER', 'ADMIN', 'WAREHOUSE'] },
+            { label: 'Transferencia de Mercancía', icon: <Activity />, href: '/dashboard/inventario/transferencias', roles: ['OWNER', 'ADMIN', 'WAREHOUSE'] },
             { label: 'Administración de Archivos', icon: <FileText /> },
             { label: 'Reportes de Inventario', icon: <BarChart3 /> },
             { label: 'Herramientas', icon: <Settings /> },
@@ -98,38 +105,51 @@ export const subMenus: Record<string, MenuSection> = {
     customers: {
         title: 'Clientes',
         description: 'Directorio y estados de cuenta',
+        roles: ['OWNER', 'ADMIN', 'SALES', 'TRAFFIC', 'SUPERVISOR', 'ACCOUNTING'],
         items: [
-            { label: 'Consulta de Clientes', icon: <Users /> },
-            { label: 'Administración de Clientes', icon: <Settings /> },
-            { label: 'Crear Cliente Contado', icon: <UserPlus /> },
-            { label: 'Registro de Transacciones', icon: <FileText /> },
-            { label: 'Anular Transacciones', icon: <RotateCcw /> },
-            { label: 'Análisis de Morosidad', icon: <Activity /> },
-            { label: 'Imprimir Estado de Cuentas', icon: <FileText /> },
+            { label: 'Consulta de Clientes', icon: <Search />, href: '/dashboard/clientes/consulta' },
+            { label: 'Administración de Clientes', icon: <Settings />, href: '/dashboard/clientes/administracion' },
+            { label: 'Crear Cliente Contado', icon: <UserPlus />, href: '/dashboard/clientes/nuevo-contado' },
+            { label: 'Registro de Transacciones', icon: <FileText />, href: '/dashboard/clientes/transacciones' },
+            { label: 'Anular Transacciones', icon: <RotateCcw />, href: '/dashboard/clientes/anular-transacciones', roles: ['OWNER', 'ADMIN'] },
+            { label: 'Análisis de Morosidad', icon: <Activity />, href: '/dashboard/clientes/morosidad', roles: ['OWNER', 'ADMIN'] },
+            { label: 'Imprimir Estado de Cuentas', icon: <FileText />, href: '/dashboard/clientes/estado-cuenta' },
             {
                 label: 'Administración de Archivos',
                 icon: <FileText />,
+                roles: ['OWNER', 'ADMIN'],
                 subItems: [
-                    { label: 'Registro de Areas y Sub-Areas', icon: <Tags /> },
-                    { label: 'Registro de Vendedores', icon: <Users /> },
+                    { label: 'Registro de Áreas y Sub-Áreas', icon: <Tags />, href: '/dashboard/clientes/areas' },
+                    { label: 'Registro de Vendedores', icon: <Users />, href: '/dashboard/clientes/vendedores' },
                 ]
             },
-            { label: 'Reportes de Cuentas x Cobrar', icon: <BarChart3 /> },
+            {
+                label: 'Reportes de Cuentas x Cobrar',
+                icon: <BarChart3 />,
+                roles: ['OWNER', 'ADMIN'],
+                subItems: [
+                    { label: 'Reporte de Antigüedad de Saldos', icon: <Clock />, href: '/dashboard/clientes/reportes/antiguedad' },
+                    { label: 'Reporte de Cobranza', icon: <BadgeDollarSign />, href: '/dashboard/clientes/reportes/cobranza' },
+                    { label: 'Clientes con Saldo', icon: <Users />, href: '/dashboard/clientes/reportes/con-saldo' },
+                ]
+            },
             {
                 label: 'Herramientas',
                 icon: <Settings />,
+                roles: ['OWNER', 'ADMIN'],
                 subItems: [
-                    { label: 'Imprimir Estado de Cuenta en Lote', icon: <FileText /> },
-                    { label: 'Cambio de Codigo de Cliente', icon: <Tags /> },
-                    { label: 'Recálculo de Saldo', icon: <Calculator /> },
+                    { label: 'Imprimir Estado de Cuenta en Lote', icon: <FileText />, href: '/dashboard/clientes/herramientas/lote' },
+                    { label: 'Cambio de Código de Cliente', icon: <Tags />, href: '/dashboard/clientes/herramientas/cambio-codigo' },
+                    { label: 'Recálculo de Saldo', icon: <Calculator />, href: '/dashboard/clientes/herramientas/recalculo' },
                 ]
             },
-            { label: 'Consulta de Transacciones', icon: <Search /> },
+            { label: 'Consulta de Transacciones', icon: <Search />, href: '/dashboard/clientes/consulta-transacciones' },
         ]
     },
     accounting: {
         title: 'Contabilidad',
         description: 'Gestión financiera y bancaria',
+        roles: ['OWNER', 'ADMIN', 'ACCOUNTING', 'SUPERVISOR'],
         items: [
             { label: 'Transacciones del Mayor', icon: <Activity /> },
             { label: 'Catálogo de Cuentas', icon: <FileText /> },
@@ -158,13 +178,38 @@ export const subMenus: Record<string, MenuSection> = {
             },
         ]
     },
+    traffic: {
+        title: 'Tráfico y Logística',
+        description: 'Gestión de despachos y documentos',
+        roles: ['OWNER', 'ADMIN', 'TRAFFIC', 'SUPERVISOR'],
+        items: [
+            { label: 'Monitor de Despachos', icon: <Activity />, href: '/dashboard/trafico' },
+            { label: 'Generar DMC / BL', icon: <FileText />, href: '/dashboard/trafico/documentos' },
+            { label: 'Lista de Empaque', icon: <Package />, href: '/dashboard/trafico/empaque' },
+            { label: 'Estadísticas de Tráfico', icon: <BarChart3 /> },
+        ]
+    },
+    vSales: {
+        title: 'Ventas B2B',
+        description: 'Gestión comercial de mayoristas',
+        roles: ['OWNER', 'ADMIN', 'SALES', 'TRAFFIC', 'SUPERVISOR'],
+        items: [
+            { label: 'Pipeline de Ventas', icon: <Briefcase />, href: '/dashboard/ventas' },
+            { label: 'Control de Aprobaciones', icon: <FileCheck />, href: '/dashboard/ventas/aprobaciones' },
+            { label: 'Nueva Cotización', icon: <Plus />, href: '/dashboard/ventas/nueva' },
+            { label: 'Promociones Activas', icon: <Percent /> },
+            { label: 'Histórico de Ofertas', icon: <FileText /> },
+        ]
+    },
     settings: {
         title: 'Configuración',
         description: 'Ajustes del sistema',
+        roles: ['OWNER', 'ADMIN', 'SUPERVISOR'],
         items: [
-            { label: 'Registro de Bodegas', icon: <Package /> },
+            { label: 'Gestión de Sucursales', icon: <Building2 />, href: '/dashboard/configuracion/sucursales' },
             { label: 'Herramientas del Sistema', icon: <Settings /> },
             { label: 'Usuarios y Permisos', icon: <Users /> },
+            { label: 'Registrar Nuevo Usuario', icon: <UserPlus /> },
             {
                 label: 'Configuración Empresarial',
                 icon: <Building2 />,
@@ -173,7 +218,6 @@ export const subMenus: Record<string, MenuSection> = {
                     { label: 'Moneda e Impuestos', icon: <BadgeDollarSign /> },
                     { label: 'Formato de Facturas', icon: <FileText /> },
                     { label: 'Reglas Comerciales', icon: <FileCheck /> },
-                    // Pro Features
                     { label: 'Plantillas por Sucursal (Pro)', icon: <Building2 /> },
                     { label: 'Reglas Automáticas (Pro)', icon: <Settings /> },
                 ]
@@ -186,19 +230,10 @@ export const subMenus: Record<string, MenuSection> = {
                     { label: 'Seguridad y Accesos', icon: <Shield /> },
                     { label: 'Pagos y Finanzas', icon: <CreditCard /> },
                     { label: 'Errores del Sistema', icon: <AlertTriangle /> },
-                    // Enterprise Features
                     { label: 'Canales de Notificación (Email/Push)', icon: <Mail /> },
                     { label: 'Prioridad de Alertas', icon: <Clock /> },
                 ]
             },
-        ]
-    },
-    sales: {
-        title: 'Ventas',
-        description: 'Ofertas y promociones',
-        items: [
-            { label: 'Promociones Activas', icon: <Percent /> },
-            { label: 'Histórico de Ofertas', icon: <FileText /> },
         ]
     },
     dashboard: {
@@ -220,6 +255,7 @@ export const subMenus: Record<string, MenuSection> = {
     integrations: {
         title: 'Integraciones',
         description: 'Conecta con servicios externos',
+        roles: ['OWNER', 'ADMIN'],
         items: [
             { label: 'Pasarelas de Pago', icon: <Wallet /> },
             { label: 'Sistemas Contables', icon: <Calculator /> },
@@ -227,5 +263,18 @@ export const subMenus: Record<string, MenuSection> = {
             { label: 'API Keys', icon: <Key /> },
             { label: 'Webhooks', icon: <Webhook /> },
         ]
+    },
+    warehouse: {
+        title: 'Gestión de Almacén',
+        description: 'Operaciones de picking, packing y bodega',
+        roles: ['OWNER', 'ADMIN', 'WAREHOUSE', 'SUPERVISOR'],
+        items: [
+            { label: 'Monitor de Picking', icon: <Activity />, href: '/dashboard/almacen/picking' },
+            { label: 'Control de Inventario', icon: <Package />, href: '/dashboard/inventario' },
+            { label: 'Transferencias', icon: <RotateCcw />, href: '/dashboard/inventario/transferencias' },
+            { label: 'Configuración de Bodegas', icon: <Settings /> },
+        ]
     }
 };
+
+
