@@ -3,6 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 export type RequestContextStore = {
   tenantId?: string;
   userId?: string;
+  role?: string;
+  permissions?: string[];
   bypassTenantIsolation?: boolean;
 };
 

@@ -23,7 +23,7 @@ type RequestWithUser = {
 
 @Injectable()
 export class RequestContextInterceptor implements NestInterceptor {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp();
@@ -40,6 +40,8 @@ export class RequestContextInterceptor implements NestInterceptor {
             bypassTenantIsolation: true,
             tenantId: req?.user?.tenantId,
             userId: req?.user?.sub,
+            role: undefined,
+            permissions: [],
           };
         }
 
@@ -65,6 +67,8 @@ export class RequestContextInterceptor implements NestInterceptor {
           bypassTenantIsolation: false,
           tenantId,
           userId,
+          role: undefined,
+          permissions: [],
         };
       })(),
     ).pipe(
