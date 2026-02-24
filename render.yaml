@@ -6,8 +6,8 @@ services:
     plan: free            # cambiar a "starter" para producción
     region: oregon        # ajusta a la región más cercana a tus usuarios
 
-    buildCommand: yarn install && yarn prisma:generate && yarn build
-    startCommand: yarn start:prod
+    buildCommand: yarn install && npx prisma generate && yarn build
+    startCommand: npx prisma migrate deploy && node dist/main.js
 
     envVars:
       - key: NODE_ENV
