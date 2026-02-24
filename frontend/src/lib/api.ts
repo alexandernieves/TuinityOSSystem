@@ -5,7 +5,7 @@ type ApiOptions = {
   tenantSlug?: string | null;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const url = `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
