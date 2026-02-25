@@ -1,3 +1,5 @@
+import { loadSession } from './auth-storage';
+
 type ApiOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -9,14 +11,20 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const url = `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  const session = loadSession();
   const headers: Record<string, string> = {
     'content-type': 'application/json',
   };
 
-  if (options.accessToken) {
-    headers.authorization = `Bearer ${options.accessToken}`;
-  } else if (options.tenantSlug) {
-    headers['x-tenant-slug'] = options.tenantSlug;
+  const token = options.accessToken ?? session?.accessToken;
+  const tenant = options.tenantSlug ?? session?.tenantSlug;
+
+  if (token) {
+    headers.authorization = `Bearer ${token}`;
+  }
+
+  if (tenant) {
+    headers['x-tenant-slug'] = tenant;
   }
 
   const res = await fetch(url, {
@@ -41,7 +49,16 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   if (!res.ok) {
     const message = getErrorMessage(data) ?? `HTTP ${res.status}`;
-    throw new Error(message);
+    const error = new Error(message) as any;
+    error.status = res.status;
+
+    if (res.status === 401 && typeof window !== 'undefined') {
+      const { clearSession } = require('./auth-storage');
+      clearSession();
+      window.location.href = '/login';
+    }
+
+    throw error;
   }
 
   return data as T;
