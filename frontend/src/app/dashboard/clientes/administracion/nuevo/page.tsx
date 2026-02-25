@@ -58,7 +58,7 @@ function CustomerFormContent() {
   const [initialLoading, setInitialLoading] = useState(isEditMode);
 
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<any>({
-    resolver: zodResolver(customerSchema),
+    resolver: zodResolver(customerSchema) as any,
     defaultValues: {
       name: '',
       taxId: '',

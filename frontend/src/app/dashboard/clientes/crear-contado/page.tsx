@@ -54,7 +54,7 @@ export default function CreateCashCustomerPage() {
     const [loading, setLoading] = useState(false);
 
     const { control, handleSubmit, formState: { errors, isValid, isDirty } } = useForm<CashCustomerFormData>({
-        resolver: zodResolver(cashCustomerSchema),
+        resolver: zodResolver(cashCustomerSchema) as any,
         defaultValues: {
             name: '',
             taxId: '',

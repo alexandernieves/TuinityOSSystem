@@ -73,7 +73,7 @@ export default function RegisterTransactionPage() {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
     const { control, handleSubmit, watch, setValue, formState: { errors, isDirty } } = useForm<TransactionFormData>({
-        resolver: zodResolver(transactionSchema),
+        resolver: zodResolver(transactionSchema) as any,
         defaultValues: { customerId: '', type: 'PAYMENT', description: '', amount: 0, notes: '' },
         mode: 'onChange',
     });

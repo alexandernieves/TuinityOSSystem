@@ -94,7 +94,7 @@ export default function FileSettingsPage() {
             opacity: 1,
             transition: { staggerChildren: 0.05 }
         }
-    };
+    } as const;
 
     const itemVariants = {
         hidden: { y: 20, opacity: 0 },
@@ -103,7 +103,7 @@ export default function FileSettingsPage() {
             opacity: 1,
             transition: { type: 'spring' as const, stiffness: 100 }
         }
-    };
+    } as const;
 
     return (
         <div className="container mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8 bg-bg-base min-h-screen">
