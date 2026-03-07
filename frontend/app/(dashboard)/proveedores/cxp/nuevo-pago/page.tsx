@@ -6,6 +6,7 @@ import { Button, Input, Select, SelectItem, Textarea } from '@heroui/react';
 import { ArrowLeft, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 function fmt(n: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -68,11 +69,7 @@ export default function NewPaymentPage() {
     };
 
     if (isFetching) {
-        return (
-            <div className="flex h-[50vh] items-center justify-center">
-                <div className="flex gap-1">{[0, 1, 2].map(i => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-emerald-500" style={{ animationDelay: `${i * 75}ms` }} />)}</div>
-            </div>
-        );
+        return <SkeletonDashboard />;
     }
 
     return (
@@ -124,11 +121,11 @@ export default function NewPaymentPage() {
                     />
 
                     <Select label="Método de Pago" name="paymentMethod" defaultSelectedKeys={['transferencia']} isRequired>
-                        <SelectItem key="efectivo" value="efectivo">Efectivo</SelectItem>
-                        <SelectItem key="transferencia" value="transferencia">Transferencia Bancaria</SelectItem>
-                        <SelectItem key="cheque" value="cheque">Cheque</SelectItem>
-                        <SelectItem key="tarjeta" value="tarjeta">Tarjeta</SelectItem>
-                        <SelectItem key="otro" value="otro">Otro</SelectItem>
+                        <SelectItem key="efectivo">Efectivo</SelectItem>
+                        <SelectItem key="transferencia">Transferencia Bancaria</SelectItem>
+                        <SelectItem key="cheque">Cheque</SelectItem>
+                        <SelectItem key="tarjeta">Tarjeta</SelectItem>
+                        <SelectItem key="otro">Otro</SelectItem>
                     </Select>
 
                     <Input label="Referencia / # Cheque / # Transacción" name="referenceNumber" placeholder="Opcional" />

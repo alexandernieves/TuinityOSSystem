@@ -32,6 +32,7 @@ import {
   JOURNAL_STATUS_CONFIG,
 } from '@/lib/types/accounting';
 import type { JournalEntrySource, JournalEntryStatus } from '@/lib/types/accounting';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
 
 interface NewEntryLine {
   accountId: string;
@@ -303,139 +304,143 @@ export default function LibroDiarioPage() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                <th className="w-8 px-2 py-3" />
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Número</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Fecha</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Descripción</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Origen</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Debe</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Haber</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {entries.map((entry, index) => {
-                const statusConfig = (JOURNAL_STATUS_CONFIG as any)[entry.status] || JOURNAL_STATUS_CONFIG.borrador;
-                const isExpanded = expandedRow === entry.id;
+        {loading ? (
+          <SkeletonTable rows={5} columns={8} hasHeader={true} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
+                  <th className="w-8 px-2 py-3" />
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Número</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Descripción</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Origen</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Debe</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Haber</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+                {entries.map((entry, index) => {
+                  const statusConfig = (JOURNAL_STATUS_CONFIG as any)[entry.status] || JOURNAL_STATUS_CONFIG.borrador;
+                  const isExpanded = expandedRow === entry.id;
 
-                return (<>
-                  <tr
-                    key={entry.id}
-                    className="group cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-                    onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
-                  >
-                    <td className="px-2 py-3 text-center">
-                      <ChevronDown
-                        className={cn(
-                          'h-4 w-4 text-gray-400 transition-transform',
-                          isExpanded && 'rotate-180'
-                        )}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
-                        {entry.reference}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{formatDate(entry.date)}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-900 dark:text-white">{entry.description}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
-                          (JOURNAL_SOURCE_COLORS as any)[entry.sourceType || 'manual']?.bg || 'bg-gray-100',
-                          (JOURNAL_SOURCE_COLORS as any)[entry.sourceType || 'manual']?.text || 'text-gray-700'
-                        )}
-                      >
-                        {(JOURNAL_SOURCE_LABELS as any)[entry.sourceType || 'manual']}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-sm text-gray-900 dark:text-white">
-                        {formatCurrencyAccounting(entry.lines.reduce((s: number, l: any) => s + (l.debit || 0), 0))}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-sm text-gray-900 dark:text-white">
-                        {formatCurrencyAccounting(entry.lines.reduce((s: number, l: any) => s + (l.credit || 0), 0))}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                          statusConfig.bg,
-                          statusConfig.text
-                        )}
-                      >
-                        <span className={cn('h-1.5 w-1.5 rounded-full', statusConfig.dot)} />
-                        {(JOURNAL_STATUS_LABELS as any)[entry.status]}
-                      </span>
-                    </td>
-                  </tr>
-                  {/* Expanded detail */}
-                  {isExpanded && (
-                    <tr key={`${entry.id}-detail`}>
-                      <td colSpan={8} className="bg-gray-50 dark:bg-[#0a0a0a] px-8 py-3">
-                        <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="bg-gray-100 dark:bg-[#1a1a1a]">
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-[#888888]">Codigo</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-[#888888]">Cuenta</th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-[#888888]">Debe</th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-[#888888]">Haber</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                              {entry.lines.map((line: any) => (
-                                <tr key={line.id} className="bg-white dark:bg-[#141414]">
-                                  <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">
-                                    {line.accountCode}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                                    {line.accountName}
-                                  </td>
-                                  <td className="px-4 py-2 text-right font-mono text-sm text-gray-900 dark:text-white">
-                                    {line.debit > 0 ? formatCurrencyAccounting(line.debit) : ''}
-                                  </td>
-                                  <td className="px-4 py-2 text-right font-mono text-sm text-gray-900 dark:text-white">
-                                    {line.credit > 0 ? formatCurrencyAccounting(line.credit) : ''}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        {entry.notes && (
-                          <p className="mt-2 text-xs text-gray-500 dark:text-[#888888] italic">
-                            Nota: {entry.notes}
-                          </p>
-                        )}
-                        <p className="mt-1 text-xs text-gray-400 dark:text-[#666666]">
-                          Creado por {entry.createdBy?.name || 'Sistema'} el {formatDate(entry.createdAt)}
-                        </p>
+                  return (<>
+                    <tr
+                      key={entry.id}
+                      className="group cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+                      onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
+                    >
+                      <td className="px-2 py-3 text-center">
+                        <ChevronDown
+                          className={cn(
+                            'h-4 w-4 text-gray-400 transition-transform',
+                            isExpanded && 'rotate-180'
+                          )}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
+                          {entry.reference}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">{formatDate(entry.date)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-900 dark:text-white">{entry.description}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
+                            (JOURNAL_SOURCE_COLORS as any)[entry.sourceType || 'manual']?.bg || 'bg-gray-100',
+                            (JOURNAL_SOURCE_COLORS as any)[entry.sourceType || 'manual']?.text || 'text-gray-700'
+                          )}
+                        >
+                          {(JOURNAL_SOURCE_LABELS as any)[entry.sourceType || 'manual']}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-mono text-sm text-gray-900 dark:text-white">
+                          {formatCurrencyAccounting(entry.lines.reduce((s: number, l: any) => s + (l.debit || 0), 0))}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-mono text-sm text-gray-900 dark:text-white">
+                          {formatCurrencyAccounting(entry.lines.reduce((s: number, l: any) => s + (l.credit || 0), 0))}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                            statusConfig.bg,
+                            statusConfig.text
+                          )}
+                        >
+                          <span className={cn('h-1.5 w-1.5 rounded-full', statusConfig.dot)} />
+                          {(JOURNAL_STATUS_LABELS as any)[entry.status]}
+                        </span>
                       </td>
                     </tr>
-                  )}
-                </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <tr key={`${entry.id}-detail`}>
+                        <td colSpan={8} className="bg-gray-50 dark:bg-[#0a0a0a] px-8 py-3">
+                          <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="bg-gray-100 dark:bg-[#1a1a1a]">
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-[#888888]">Codigo</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-[#888888]">Cuenta</th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-[#888888]">Debe</th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-[#888888]">Haber</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+                                {entry.lines.map((line: any) => (
+                                  <tr key={line.id} className="bg-white dark:bg-[#141414]">
+                                    <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">
+                                      {line.accountCode}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
+                                      {line.accountName}
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono text-sm text-gray-900 dark:text-white">
+                                      {line.debit > 0 ? formatCurrencyAccounting(line.debit) : ''}
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono text-sm text-gray-900 dark:text-white">
+                                      {line.credit > 0 ? formatCurrencyAccounting(line.credit) : ''}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {entry.notes && (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-[#888888] italic">
+                              Nota: {entry.notes}
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-gray-400 dark:text-[#666666]">
+                            Creado por {entry.createdBy?.name || 'Sistema'} el {formatDate(entry.createdAt)}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {
-        entries.length === 0 && (
+        !loading && entries.length === 0 && (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
             <BookOpen className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
             <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">No se encontraron asientos</h3>
@@ -444,9 +449,11 @@ export default function LibroDiarioPage() {
         )
       }
 
-      <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
-        Mostrando {entries.length} asientos contables
-      </div>
+      {!loading && entries.length > 0 && (
+        <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
+          Mostrando {entries.length} asientos contables
+        </div>
+      )}
 
       {/* New Entry Modal */}
       <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="3xl" scrollable>

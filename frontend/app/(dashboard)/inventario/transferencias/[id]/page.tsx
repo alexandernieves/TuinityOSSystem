@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { cn } from "@/lib/utils/cn";
 import { api } from "@/lib/services/api";
 import { TransferStatus } from "@/lib/types/inventory";
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 interface ReceivedQuantity {
   lineId: string;
@@ -70,7 +71,7 @@ export default function TransferenciaDetailPage() {
   }, [transferId]);
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Cargando...</div>;
+    return <SkeletonDashboard />;
   }
 
   if (!transfer) {
@@ -781,17 +782,17 @@ export default function TransferenciaDetailPage() {
                   line?.totalUnits || line?.resultingUnits || 0;
                 return line && rq.receivedQty !== expectedUnits;
               }) && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                    <p className="text-xs text-amber-700">
-                      Se detectaron diferencias en las cantidades. La
-                      transferencia se marcará como &quot;Recibida con
-                      Discrepancia&quot;.
-                    </p>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                      <p className="text-xs text-amber-700">
+                        Se detectaron diferencias en las cantidades. La
+                        transferencia se marcará como &quot;Recibida con
+                        Discrepancia&quot;.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </ModalBody>
           <ModalFooter className="border-t border-gray-200">

@@ -43,6 +43,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useState, useEffect } from 'react';
 import { printSalesOrder, getSwornDeclarationStamp } from '@/lib/utils/print-utils';
 import { api } from '@/lib/services/api';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 export default function SalesOrderDetailPage() {
   const params = useParams();
@@ -91,12 +92,7 @@ export default function SalesOrderDetailPage() {
   }, [orderId]);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-500 border-t-transparent"></div>
-        <p className="mt-4 text-sm text-gray-500 dark:text-[#888888]">Cargando documento...</p>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   if (error || !order) {

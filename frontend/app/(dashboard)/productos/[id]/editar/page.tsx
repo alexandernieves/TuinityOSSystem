@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { PRODUCT_GROUPS } from "@/lib/mock-data/products";
 import { api } from "@/lib/services/api";
 import { MOCK_SUPPLIERS } from "@/lib/mock-data/purchase-orders";
-
-//
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 export default function EditarProductoPage() {
   const params = useParams();
@@ -60,7 +59,7 @@ export default function EditarProductoPage() {
     fetchProduct();
   }, [productId]);
 
-  if (loading) return <div className="py-20 text-center">Cargando...</div>;
+  if (loading) return <SkeletonDashboard />;
 
   if (!product) {
     return (

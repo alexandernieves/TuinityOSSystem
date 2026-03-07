@@ -31,6 +31,7 @@ import {
   ADJUSTMENT_REASONS,
   type AdjustmentStatus,
 } from "@/lib/types/inventory";
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 export default function AjusteDetallePage() {
   const router = useRouter();
@@ -65,7 +66,7 @@ export default function AjusteDetallePage() {
   const [rejectionReason, setRejectionReason] = useState("");
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Cargando...</div>;
+    return <SkeletonDashboard />;
   }
 
   if (!adjustment) {
@@ -298,7 +299,7 @@ export default function AjusteDetallePage() {
                 <p className="mt-1 text-sm font-medium text-gray-900">
                   {
                     ADJUSTMENT_REASONS[
-                      adjustment.reason as keyof typeof ADJUSTMENT_REASONS
+                    adjustment.reason as keyof typeof ADJUSTMENT_REASONS
                     ]
                   }
                 </p>

@@ -9,6 +9,8 @@ import { api } from '@/lib/services/api';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
 
+import { SkeletonTable } from '@/components/ui/skeleton-table';
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -64,12 +66,8 @@ export default function ClientsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-2 text-emerald-600">
-          <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500"></span>
-          <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 delay-75"></span>
-          <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 delay-150"></span>
-        </div>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <SkeletonTable rows={5} columns={6} hasHeader={true} />
       </div>
     );
   }
@@ -133,7 +131,13 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {filteredClients.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="p-0">
+                    <SkeletonTable hasHeader={false} />
+                  </td>
+                </tr>
+              ) : filteredClients.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-500">
                     <User className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" />

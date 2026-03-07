@@ -39,6 +39,7 @@ import {
 import { ROLE_LABELS, ROLE_COLORS } from "@/lib/constants/roles";
 import type { User, UserRole } from "@/lib/types/user";
 import type { RoleTemplate } from "@/lib/types/configuration";
+import { SkeletonTable } from "@/components/ui/skeleton-table";
 
 const TABS = [
   { id: "usuarios", label: "Usuarios" },
@@ -245,114 +246,118 @@ export default function UsuariosPage() {
 
             {/* Users Table */}
             <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Usuario
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Correo
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Rol
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Última Sesión
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Estado
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                    {filteredUsers.map((user, index) => {
-                      const session = getLastSession(user.id);
-                      const isActive = userStatuses[user.id];
-                      const roleColor = ROLE_COLORS[user.role];
+              {loading ? (
+                <SkeletonTable hasHeader={false} />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Usuario
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Correo
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Rol
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Última Sesión
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Estado
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+                      {filteredUsers.map((user, index) => {
+                        const session = getLastSession(user.id);
+                        const isActive = userStatuses[user.id];
+                        const roleColor = ROLE_COLORS[user.role];
 
-                      return (
-                        <motion.tr
-                          key={user.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: index * 0.03 }}
-                          className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 dark:bg-[#2a2a2a] text-sm font-semibold text-gray-600 dark:text-gray-400">
-                                {user.name
-                                  ?.split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
-                                  .slice(0, 2) || "U"}
+                        return (
+                          <motion.tr
+                            key={user.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: index * 0.03 }}
+                            className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 dark:bg-[#2a2a2a] text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                  {user.name
+                                    ?.split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .slice(0, 2) || "U"}
+                                </div>
+                                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {user.name}
+                                </span>
                               </div>
-                              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                {user.name}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {user.email}
                               </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {user.email}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={cn(
-                                "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                                roleColor?.bg || "bg-gray-100",
-                                roleColor?.text || "text-gray-800",
-                              )}
-                            >
-                              {ROLE_LABELS[user.role] || user.role}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {session ? (
-                              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 dark:text-[#888888]">
-                                <Clock className="h-3.5 w-3.5" />
-                                {new Date(session.lastActivity).toLocaleString(
-                                  "es-PA",
-                                  {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={cn(
+                                  "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                                  roleColor?.bg || "bg-gray-100",
+                                  roleColor?.text || "text-gray-800",
                                 )}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-400 dark:text-[#666666]">
-                                -
+                              >
+                                {ROLE_LABELS[user.role] || user.role}
                               </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Switch
-                              checked={isActive}
-                              onCheckedChange={() => handleToggleUser(user.id)}
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleOpenUserModal(user)}
-                              className="flex mx-auto h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-[#666666] transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-white"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          </td>
-                        </motion.tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {session ? (
+                                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 dark:text-[#888888]">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {new Date(session.lastActivity).toLocaleString(
+                                    "es-PA",
+                                    {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400 dark:text-[#666666]">
+                                  -
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <Switch
+                                checked={isActive}
+                                onCheckedChange={() => handleToggleUser(user.id)}
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => handleOpenUserModal(user)}
+                                className="flex mx-auto h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-[#666666] transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-white"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

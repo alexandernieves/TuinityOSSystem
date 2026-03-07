@@ -7,6 +7,7 @@ import { Button } from '@heroui/react';
 import { Search, CircleDollarSign, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/services/api';
 import { cn } from '@/lib/utils/cn';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -32,13 +33,7 @@ export default function CXCPage() {
   const totalCXC = clients.reduce((s, c) => s + (c.currentBalance || 0), 0);
 
   if (isLoading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="flex gap-1">
-          {[0, 1, 2].map(i => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-emerald-500" style={{ animationDelay: `${i * 75}ms` }} />)}
-        </div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (

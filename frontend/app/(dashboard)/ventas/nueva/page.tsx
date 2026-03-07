@@ -6,6 +6,7 @@ import { Button, Input, Select, SelectItem, Textarea, Tooltip } from '@heroui/re
 import { ArrowLeft, ClipboardList, Plus, Trash2, Package, AlertTriangle, CheckCircle2, XCircle, Truck, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 import { Switch } from '@/components/ui/switch';
 import {
   formatCurrency,
@@ -169,6 +170,8 @@ export default function NuevaCotizacionPage() {
   const quoteTotalCost = quoteLines.reduce((sum, l) => sum + (l.totalCost || 0), 0);
   const quoteMarginPercent = quoteSubtotal > 0 ? ((quoteSubtotal - quoteTotalCost) / quoteSubtotal) * 100 : 0;
   const hasLowMarginLines = quoteLines.some((l) => (l.marginPercent || 0) < 10);
+
+  if (loading) return <SkeletonDashboard />;
 
   return (
     <div className="space-y-6">

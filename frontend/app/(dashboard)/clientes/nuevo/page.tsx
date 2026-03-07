@@ -83,8 +83,8 @@ export default function NewClientPage() {
                 isRequired
                 className="w-full"
               >
-                <SelectItem key="b2b" value="b2b">B2B (Empresa / Mayorista)</SelectItem>
-                <SelectItem key="b2c" value="b2c">B2C (Consumidor Final)</SelectItem>
+                <SelectItem key="b2b">B2B (Empresa / Mayorista)</SelectItem>
+                <SelectItem key="b2c">B2C (Consumidor Final)</SelectItem>
               </Select>
 
               <Input

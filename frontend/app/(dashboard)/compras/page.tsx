@@ -32,6 +32,7 @@ import { api } from '@/lib/services/api';
 import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderStats } from '@/lib/types/purchase-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
 
 type StatusFilter = PurchaseOrderStatus | 'all';
 
@@ -181,7 +182,11 @@ export default function ComprasPage() {
   const hasActiveFilters = searchQuery || statusFilter !== 'all' || selectedSupplier || selectedBodega;
 
   if (loading) {
-    return <div className="flex h-96 items-center justify-center text-gray-500">Cargando órdenes de compra...</div>;
+    return (
+      <div className="space-y-5">
+        <SkeletonTable rows={5} columns={8} hasHeader={true} />
+      </div>
+    );
   }
 
   return (

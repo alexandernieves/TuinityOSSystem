@@ -29,6 +29,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { cn } from "@/lib/utils/cn";
 import { api } from "@/lib/services/api";
 import { useStore } from "@/hooks/use-store";
+import { SkeletonTable } from "@/components/ui/skeleton-table";
 import {
   ADJUSTMENT_STATUS_LABELS,
   ADJUSTMENT_REASONS,
@@ -309,56 +310,49 @@ export default function AjustesPage() {
       </div>
 
       {/* Adjustments Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                ID
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Fecha
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Bodega
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                Tipo
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Motivo
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                Items
-              </th>
-              {canViewCosts && (
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Valor
+      {loading ? (
+        <SkeletonTable rows={5} columns={10} hasHeader={true} />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  ID
                 </th>
-              )}
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                Estado
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Creado por
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={10}
-                  className="px-4 py-8 text-center text-gray-500"
-                >
-                  Cargando ajustes...
-                </td>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Fecha
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Bodega
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Tipo
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Motivo
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Items
+                </th>
+                {canViewCosts && (
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Valor
+                  </th>
+                )}
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Estado
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Creado por
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Acciones
+                </th>
               </tr>
-            ) : (
-              filteredAdjustments.map((adj, index) => {
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredAdjustments.map((adj, index) => {
                 const statusBadge =
                   getStatusBadge(adj.status as AdjustmentStatus) ||
                   getStatusBadge("pendiente");
@@ -520,11 +514,11 @@ export default function AjustesPage() {
                     </td>
                   </motion.tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Empty State */}
       {!loading && filteredAdjustments.length === 0 && (

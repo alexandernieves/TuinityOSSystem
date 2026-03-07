@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { cn } from "@/lib/utils/cn";
 import { api } from "@/lib/services/api";
 import { useStore } from "@/hooks/use-store";
+import { SkeletonTable } from "@/components/ui/skeleton-table";
 import {
   TRANSFER_STATUS_LABELS,
   type TransferStatus,
@@ -295,54 +296,47 @@ export default function TransferenciasPage() {
       </div>
 
       {/* Transfers Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                ID
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Fecha
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Origen
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500"></th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Destino
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                Cajas
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                Unidades
-              </th>
-              {canViewCosts && (
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Valor
+      {loading ? (
+        <SkeletonTable rows={5} columns={10} hasHeader={true} />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  ID
                 </th>
-              )}
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                Estado
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={10}
-                  className="px-4 py-8 text-center text-gray-500"
-                >
-                  Cargando transferencias...
-                </td>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Fecha
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Origen
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500"></th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Destino
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Cajas
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Unidades
+                </th>
+                {canViewCosts && (
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Valor
+                  </th>
+                )}
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Estado
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Acciones
+                </th>
               </tr>
-            ) : (
-              filteredTransfers.map((transfer, index) => {
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredTransfers.map((transfer, index) => {
                 const statusBadge =
                   getStatusBadge(transfer.status as TransferStatus) ||
                   getStatusBadge("borrador");
@@ -470,11 +464,11 @@ export default function TransferenciasPage() {
                     </td>
                   </motion.tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Empty State */}
       {!loading && filteredTransfers.length === 0 && (

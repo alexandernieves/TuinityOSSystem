@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { api } from '@/lib/services/api';
-import { Card, CardBody, CardHeader, Divider, Progress, Avatar, Button, Chip } from '@heroui/react';
+import { Card, CardBody, CardHeader, Divider, Progress, Avatar, Button, Chip, Skeleton } from '@heroui/react';
 import {
   Package,
   ShoppingCart,
@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils/cn';
 import { SEED_PRODUCTS } from '@/lib/mock-data/products';
 import { getUpcomingExpiryAlerts, getExpiryStats } from '@/lib/mock-data/expiry-batches';
 import { EXPIRY_ALERT_CONFIG } from '@/lib/types/expiry';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 // ============================================
 // MOCK DATA - Business Intelligence
@@ -314,6 +315,10 @@ export default function DashboardPage() {
   const maxWeeklySale = Math.max(...displayWeeklySales.map((d: any) => d.value));
   const totalWeeklySales = displayWeeklySales.reduce((sum: number, d: any) => sum + d.value, 0);
   const weeklyTarget = displayWeeklySales.reduce((sum: number, d: any) => sum + (d.target || 50000), 0);
+
+  if (isDataLoading) {
+    return <SkeletonDashboard />;
+  }
 
   return (
     <div className="space-y-6 pb-8">

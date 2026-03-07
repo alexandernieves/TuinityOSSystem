@@ -87,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Quick login as a specific user (for dev mode)
   const loginAsUser = useCallback((user: User) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    // En dev, establecemos un token dummy para que la cabecera exista
+    localStorage.setItem('evolution_auth_token', 'mock-dev-token');
     setState({
       user,
       isAuthenticated: true,

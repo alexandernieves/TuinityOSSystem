@@ -25,6 +25,8 @@ import { MOCK_WAREHOUSES, subscribeWarehouses, getWarehousesData } from '@/lib/m
 import { MOCK_PRODUCTS } from '@/lib/mock-data/products';
 import { generateNextCountSessionId, addCountSession } from '@/lib/mock-data/inventory';
 import { useStore } from '@/hooks/use-store';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
+import { useEffect } from 'react';
 
 interface ProductSelection {
   productId: string;
@@ -48,6 +50,16 @@ export default function NuevoConteoPage() {
   const [search, setSearch] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<ProductSelection[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <SkeletonDashboard />;
+  }
 
   if (!canCreateCount) {
     router.push('/inventario/conteo');

@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils/cn';
 import { api } from '@/lib/services/api';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 import type { StoreInventoryItem } from '@/lib/types/pos';
 
 interface CartLine {
@@ -289,12 +290,7 @@ export default function POSPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
-        <p className="text-gray-500 animate-pulse">Cargando terminas POS...</p>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (

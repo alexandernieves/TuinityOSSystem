@@ -30,6 +30,8 @@ import { cn } from '@/lib/utils/cn';
 import { MOCK_COUNT_SESSIONS, subscribeCountSessions, getCountSessionsData } from '@/lib/mock-data/inventory';
 import { useStore } from '@/hooks/use-store';
 import { CountSessionStatus } from '@/lib/types/inventory';
+import { SkeletonGrid } from '@/components/ui/skeleton-grid';
+import { useEffect } from 'react';
 
 type TabFilter = 'all' | 'en_progreso' | 'completado';
 
@@ -43,6 +45,12 @@ export default function ConteoPage() {
 
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1000); // Simulate loading
+    return () => clearTimeout(timer);
+  }, []);
 
   const tabs: { key: TabFilter; label: string; count: number }[] = [
     {
@@ -124,6 +132,20 @@ export default function ConteoPage() {
         return null;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-8">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-gray-100 dark:bg-gray-900 rounded animate-pulse" />
+          </div>
+        </div>
+        <SkeletonGrid items={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

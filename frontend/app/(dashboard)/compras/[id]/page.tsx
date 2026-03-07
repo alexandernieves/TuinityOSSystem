@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -36,6 +38,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { printPurchaseOrder } from '@/lib/utils/print-utils';
 import { prorateCosts, formatCostCurrency } from '@/lib/utils/cost-proration';
 import type { ProrationResult } from '@/lib/utils/cost-proration';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 // Formateadores locales
 const formatCurrency = (value: number) =>
@@ -176,12 +179,7 @@ export default function OrderDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-40">
-        <Loader2 className="mb-4 h-12 w-12 animate-spin text-brand-600" />
-        <p className="text-gray-500">Cargando detalles de la orden...</p>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   if (!order) {

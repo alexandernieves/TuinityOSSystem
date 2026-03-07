@@ -7,6 +7,7 @@ import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
+import { SkeletonGrid } from '@/components/ui/skeleton-grid';
 
 interface Supplier {
     id: string;
@@ -144,7 +145,7 @@ export default function ProveedoresPage() {
             </div>
 
             {loading ? (
-                <div className="flex h-40 items-center justify-center text-gray-500">Cargando proveedores...</div>
+                <SkeletonGrid items={6} />
             ) : filteredSuppliers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] py-16 text-center">
                     <Building2 className="mx-auto h-12 w-12 text-gray-400" />

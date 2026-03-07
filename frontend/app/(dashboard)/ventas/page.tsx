@@ -51,6 +51,7 @@ import type { SalesOrder, SalesOrderStatus, DocumentType } from '@/lib/types/sal
 import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS } from '@/lib/types/sales-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
 
 type StatusFilter = SalesOrderStatus | 'all';
 type DocTypeFilter = DocumentType | 'all';
@@ -211,9 +212,8 @@ export default function VentasPage() {
 
   if (loading) {
     return (
-      <div className="flex h-96 flex-col items-center justify-center gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-brand-600" />
-        <p className="text-muted-foreground italic">Sincronizando tubería de ventas...</p>
+      <div className="space-y-5">
+        <SkeletonTable rows={5} columns={8} hasHeader={true} />
       </div>
     );
   }

@@ -36,6 +36,7 @@ import {
   CustomModalBody,
   CustomModalFooter,
 } from "@/components/ui/custom-modal";
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 // Product images mapping
 const PRODUCT_IMAGES: Record<string, string> = {
@@ -106,7 +107,7 @@ export default function ProductDetailPage() {
     fetchProduct();
   }, [productId]);
 
-  if (loading) return <div className="py-20 text-center">Cargando...</div>;
+  if (loading) return <SkeletonDashboard />;
 
   if (!product) {
     return (
@@ -318,14 +319,14 @@ export default function ProductDetailPage() {
         { campo: "Precio Nivel E", valor: `$${product.prices?.E || 0}` },
         ...(canViewCosts
           ? [
-              { campo: "Proveedor", valor: product.supplier },
-              { campo: "Costo FOB", valor: `$${product.costFOB || 0}` },
-              { campo: "Costo CIF", valor: `$${product.costCIF || 0}` },
-              {
-                campo: "Costo Promedio",
-                valor: `$${product.costAvgWeighted || 0}`,
-              },
-            ]
+            { campo: "Proveedor", valor: product.supplier },
+            { campo: "Costo FOB", valor: `$${product.costFOB || 0}` },
+            { campo: "Costo CIF", valor: `$${product.costCIF || 0}` },
+            {
+              campo: "Costo Promedio",
+              valor: `$${product.costAvgWeighted || 0}`,
+            },
+          ]
           : []),
       ],
       metadata: [
@@ -680,7 +681,7 @@ export default function ProductDetailPage() {
 
             {/* F3 - Multiple Barcodes Section */}
             {(product.barcodes && product.barcodes.length > 0) ||
-            canManageBarcodes ? (
+              canManageBarcodes ? (
               <div className="mt-5 border-t border-gray-200 pt-5 dark:border-[#2a2a2a]">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -832,10 +833,10 @@ export default function ProductDetailPage() {
                   <span className="font-mono font-medium text-emerald-500">
                     {product.prices?.A && product.costAvgWeighted
                       ? (
-                          ((product.prices.A - product.costAvgWeighted) /
-                            product.prices.A) *
-                          100
-                        ).toFixed(1)
+                        ((product.prices.A - product.costAvgWeighted) /
+                          product.prices.A) *
+                        100
+                      ).toFixed(1)
                       : 0}
                     %
                   </span>

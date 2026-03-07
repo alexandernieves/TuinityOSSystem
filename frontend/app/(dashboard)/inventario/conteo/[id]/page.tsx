@@ -33,6 +33,7 @@ import { getCountSessionById, updateCountSession, subscribeCountSessions, getCou
 import { MOCK_PRODUCTS } from '@/lib/mock-data/products';
 import { useStore } from '@/hooks/use-store';
 import { CountLine } from '@/lib/types/inventory';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 export default function ConteoSessionPage() {
   const router = useRouter();
@@ -50,6 +51,12 @@ export default function ConteoSessionPage() {
   const [selectedLine, setSelectedLine] = useState<CountLine | null>(null);
   const [countedQty, setCountedQty] = useState<number>(0);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -93,6 +100,10 @@ export default function ConteoSessionPage() {
     }
     return () => stopCamera();
   }, [isScannerOpen, startCamera, stopCamera]);
+
+  if (isLoading) {
+    return <SkeletonDashboard />;
+  }
 
   if (!session) {
     return (
@@ -216,10 +227,10 @@ export default function ConteoSessionPage() {
 
   const filteredLines = search
     ? lines.filter(
-        (l) =>
-          l.productDescription.toLowerCase().includes(search.toLowerCase()) ||
-          l.productReference.toLowerCase().includes(search.toLowerCase())
-      )
+      (l) =>
+        l.productDescription.toLowerCase().includes(search.toLowerCase()) ||
+        l.productReference.toLowerCase().includes(search.toLowerCase())
+    )
     : lines;
 
   // Products for manual search (not in session)
@@ -447,15 +458,15 @@ export default function ConteoSessionPage() {
                           line.difference === 0
                             ? 'text-green-600'
                             : line.difference! > 0
-                            ? 'text-blue-600'
-                            : 'text-red-600'
+                              ? 'text-blue-600'
+                              : 'text-red-600'
                         )}
                       >
                         {line.difference === 0
                           ? '✓'
                           : line.difference! > 0
-                          ? `+${line.difference}`
-                          : line.difference}
+                            ? `+${line.difference}`
+                            : line.difference}
                       </p>
                     </div>
                   )}

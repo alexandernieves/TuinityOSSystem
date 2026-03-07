@@ -6,6 +6,7 @@ import { Button, Input, Select, SelectItem, Textarea } from '@heroui/react';
 import { ArrowLeft, Save, Trash2, Building2, User, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 export default function EditClientPage() {
   const router = useRouter();
@@ -80,15 +81,7 @@ export default function EditClientPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-2 text-emerald-600">
-          <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500"></span>
-          <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 delay-75"></span>
-          <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 delay-150"></span>
-        </div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   if (!client) return null;
@@ -140,8 +133,8 @@ export default function EditClientPage() {
                   className="w-full"
                   size="sm"
                 >
-                  <SelectItem key="active" value="active" className="text-emerald-600">Activo</SelectItem>
-                  <SelectItem key="inactive" value="inactive" className="text-red-600">Inactivo</SelectItem>
+                  <SelectItem key="active" className="text-emerald-600">Activo</SelectItem>
+                  <SelectItem key="inactive" className="text-red-600">Inactivo</SelectItem>
                 </Select>
               </div>
             </div>
@@ -154,8 +147,8 @@ export default function EditClientPage() {
                 isRequired
                 className="w-full"
               >
-                <SelectItem key="b2b" value="b2b">B2B (Empresa / Mayorista)</SelectItem>
-                <SelectItem key="b2c" value="b2c">B2C (Consumidor Final)</SelectItem>
+                <SelectItem key="b2b">B2B (Empresa / Mayorista)</SelectItem>
+                <SelectItem key="b2c">B2C (Consumidor Final)</SelectItem>
               </Select>
 
               <Input

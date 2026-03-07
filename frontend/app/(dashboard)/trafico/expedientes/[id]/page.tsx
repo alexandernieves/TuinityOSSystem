@@ -36,6 +36,7 @@ import { api } from '@/lib/services/api'; import {
   CERTIFICATE_TYPE_LABELS,
 } from '@/lib/types/traffic';
 import type { ShipmentPriority } from '@/lib/types/traffic';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 type TabKey = 'resumen' | 'mercancia' | 'documentos' | 'logistica' | 'timeline';
 
@@ -144,12 +145,7 @@ export default function ExpedientDetailPage() {
   const timeline: any[] = useMemo(() => [], []);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-500 border-t-transparent"></div>
-        <p className="mt-4 text-sm text-gray-500 dark:text-[#888888]">Cargando expediente...</p>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   if (!expedient) {

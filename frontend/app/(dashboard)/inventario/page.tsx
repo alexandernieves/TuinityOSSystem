@@ -51,6 +51,7 @@ import { getNearestExpiry } from '@/lib/mock-data/expiry-batches';
 import { EXPIRY_ALERT_CONFIG } from '@/lib/types/expiry';
 import type { InventoryItem, InventoryStockFilter } from '@/lib/types/inventory';
 import { api } from '@/lib/services/api';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
 
 // Product images mapping
 const PRODUCT_IMAGES: Record<string, string> = {
@@ -333,6 +334,14 @@ export default function InventarioPage() {
       description: `Ver historial de movimientos de ${item.productDescription}`,
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        <SkeletonTable rows={5} columns={8} hasHeader={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

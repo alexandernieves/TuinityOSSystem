@@ -109,7 +109,7 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { logout, checkPermission } = useAuth();
-  const { isCollapsed, setIsCollapsed, sidebarWidth, isMobile, isMobileOpen, setIsMobileOpen } = useSidebar();
+  const { isCollapsed, setIsCollapsed, sidebarWidth, isMobile, isMobileOpen, setIsMobileOpen, toggleMobileOpen } = useSidebar();
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -142,12 +142,16 @@ export function Sidebar() {
     >
       {/* Header - Same color and height as navbar */}
       <div
-        className="flex h-12 items-center justify-between px-4"
+        className={cn(
+          "flex h-12 items-center px-4 transition-all duration-200",
+          !isMobile && isCollapsed ? "justify-center" : "justify-between"
+        )}
         style={{ backgroundColor: '#1a1a1a' }}
       >
         <AnimatePresence mode="wait">
-          {showExpanded && (
+          {!isCollapsed || isMobile ? (
             <motion.div
+              key="full-logo"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -159,35 +163,30 @@ export function Sidebar() {
                 className="h-7 w-auto invert"
               />
             </motion.div>
+          ) : (
+            <motion.div
+              key="cropped-logo"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center"
+            >
+              <img
+                src="https://res.cloudinary.com/db3espoei/image/upload/v1771993730/Logo_Evolution_ZL__1_-cropped_onzamv.svg"
+                alt="Evolution"
+                className="h-7 w-auto invert"
+              />
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {!isMobile && isCollapsed && (
-          <div className="mx-auto">
-            <img
-              src="https://res.cloudinary.com/db3espoei/image/upload/v1771993730/Logo_Evolution_ZL__1_-cropped_onzamv.svg"
-              alt="Evolution"
-              className="h-7 w-auto invert"
-            />
-          </div>
-        )}
-
-        {isMobile ? (
+        {isMobile && (
           <button
-            onClick={() => setIsMobileOpen(false)}
+            onClick={toggleMobileOpen}
             className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
-        ) : (
-          showExpanded && (
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-          )
         )}
       </div>
 
@@ -302,15 +301,6 @@ export function Sidebar() {
           </Tooltip>
         </div>
 
-        {/* Expand button when collapsed (desktop only) */}
-        {!isMobile && isCollapsed && (
-          <button
-            onClick={() => setIsCollapsed(false)}
-            className="mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-[#2a2a2a] text-gray-400 dark:text-[#666666] transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a] hover:text-gray-600 dark:hover:text-white"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
       </div>
     </aside>
   );

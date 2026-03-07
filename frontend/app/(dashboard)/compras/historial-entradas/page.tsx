@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -17,12 +19,12 @@ import {
   PackageCheck,
   Eye,
   Calendar,
-  Loader2,
 } from 'lucide-react';
 import { api } from '@/lib/services/api';
 import type { PurchaseOrder } from '@/lib/types/purchase-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
 
 // Formateadores locales
 const formatCurrency = (value: number) =>
@@ -142,12 +144,7 @@ export default function HistorialEntradasPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-40">
-        <Loader2 className="mb-4 h-12 w-12 animate-spin text-brand-600" />
-        <p className="text-gray-500">Cargando historial de entradas...</p>
-      </div>
-    );
+    return <SkeletonTable />;
   }
 
   return (

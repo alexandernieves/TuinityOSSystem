@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
 import { Tooltip } from '@heroui/react';
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils/cn';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 import {
   getAccountingStats,
   getMonthlyPLSummaries,
@@ -46,6 +48,15 @@ export default function ContabilidadPage() {
   const router = useRouter();
   const { checkPermission } = useAuth();
   const canAccessContabilidad = checkPermission('canAccessContabilidad');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useStore(subscribeBankAccounts, getBankAccountsData);
 
@@ -87,6 +98,10 @@ export default function ContabilidadPage() {
     { label: 'Rotación CxC', value: `${stats.cxcRotation} días`, color: 'blue' },
     { label: 'Días Promedio Cobro', value: `${stats.averageCollectionDays} días`, color: 'amber' },
   ];
+
+  if (loading) {
+    return <SkeletonDashboard />;
+  }
 
   return (
     <div className="space-y-6">

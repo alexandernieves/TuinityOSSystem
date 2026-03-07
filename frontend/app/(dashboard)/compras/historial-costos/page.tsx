@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -16,6 +18,7 @@ import { api } from '@/lib/services/api';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
 import type { PurchaseOrder } from '@/lib/types/purchase-order';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
 
 // Formateadores locales
 const formatCurrency = (value: number) =>
@@ -108,12 +111,7 @@ export default function HistorialCostosPage() {
 
   // If user doesn't have permission, show access denied
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-40">
-        <Loader2 className="mb-4 h-12 w-12 animate-spin text-brand-600" />
-        <p className="text-gray-500">Cargando historial de costos...</p>
-      </div>
-    );
+    return <SkeletonTable />;
   }
 
   if (!canViewCosts) {

@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownItem,
   Avatar,
+  Tooltip,
 } from '@heroui/react';
 import {
   Search,
@@ -31,7 +32,7 @@ import { ROLE_LABELS } from '@/lib/constants/roles';
 export function Header() {
   const router = useRouter();
   const { user, logout, loginAsUser } = useAuth();
-  const { sidebarWidth, isMobile, toggleMobileOpen } = useSidebar();
+  const { isCollapsed, sidebarWidth, isMobile, toggleMobileOpen, toggleCollapsed } = useSidebar();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const bellRef = useRef<HTMLButtonElement>(null);
@@ -87,18 +88,17 @@ export function Header() {
         initial={false}
         animate={{ left: sidebarWidth }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="fixed right-0 top-0 z-30 flex h-12 items-center justify-between px-4 md:justify-end"
+        className="fixed right-0 top-0 z-30 flex h-12 items-center justify-between px-4"
         style={{ backgroundColor: '#1a1a1a' }}
       >
-        {/* Mobile hamburger button */}
-        {isMobile && (
+        <Tooltip content={isMobile ? "Abrir menú" : (isCollapsed ? "Expandir" : "Contraer")} placement="right">
           <button
-            onClick={toggleMobileOpen}
+            onClick={isMobile ? toggleMobileOpen : toggleCollapsed}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
           >
             <Menu className="h-5 w-5" />
           </button>
-        )}
+        </Tooltip>
 
         {/* Center - Search Bar (opens Command Palette) - hidden on mobile */}
         <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">
@@ -151,11 +151,10 @@ export function Header() {
                             router.refresh();
                             setIsUserSwitcherOpen(false);
                           }}
-                          className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
-                            user?.id === u.id
-                              ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-[#00D1B2]'
-                              : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-[#252525]'
-                          }`}
+                          className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${user?.id === u.id
+                            ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-[#00D1B2]'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-[#252525]'
+                            }`}
                         >
                           <Avatar
                             name={u.name}

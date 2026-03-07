@@ -28,13 +28,16 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils/cn';
-import { api } from '@/lib/services/api'; import {
+import { api } from '@/lib/services/api';
+import {
   SHIPMENT_STATUS_CONFIG,
   SHIPMENT_TYPE_LABELS,
   SHIPMENT_STATUS_LABELS,
   PRIORITY_LABELS,
 } from '@/lib/types/traffic';
 import type { ShipmentType, ShipmentStatus, ShipmentPriority } from '@/lib/types/traffic';
+import { SkeletonTable } from '@/components/ui/skeleton-table';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 type StatusFilter = ShipmentStatus | 'all';
 type TypeFilter = ShipmentType | 'all';
@@ -137,6 +140,10 @@ export default function TraficoPage() {
     { label: 'En Tránsito', value: realStats?.inTransit || 0, icon: Truck, color: 'text-sky-600', bg: 'bg-sky-50' },
     { label: 'Entregados (Semana)', value: realStats?.completedThisWeek || 0, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   ];
+
+  if (isLoading) {
+    return <SkeletonDashboard />;
+  }
 
   return (
     <div className="space-y-5">
