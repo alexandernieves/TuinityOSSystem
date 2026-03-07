@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { EVOLUTION_OS_SYSTEM_PROMPT, CHAT_CONFIG } from '@/lib/chat/constants';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder-key-for-build',
+    });
+
     const { messages } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
