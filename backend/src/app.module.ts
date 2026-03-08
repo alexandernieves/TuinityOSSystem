@@ -27,9 +27,15 @@ import { AccountingModule } from './accounting/accounting.module';
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const uri = configService.get<string>('MONGODB_URI');
+        if (!uri) {
+          console.error('CRITICAL ERROR: MONGODB_URI is undefined. Check Render environment variables!');
+        }
+        return {
+          uri: uri || 'mongodb://localhost/fallback',
+        };
+      },
       inject: [ConfigService],
     }),
     AuthModule,
