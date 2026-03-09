@@ -8,48 +8,29 @@ import {
   DropdownMenu,
   DropdownItem,
   Avatar,
-  Tooltip,
 } from '@heroui/react';
 import {
   Search,
   Bell,
-  Eye,
   LogOut,
   User,
   Settings,
-  Check,
-  Keyboard,
-  Menu,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { NotificationsPanel } from '@/components/ui/notifications-panel';
-import { motion } from 'framer-motion';
-import { useAuth, MOCK_USERS } from '@/lib/contexts/auth-context';
-import { useSidebar } from '@/lib/contexts/sidebar-context';
-import { ROLE_LABELS } from '@/lib/constants/roles';
+import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { useAuth } from '@/lib/contexts/auth-context';
 
 export function Header() {
   const router = useRouter();
-  const { user, logout, loginAsUser } = useAuth();
-  const { isCollapsed, sidebarWidth, isMobile, toggleMobileOpen, toggleCollapsed } = useSidebar();
+  const { user, logout } = useAuth();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const bellRef = useRef<HTMLButtonElement>(null);
-  const [isUserSwitcherOpen, setIsUserSwitcherOpen] = useState(false);
-  const userSwitcherRef = useRef<HTMLDivElement>(null);
-
-  // Close user switcher on outside click
-  useEffect(() => {
-    if (!isUserSwitcherOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (userSwitcherRef.current && !userSwitcherRef.current.contains(e.target as Node)) {
-        setIsUserSwitcherOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [isUserSwitcherOpen]);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Global Ctrl+K listener
   useEffect(() => {
@@ -70,116 +51,59 @@ export function Header() {
     return () => window.removeEventListener('toggle-notifications', handler);
   }, []);
 
-  // Group users by role for the switcher
-  const usersByRole = MOCK_USERS.reduce((acc, u) => {
-    if (!acc[u.role]) acc[u.role] = [];
-    acc[u.role].push(u);
-    return acc;
-  }, {} as Record<string, typeof MOCK_USERS>);
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
+    setIsLogoutModalOpen(false);
     logout();
+    toast.success('Sesión cerrada', {
+      description: 'Has cerrado sesión exitosamente.'
+    });
     router.push('/login');
   };
 
   return (
     <>
-      <motion.header
-        initial={false}
-        animate={{ left: sidebarWidth }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="fixed right-0 top-0 z-30 flex h-12 items-center justify-between px-4"
-        style={{ backgroundColor: '#1a1a1a' }}
+      <header
+        className="bg-[#1a1a1a] h-[48px] flex items-center justify-between px-4 shrink-0 transition-all duration-200"
       >
-        <Tooltip content={isMobile ? "Abrir menú" : (isCollapsed ? "Expandir" : "Contraer")} placement="right">
-          <button
-            onClick={isMobile ? toggleMobileOpen : toggleCollapsed}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </Tooltip>
+        {/* Left - Logo */}
+        <div className="flex items-center gap-3 flex-1">
+          <img
+            src="https://res.cloudinary.com/db3espoei/image/upload/v1771993730/Logo_Evolution_ZL__1_-cropped_onzamv.svg"
+            alt="Evolution ZL"
+            className="h-7 w-auto"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
+        </div>
 
-        {/* Center - Search Bar (opens Command Palette) - hidden on mobile */}
-        <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">
-          <button
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className="relative flex items-center"
-          >
-            <Search className="absolute left-3 h-4 w-4 text-gray-400" />
-            <div className="flex h-8 w-80 items-center rounded-lg bg-[#2a2a2a] pl-9 pr-16 text-sm text-gray-400 transition-colors hover:bg-[#333]">
-              Buscar...
-            </div>
-            <div className="absolute right-2 flex items-center gap-1">
-              <kbd className="rounded bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
-                CTRL
+        {/* Center - Search Bar */}
+        <div className="hidden md:flex flex-[2] justify-center px-4">
+          <div className="w-full max-w-[500px] relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#888] group-focus-within:text-[#ccc]" />
+            <input
+              onClick={() => setIsCommandPaletteOpen(true)}
+              readOnly
+              placeholder="Buscar..."
+              className="w-full pl-9 pr-20 py-[6px] rounded-lg bg-[#303030] border border-[#444] text-[13px] text-white placeholder:text-[#888] focus:outline-none focus:border-[#666] transition-colors cursor-pointer"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <kbd className="rounded bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-[#888] border border-[#444]">
+                ⌘
               </kbd>
-              <kbd className="rounded bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+              <kbd className="rounded bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-[#888] border border-[#444]">
                 K
               </kbd>
             </div>
-          </button>
+          </div>
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center gap-1">
-          {/* View as dropdown - User Switcher for Demo */}
-          <div ref={userSwitcherRef} className="relative">
-            <button
-              onClick={() => setIsUserSwitcherOpen(!isUserSwitcherOpen)}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-[#2a2a2a] px-3 text-sm text-gray-300 transition-colors hover:bg-[#333]"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {user ? ROLE_LABELS[user.role] : 'Ver como'}
-              </span>
-            </button>
-            {isUserSwitcherOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
-                <div className="max-h-[60vh] overflow-y-auto p-1.5">
-                  {Object.entries(usersByRole).map(([role, users], groupIdx) => (
-                    <div key={role}>
-                      {groupIdx > 0 && <div className="my-1 border-t border-gray-100 dark:border-[#2a2a2a]" />}
-                      <p className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                        {ROLE_LABELS[role as keyof typeof ROLE_LABELS]}
-                      </p>
-                      {users.map((u) => (
-                        <button
-                          key={u.id}
-                          onClick={() => {
-                            loginAsUser(u);
-                            router.refresh();
-                            setIsUserSwitcherOpen(false);
-                          }}
-                          className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${user?.id === u.id
-                            ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-[#00D1B2]'
-                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-[#252525]'
-                            }`}
-                        >
-                          <Avatar
-                            name={u.name}
-                            size="sm"
-                            classNames={{ base: 'h-6 w-6 shrink-0 bg-brand-600 text-white text-[10px]' }}
-                          />
-                          <span className="flex-1 truncate">{u.name}</span>
-                          {user?.id === u.id && <Check className="h-4 w-4 shrink-0 text-brand-600 dark:text-[#00D1B2]" />}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="flex items-center gap-1 flex-1 justify-end">
 
-          {/* Keyboard Shortcuts */}
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('open-shortcuts-help'))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
-            title="Atajos de teclado (Ctrl+/)"
-          >
-            <Keyboard className="h-4 w-4" />
-          </button>
+
 
           {/* Theme Toggle */}
           <ThemeToggle />
@@ -191,7 +115,6 @@ export function Header() {
             className="relative flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
           >
             <Bell className="h-4 w-4" />
-            {/* Unread indicator dot */}
             <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-500" />
           </button>
 
@@ -232,7 +155,7 @@ export function Header() {
                   startContent={<LogOut className="h-4 w-4" />}
                   className="text-danger"
                   color="danger"
-                  onPress={handleLogout}
+                  onPress={handleLogoutClick}
                 >
                   Cerrar Sesión
                 </DropdownItem>
@@ -240,7 +163,7 @@ export function Header() {
             </Dropdown>
           )}
         </div>
-      </motion.header>
+      </header>
 
       {/* Command Palette */}
       <CommandPalette
@@ -253,6 +176,41 @@ export function Header() {
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
       />
+
+      {/* Logout Confirmation Modal */}
+      <CustomModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)}>
+        <CustomModalHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
+              <LogOut className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary">Cerrar Sesión</h3>
+              <p className="text-sm text-text-muted">¿Estás seguro que deseas salir?</p>
+            </div>
+          </div>
+        </CustomModalHeader>
+        <CustomModalBody>
+          <p className="text-sm text-text-secondary py-2">
+            No recibirás más notificaciones en el sistema hasta que vuelvas a iniciar sesión.
+          </p>
+        </CustomModalBody>
+        <CustomModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setIsLogoutModalOpen(false)}
+            className="h-10 px-6 font-semibold"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmLogout}
+            className="h-10 px-6 font-semibold bg-danger hover:bg-danger/90 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
+          >
+            Sí, cerrar sesión
+          </Button>
+        </CustomModalFooter>
+      </CustomModal>
     </>
   );
 }

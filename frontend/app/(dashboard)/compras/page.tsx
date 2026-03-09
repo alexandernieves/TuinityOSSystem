@@ -8,8 +8,9 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  Button,
 } from '@heroui/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import {
   Search,
@@ -195,20 +196,19 @@ export default function ComprasPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Compras</h1>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="secondary"
             onClick={handleExportOrders}
-            className="flex h-9 items-center gap-2 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors hover:text-gray-900 dark:hover:text-white"
           >
             <Download className="h-4 w-4" />
             Exportar
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => router.push('/compras/nueva')}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
           >
             <Plus className="h-4 w-4" />
             Nueva Orden
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -252,10 +252,8 @@ export default function ComprasPage() {
             transition={{ delay: index * 0.05 }}
             onClick={() => setStatusFilter(statusFilter === stat.filter ? 'all' : stat.filter)}
             className={cn(
-              'rounded-xl border bg-white dark:bg-[#141414] p-3 text-left transition-all hover:shadow-md',
-              statusFilter === stat.filter
-                ? 'border-brand-500 ring-1 ring-brand-500'
-                : 'border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a]'
+              'rounded-[12px] border-none bg-white p-3 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
+              statusFilter === stat.filter && 'ring-2 ring-brand-500 ring-offset-2'
             )}
           >
             <div className="flex items-center gap-3">
@@ -413,7 +411,7 @@ export default function ComprasPage() {
       </div>
 
       {/* Orders Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
+      <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -530,9 +528,13 @@ export default function ComprasPage() {
                     <td className="px-4 py-3 text-center">
                       <Dropdown placement="bottom-end">
                         <DropdownTrigger>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-[#666666] transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-white">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 dark:text-[#666666] hover:text-gray-600 dark:hover:text-white"
+                          >
                             <MoreVertical className="h-4 w-4" />
-                          </button>
+                          </Button>
                         </DropdownTrigger>
                         <DropdownMenu
                           aria-label="Acciones"
@@ -564,23 +566,27 @@ export default function ComprasPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* Empty State */}
-      {filteredOrders.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
-          <ShoppingCart className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
-          <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">No se encontraron órdenes</h3>
-          <p className="text-sm text-gray-500 dark:text-[#888888]">Intenta ajustar los filtros o crea una nueva orden</p>
-        </div>
-      )}
+      {
+        filteredOrders.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
+            <ShoppingCart className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
+            <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">No se encontraron órdenes</h3>
+            <p className="text-sm text-gray-500 dark:text-[#888888]">Intenta ajustar los filtros o crea una nueva orden</p>
+          </div>
+        )
+      }
 
       {/* Results count */}
-      {filteredOrders.length > 0 && (
-        <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
-          Mostrando {filteredOrders.length} de {orders.length} órdenes
-        </div>
-      )}
+      {
+        filteredOrders.length > 0 && (
+          <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
+            Mostrando {filteredOrders.length} de {orders.length} órdenes
+          </div>
+        )
+      }
 
       {/* Delete Confirmation Modal */}
       <CustomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} size="sm">
@@ -593,10 +599,10 @@ export default function ComprasPage() {
           </p>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsDeleteOpen(false)}>
+          <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>
             Volver
           </Button>
-          <Button color="danger" onPress={confirmDelete}>
+          <Button variant="destructive" onClick={confirmDelete}>
             Cancelar Orden
           </Button>
         </CustomModalFooter>
@@ -653,12 +659,11 @@ export default function ComprasPage() {
           )}
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsReceiveOpen(false)}>
+          <Button variant="ghost" onClick={() => setIsReceiveOpen(false)}>
             Cancelar
           </Button>
           <Button
-            color="success"
-            onPress={() => {
+            onClick={() => {
               toast.success('Mercancía recibida', {
                 description: `La orden ${selectedOrder?.orderNumber} ha sido procesada.`,
               });
@@ -669,6 +674,6 @@ export default function ComprasPage() {
           </Button>
         </CustomModalFooter>
       </CustomModal>
-    </div>
+    </div >
   );
 }

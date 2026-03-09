@@ -12,6 +12,7 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  dashboardPreferences?: Record<string, boolean>;
 }
 
 export interface AuthState {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { Plus, Search, Building2, User, Phone, Mail, MoreVertical, CreditCard, Filter } from 'lucide-react';
 import { api } from '@/lib/services/api';
 import { cn } from '@/lib/utils/cn';
@@ -81,11 +81,9 @@ export default function ClientsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            color="success"
-            onPress={() => router.push('/clientes/nuevo')}
-            className="font-medium shadow-sm"
-            startContent={<Plus className="h-4 w-4" />}
+            onClick={() => router.push('/clientes/nuevo')}
           >
+            <Plus className="h-4 w-4" />
             Nuevo Cliente
           </Button>
         </div>
@@ -203,7 +201,7 @@ export default function ClientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Button isIconOnly size="sm" variant="light" className="text-gray-400">
+                      <Button size="icon" variant="ghost" className="text-gray-400">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </td>

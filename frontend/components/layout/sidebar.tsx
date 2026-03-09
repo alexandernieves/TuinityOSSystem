@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -25,6 +26,9 @@ import { Tooltip } from '@heroui/react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useSidebar } from '@/lib/contexts/sidebar-context';
 import { cn } from '@/lib/utils/cn';
+import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface NavItem {
   label: string;
@@ -108,8 +112,10 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { logout, checkPermission } = useAuth();
   const { isCollapsed, setIsCollapsed, sidebarWidth, isMobile, isMobileOpen, setIsMobileOpen, toggleMobileOpen } = useSidebar();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -128,223 +134,178 @@ export function Sidebar() {
     }
   };
 
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+    if (isMobile) {
+      setIsMobileOpen(false);
+    }
+  };
+
+  const confirmLogout = () => {
+    setIsLogoutModalOpen(false);
+    logout();
+    toast.success('Sesión cerrada', {
+      description: 'Has cerrado sesión exitosamente.'
+    });
+    router.push('/login');
+  };
+
   // On mobile, show sidebar as overlay when isMobileOpen
   // On desktop, show normally with animated width
   const showExpanded = isMobile ? true : !isCollapsed;
 
   const sidebarContent = (
     <aside
-      className={cn(
-        'flex h-screen flex-col bg-white dark:bg-[#0a0a0a]',
-        isMobile ? 'w-[260px]' : undefined
-      )}
-      style={!isMobile ? { width: sidebarWidth } : undefined}
+      className="w-[260px] min-w-[260px] bg-[#ebebeb] text-[#303030] flex flex-col h-full select-none relative"
+      style={{ borderTopLeftRadius: '16px', overflow: 'hidden' }}
     >
-      {/* Header - Same color and height as navbar */}
-      <div
-        className={cn(
-          "flex h-12 items-center px-4 transition-all duration-200",
-          !isMobile && isCollapsed ? "justify-center" : "justify-between"
-        )}
-        style={{ backgroundColor: '#1a1a1a' }}
-      >
-        <AnimatePresence mode="wait">
-          {!isCollapsed || isMobile ? (
-            <motion.div
-              key="full-logo"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center"
-            >
-              <img
-                src="https://res.cloudinary.com/db3espoei/image/upload/v1771993730/Logo_Evolution_ZL__1_-1_wgd1hg.svg"
-                alt="Evolution"
-                className="h-7 w-auto invert"
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="cropped-logo"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center"
-            >
-              <img
-                src="https://res.cloudinary.com/db3espoei/image/upload/v1771993730/Logo_Evolution_ZL__1_-cropped_onzamv.svg"
-                alt="Evolution"
-                className="h-7 w-auto invert"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {isMobile && (
-          <button
-            onClick={toggleMobileOpen}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto border-r border-gray-200 dark:border-[#2a2a2a] px-3 py-2">
-        <ul className="space-y-0.5">
+      <nav className="flex-1 overflow-y-auto pl-6 pr-6 pt-6 pb-2 relative">
+        <ul className="space-y-1">
           {filteredNavItems.map((item) => {
             const active = isActive(item.href);
-            const linkContent = (
-              <Link
-                href={item.href}
-                onClick={handleNavClick}
-                className={cn(
-                  'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
-                  active
-                    ? 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-900 dark:text-white'
-                    : 'text-gray-600 dark:text-[#888888] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] hover:text-gray-900 dark:hover:text-white'
-                )}
-              >
-                <span
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={handleNavClick}
                   className={cn(
-                    'shrink-0 transition-colors',
-                    active ? 'text-brand-600 dark:text-[#00D1B2]' : 'text-gray-400 dark:text-[#666666] group-hover:text-gray-600 dark:group-hover:text-white'
+                    'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+                    active
+                      ? 'bg-[#f7f7f7] text-[#1a1a1a]'
+                      : 'text-[#303030] hover:bg-[#e0e0e0]'
                   )}
                 >
-                  {item.icon}
-                </span>
-                <AnimatePresence mode="wait">
-                  {showExpanded && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      className="flex-1 whitespace-nowrap"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                {showExpanded && item.badge && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white">
-                    {item.badge}
+                  <span className={cn(
+                    "shrink-0 transition-opacity",
+                    active ? "opacity-100" : "opacity-70"
+                  )}>
+                    {item.label === 'Dashboard' ? <LayoutDashboard size={17} strokeWidth={1.5} /> :
+                      item.label === 'Productos' ? <Package size={17} strokeWidth={1.5} /> :
+                        item.label === 'Compras' ? <ShoppingCart size={17} strokeWidth={1.5} /> :
+                          item.label === 'Inventario' ? <Warehouse size={17} strokeWidth={1.5} /> :
+                            item.label === 'Proveedores' ? <Briefcase size={17} strokeWidth={1.5} /> :
+                              item.label === 'Ventas B2B' ? <Briefcase size={17} strokeWidth={1.5} /> :
+                                item.label === 'Punto de Venta' ? <Store size={17} strokeWidth={1.5} /> :
+                                  item.label === 'Tráfico' ? <Ship size={17} strokeWidth={1.5} /> :
+                                    item.label === 'Clientes' ? <Users size={17} strokeWidth={1.5} /> :
+                                      item.label === 'Contabilidad' ? <Calculator size={17} strokeWidth={1.5} /> :
+                                        item.label === 'Historial' ? <History size={17} strokeWidth={1.5} /> :
+                                          item.label === 'Reportes' ? <BarChart3 size={17} strokeWidth={1.5} /> :
+                                            item.icon}
                   </span>
-                )}
-                {showExpanded && (
-                  <ChevronRight className={cn(
-                    'h-4 w-4 text-gray-300 dark:text-[#444444] opacity-0 transition-all group-hover:opacity-100',
-                    active && 'opacity-100 text-gray-400 dark:text-[#666666]'
-                  )} />
-                )}
-              </Link>
-            );
-
-            return (
-              <li key={item.href} className="relative">
-                {!isMobile && isCollapsed ? (
-                  <Tooltip
-                    content={item.label}
-                    placement="right"
-                    classNames={{
-                      content: 'bg-gray-900 text-white text-sm px-3 py-1.5',
-                    }}
-                  >
-                    {linkContent}
-                  </Tooltip>
-                ) : (
-                  linkContent
-                )}
+                  <span className="flex-1 text-left truncate">{item.label}</span>
+                  {item.badge && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#008060] px-1 text-[10px] font-bold text-white">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
               </li>
             );
           })}
         </ul>
       </nav>
 
-      {/* Bottom Section - Pill (horizontal when expanded, vertical when collapsed) */}
-      <div className={cn(
-        "flex border-r border-gray-200 dark:border-[#2a2a2a] px-3 py-4",
-        !isMobile && isCollapsed ? "flex-col items-center" : "items-center justify-center"
-      )}>
-        {/* Pill with Settings & Logout */}
-        <div className={cn(
-          "flex items-center gap-0.5 rounded-full border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] p-1",
-          !isMobile && isCollapsed && "flex-col"
-        )}>
-          <Tooltip content="Configuración" placement={!isMobile && isCollapsed ? "right" : "top"}>
-            <Link
-              href="/configuracion"
-              onClick={handleNavClick}
-              className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-full transition-colors',
-                isActive('/configuracion')
-                  ? 'bg-white dark:bg-[#1a1a1a] text-brand-600 dark:text-[#00D1B2] shadow-sm'
-                  : 'text-gray-400 dark:text-[#666666] hover:bg-white dark:hover:bg-[#1a1a1a] hover:text-gray-600 dark:hover:text-white hover:shadow-sm'
-              )}
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
-          </Tooltip>
-
-          <div className={cn(
-            "bg-gray-200 dark:bg-[#2a2a2a]",
-            !isMobile && isCollapsed ? "h-px w-5" : "h-5 w-px"
-          )} />
-
-          <Tooltip content="Cerrar sesión" placement={!isMobile && isCollapsed ? "right" : "top"}>
-            <button
-              onClick={logout}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 dark:text-[#666666] transition-colors hover:bg-white dark:hover:bg-[#1a1a1a] hover:text-gray-600 dark:hover:text-white hover:shadow-sm"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </div>
-
+      {/* Bottom Section */}
+      <div className="p-4 border-t border-[#dcdcdc]">
+        <Link
+          href="/configuracion"
+          onClick={handleNavClick}
+          className={cn(
+            'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+            isActive('/configuracion') ? 'bg-[#f7f7f7] text-[#1a1a1a]' : 'text-[#303030] hover:bg-[#e0e0e0]'
+          )}
+        >
+          <Settings size={17} strokeWidth={1.5} className="opacity-70" />
+          <span>Configuración</span>
+        </Link>
+        <button
+          onClick={handleLogoutClick}
+          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[13px] font-medium transition-colors text-[#303030] hover:bg-[#e0e0e0] mt-1"
+        >
+          <LogOut size={17} strokeWidth={1.5} className="opacity-70" />
+          <span>Cerrar sesión</span>
+        </button>
       </div>
     </aside>
+  );
+
+  const logoutModal = (
+    <CustomModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)}>
+      <CustomModalHeader>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
+            <LogOut className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">Cerrar Sesión</h3>
+            <p className="text-sm text-text-muted">¿Estás seguro que deseas salir?</p>
+          </div>
+        </div>
+      </CustomModalHeader>
+      <CustomModalBody>
+        <p className="text-sm text-text-secondary py-2">
+          No recibirás más notificaciones en el sistema hasta que vuelvas a iniciar sesión.
+        </p>
+      </CustomModalBody>
+      <CustomModalFooter>
+        <Button
+          variant="ghost"
+          onClick={() => setIsLogoutModalOpen(false)}
+          className="h-10 px-6 font-semibold"
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={confirmLogout}
+          className="h-10 px-6 font-semibold bg-danger hover:bg-danger/90 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
+        >
+          Sí, cerrar sesión
+        </Button>
+      </CustomModalFooter>
+    </CustomModal>
   );
 
   // Mobile: show as overlay with backdrop
   if (isMobile) {
     return (
-      <AnimatePresence>
-        {isMobileOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-              onClick={() => setIsMobileOpen(false)}
-            />
-            {/* Sidebar panel */}
-            <motion.div
-              initial={{ x: -260 }}
-              animate={{ x: 0 }}
-              exit={{ x: -260 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="fixed left-0 top-0 z-50"
-            >
-              {sidebarContent}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <>
+        <AnimatePresence>
+          {isMobileOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                onClick={() => setIsMobileOpen(false)}
+              />
+              {/* Sidebar panel */}
+              <motion.div
+                initial={{ x: -260 }}
+                animate={{ x: 0 }}
+                exit={{ x: -260 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="fixed left-0 top-0 z-50 h-full"
+              >
+                {sidebarContent}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+        {logoutModal}
+      </>
     );
   }
 
-  // Desktop: fixed sidebar with animated width
+  // Desktop: sidebar is a flex item in layout.tsx
   return (
-    <motion.div
-      initial={false}
-      animate={{ width: sidebarWidth }}
-      transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 z-40"
-    >
+    <>
       {sidebarContent}
-    </motion.div>
+      {logoutModal}
+    </>
   );
 }

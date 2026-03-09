@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Building2, MapPin, Mail, Phone, MoreVertical, Edit, Trash2 } from 'lucide-react';
-import { Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
+import { Search, Plus, Building2, MapPin, Mail, Phone, MoreVertical, Edit, Trash2, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
@@ -126,7 +128,8 @@ export default function ProveedoresPage() {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Proveedores</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Gestiona los proveedores de mercancía</p>
                 </div>
-                <Button color="primary" onPress={handleOpenAdd} startContent={<Plus className="h-4 w-4" />}>
+                <Button onClick={handleOpenAdd}>
+                    <Plus className="h-4 w-4" />
                     Nuevo Proveedor
                 </Button>
             </div>
@@ -164,56 +167,58 @@ export default function ProveedoresPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="group relative rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6 shadow-sm transition-all hover:shadow-md"
                             >
-                                <div className="absolute right-4 top-4">
-                                    <Dropdown placement="bottom-end">
-                                        <DropdownTrigger>
-                                            <button className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2a2a2a]">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </button>
-                                        </DropdownTrigger>
-                                        <DropdownMenu aria-label="Acciones de proveedor">
-                                            <DropdownItem key="edit" startContent={<Edit className="h-4 w-4" />} onPress={() => handleOpenEdit(supplier)}>
-                                                Editar
-                                            </DropdownItem>
-                                            <DropdownItem key="delete" className="text-danger" color="danger" startContent={<Trash2 className="h-4 w-4" />} onPress={() => handleOpenDelete(supplier)}>
-                                                Eliminar
-                                            </DropdownItem>
-                                        </DropdownMenu>
-                                    </Dropdown>
-                                </div>
-                                <div className="mb-4 flex items-center gap-3 pr-8">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400">
-                                        <Building2 className="h-6 w-6" />
+                                <Card className="group relative p-6 mb-0">
+                                    <div className="absolute right-4 top-4">
+                                        <Dropdown placement="bottom-end">
+                                            <DropdownTrigger>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownTrigger>
+                                            <DropdownMenu aria-label="Acciones de proveedor">
+                                                <DropdownItem key="edit" startContent={<Edit className="h-4 w-4" />} onPress={() => handleOpenEdit(supplier)}>
+                                                    Editar
+                                                </DropdownItem>
+                                                <DropdownItem key="delete" className="text-danger" color="danger" startContent={<Trash2 className="h-4 w-4" />} onPress={() => handleOpenDelete(supplier)}>
+                                                    Eliminar
+                                                </DropdownItem>
+                                            </DropdownMenu>
+                                        </Dropdown>
                                     </div>
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={supplier.name}>{supplier.name}</h3>
-                                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                            <MapPin className="h-3.5 w-3.5" />
-                                            {supplier.country}
+                                    <div className="mb-4 flex items-center gap-3 pr-8">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400">
+                                            <Building2 className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={supplier.name}>{supplier.name}</h3>
+                                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                                                <MapPin className="h-3.5 w-3.5" />
+                                                {supplier.country}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2.5 border-t border-gray-100 dark:border-[#2a2a2a] pt-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {supplier.contact && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium">Contacto:</span> {supplier.contact}
-                                        </div>
-                                    )}
-                                    {supplier.email && (
-                                        <div className="flex items-center gap-2">
-                                            <Mail className="h-4 w-4 text-gray-400" />
-                                            <a href={`mailto:${supplier.email}`} className="hover:text-brand-600 hover:underline">{supplier.email}</a>
-                                        </div>
-                                    )}
-                                    {supplier.phone && (
-                                        <div className="flex items-center gap-2">
-                                            <Phone className="h-4 w-4 text-gray-400" />
-                                            <a href={`tel:${supplier.phone}`} className="hover:text-brand-600 hover:underline">{supplier.phone}</a>
-                                        </div>
-                                    )}
-                                </div>
+                                    <div className="space-y-2.5 border-t border-gray-100 dark:border-[#2a2a2a] pt-4 text-sm text-gray-600 dark:text-gray-400">
+                                        {supplier.contact && (
+                                            <div className="flex items-center gap-2">
+                                                <Users className="h-3.5 w-3.5" />
+                                                {supplier.contact}
+                                            </div>
+                                        )}
+                                        {supplier.email && (
+                                            <div className="flex items-center gap-2">
+                                                <Mail className="h-3.5 w-3.5" />
+                                                {supplier.email}
+                                            </div>
+                                        )}
+                                        {supplier.phone && (
+                                            <div className="flex items-center gap-2">
+                                                <Phone className="h-3.5 w-3.5" />
+                                                {supplier.phone}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Card>
                             </motion.div>
                         ))}
                     </AnimatePresence>
@@ -247,8 +252,8 @@ export default function ProveedoresPage() {
                         </div>
                     </CustomModalBody>
                     <CustomModalFooter>
-                        <Button variant="light" onPress={() => setIsAddOpen(false)}>Cancelar</Button>
-                        <Button color="primary" type="submit">Guardar</Button>
+                        <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
+                        <Button type="submit">Guardar</Button>
                     </CustomModalFooter>
                 </form>
             </CustomModal>
@@ -279,8 +284,8 @@ export default function ProveedoresPage() {
                         </div>
                     </CustomModalBody>
                     <CustomModalFooter>
-                        <Button variant="light" onPress={() => setIsEditOpen(false)}>Cancelar</Button>
-                        <Button color="primary" type="submit">Actualizar</Button>
+                        <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+                        <Button type="submit">Actualizar</Button>
                     </CustomModalFooter>
                 </form>
             </CustomModal>
@@ -291,8 +296,8 @@ export default function ProveedoresPage() {
                     ¿Estás seguro que deseas eliminar permanente a <strong>{selectedSupplier?.name}</strong>? Esta acción no se puede revertir.
                 </CustomModalBody>
                 <CustomModalFooter>
-                    <Button variant="light" onPress={() => setIsDeleteOpen(false)}>Cancelar</Button>
-                    <Button color="danger" onPress={handleDeleteSubmit}>Eliminar</Button>
+                    <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>Cancelar</Button>
+                    <Button variant="destructive" onClick={handleDeleteSubmit}>Eliminar</Button>
                 </CustomModalFooter>
             </CustomModal>
         </div>
