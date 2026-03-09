@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Button,
   Input,
   Select,
   SelectItem,
   Textarea,
 } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -314,14 +314,12 @@ export default function NuevoConteoPage() {
             </span>
           </div>
           <div className="flex gap-3">
-            <Button variant="light" onPress={() => router.back()}>
+            <Button variant="ghost" onClick={() => router.back()}>
               Cancelar
             </Button>
             <Button
-              color="primary"
-              onPress={handleSubmit}
-              isDisabled={selectedCount === 0}
-              className="bg-brand-600"
+              onClick={handleSubmit}
+              disabled={selectedCount === 0}
             >
               Iniciar Conteo
             </Button>

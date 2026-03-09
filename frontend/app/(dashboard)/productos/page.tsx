@@ -9,13 +9,13 @@ import {
   DropdownMenu,
   DropdownItem,
   Avatar,
-  Button,
   Input,
   Select,
   SelectItem,
   Spinner,
   Skeleton,
 } from "@heroui/react";
+import { Button } from "@/components/ui/button";
 import { SkeletonGrid } from "@/components/ui/skeleton-grid";
 import { SkeletonTable } from "@/components/ui/skeleton-table";
 import {
@@ -304,27 +304,26 @@ export default function ProductosPage() {
         </h1>
         {loading && <Spinner size="sm" color="primary" />}
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="secondary"
             onClick={handleImportProducts}
-            className="flex h-9 items-center gap-2 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors hover:text-gray-900 dark:hover:text-white"
           >
             <Upload className="h-4 w-4" />
             Importar
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             onClick={handleExportProducts}
-            className="flex h-9 items-center gap-2 px-3 text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors hover:text-gray-900 dark:hover:text-white"
           >
             <Download className="h-4 w-4" />
             Exportar
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => router.push("/productos/nuevo")}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
           >
             <Plus className="h-4 w-4" />
             Nuevo Producto
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -624,9 +623,13 @@ export default function ProductosPage() {
                     {/* Menu Button */}
                     <Dropdown placement="bottom-end">
                       <DropdownTrigger>
-                        <button className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-400 shadow-sm backdrop-blur-sm transition-all hover:text-gray-600">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-2 z-10 h-7 w-7 rounded-full bg-white/90 text-gray-400 shadow-sm backdrop-blur-sm transition-all hover:text-gray-600"
+                        >
                           <MoreVertical className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </DropdownTrigger>
                       <DropdownMenu
                         aria-label="Acciones"
@@ -886,9 +889,13 @@ export default function ProductosPage() {
                           <td className="px-4 py-3 text-center">
                             <Dropdown placement="bottom-end">
                               <DropdownTrigger>
-                                <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-[#666666] transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-white">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-gray-400 dark:text-[#666666] hover:text-gray-600 dark:hover:text-white"
+                                >
                                   <MoreVertical className="h-4 w-4" />
-                                </button>
+                                </Button>
                               </DropdownTrigger>
                               <DropdownMenu
                                 aria-label="Acciones"
@@ -985,11 +992,11 @@ export default function ProductosPage() {
           </p>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsDeleteOpen(false)}>
-            Cancelar
+          <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>
+            Volver
           </Button>
-          <Button color="danger" onPress={confirmDelete}>
-            Eliminar
+          <Button variant="destructive" onClick={confirmDelete}>
+            Eliminar Producto
           </Button>
         </CustomModalFooter>
       </CustomModal>
@@ -1131,8 +1138,8 @@ export default function ProductosPage() {
         </CustomModalBody>
         <CustomModalFooter>
           <Button
-            variant="light"
-            onPress={() => {
+            variant="ghost"
+            onClick={() => {
               setPriceRange({ min: "", max: "" });
               setStockRange({ min: "", max: "" });
               setSelectedSupplier(null);
@@ -1142,12 +1149,10 @@ export default function ProductosPage() {
             Limpiar filtros
           </Button>
           <Button
-            color="primary"
-            onPress={() => {
+            onClick={() => {
               toast.success("Filtros aplicados");
               setIsFilterOpen(false);
             }}
-            className="bg-brand-600"
           >
             Aplicar filtros
           </Button>

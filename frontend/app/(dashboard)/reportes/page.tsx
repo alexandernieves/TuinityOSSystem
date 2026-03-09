@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardBody, CardHeader, Button, Divider, Select, SelectItem, Input } from '@heroui/react';
+import { Divider, Select, SelectItem, Input } from '@heroui/react';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { FileDown, FileText, Table, BarChart3, Calendar, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -87,8 +89,8 @@ export default function ReportsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="hover:shadow-md transition-shadow h-full border border-border-default bg-surface-main">
-              <CardHeader className="flex gap-4 px-5 pt-5 pb-0">
+            <Card className="h-full">
+              <CardHeader className="flex gap-4 p-4 pb-0 items-start">
                 <div className={`p-2.5 rounded-xl ${report.bgColor}`}>
                   {report.icon}
                 </div>
@@ -97,34 +99,31 @@ export default function ReportsPage() {
                   <p className="text-xs text-text-muted">Formato: Excel (.xlsx)</p>
                 </div>
               </CardHeader>
-              <CardBody className="px-5 py-4 flex flex-col justify-between">
+              <CardContent className="p-4 flex flex-col justify-between">
                 <p className="text-sm text-text-secondary mb-6">
                   {report.description}
                 </p>
 
                 <Button
-                  color="primary"
-                  variant="solid"
                   className="w-full font-medium"
-                  startContent={loading === report.id ? null : <Download className="h-4 w-4" />}
-                  isLoading={loading === report.id}
-                  onPress={() => handleDownload(report.id, report.endpoint, report.filename)}
+                  disabled={loading === report.id}
+                  onClick={() => handleDownload(report.id, report.endpoint, report.filename)}
                 >
-                  Descargar Excel
+                  {loading === report.id ? 'Generando...' : 'Descargar Excel'}
                 </Button>
-              </CardBody>
+              </CardContent>
             </Card>
           </motion.div>
         ))}
       </div>
 
       {/* Custom Report Builder Section (Placeholder for future) */}
-      <Card className="border border-border-default bg-surface-main mt-8">
-        <CardHeader className="px-5 py-4">
+      <Card className="mt-8">
+        <CardHeader className="p-4">
           <h3 className="text-base font-semibold text-text-primary">Filtros Avanzados</h3>
         </CardHeader>
         <Divider />
-        <CardBody className="p-5">
+        <CardContent className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <Input
               label="Desde"
@@ -149,12 +148,13 @@ export default function ReportsPage() {
               <SelectItem key="liquors">Licores</SelectItem>
               <SelectItem key="wines">Vinos</SelectItem>
             </Select>
-            <Button color="secondary" variant="flat" className="font-medium">
+            <Button variant="outline" className="font-medium">
               Filtrar Reporte
             </Button>
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
     </div>
   );
 }
+

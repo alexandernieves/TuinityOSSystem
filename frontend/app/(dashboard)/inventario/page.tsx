@@ -8,11 +8,12 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  Button,
   Input,
   Select,
   SelectItem,
 } from '@heroui/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -358,41 +359,41 @@ export default function InventarioPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canAcceptReorderRecommendations && (
-            <button
+            <Button
+              variant="secondary"
               onClick={handleOpenRecommendations}
-              className="flex h-9 items-center gap-2 rounded-lg border border-purple-300 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 px-3 text-sm font-medium text-purple-700 dark:text-purple-300 transition-colors hover:bg-purple-100 dark:hover:bg-purple-950/50"
+              className="border-purple-200 dark:border-purple-900 bg-purple-50/50 hover:bg-purple-100 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300"
             >
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:inline">Recomendaciones IA</span>
               <span className="sm:hidden">IA</span>
-            </button>
+            </Button>
           )}
           {canCreateCountSessions && (
-            <button
+            <Button
+              variant="secondary"
               onClick={handleNewCount}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
             >
               <ClipboardList className="h-4 w-4" />
               <span className="hidden sm:inline">Conteo Físico</span>
-            </button>
+            </Button>
           )}
           {canCreateTransfers && (
-            <button
+            <Button
+              variant="secondary"
               onClick={handleNewTransfer}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
             >
               <ArrowRightLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Transferencia</span>
-            </button>
+            </Button>
           )}
           {canCreateAdjustments && (
-            <button
+            <Button
               onClick={handleNewAdjustment}
-              className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
             >
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Nuevo Ajuste</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -421,10 +422,8 @@ export default function InventarioPage() {
               }
             }}
             className={cn(
-              'rounded-xl border bg-white dark:bg-[#141414] p-3 text-left transition-all hover:shadow-md',
-              !stat.isValue && stockFilter === stat.filter
-                ? 'border-brand-500 ring-1 ring-brand-500'
-                : 'border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a]'
+              'rounded-[12px] border-none bg-white p-3 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
+              !stat.isValue && stockFilter === stat.filter && 'ring-2 ring-brand-500 ring-offset-2'
             )}
           >
             <div className="flex items-center gap-3">
@@ -476,13 +475,16 @@ export default function InventarioPage() {
           {/* Group Filter */}
           <Dropdown>
             <DropdownTrigger>
-              <button className={cn(
-                'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                selectedGroup ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300' : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-              )}>
-                {selectedGroup || 'Categoría'}
+              <Button
+                variant={stockFilter !== 'all' ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
+              >
+                {stockFilter === 'all' ? 'Ver todos' :
+                  stockFilter === 'out_of_stock' ? 'Sin Stock' :
+                    stockFilter === 'low_stock' ? 'Bajo Stock' : 'Disponible'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </DropdownTrigger>
             <DropdownMenu
               selectionMode="single"
@@ -556,13 +558,15 @@ export default function InventarioPage() {
 
           {/* Clear filters */}
           {hasActiveFilters && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={clearFilters}
-              className="flex h-9 items-center gap-1 px-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+              className="gap-1 h-9 px-2 text-muted-foreground"
             >
               <X className="h-3.5 w-3.5" />
               Limpiar
-            </button>
+            </Button>
           )}
 
           {/* Advanced filters button */}
@@ -581,7 +585,7 @@ export default function InventarioPage() {
       </div>
 
       {/* Inventory Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
+      <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -589,8 +593,6 @@ export default function InventarioPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Producto</th>
                 <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Grupo</th>
                 <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Existencia</th>
-                <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Por Llegar</th>
-                <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Separado</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Disponible</th>
                 <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Mínimo</th>
                 {canViewInventoryAlerts && (
@@ -599,23 +601,17 @@ export default function InventarioPage() {
                 {canViewExpiryAlerts && (
                   <th className="hidden xl:table-cell px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Venc. Próximo</th>
                 )}
-                <th className="hidden xl:table-cell px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Últ. Compra</th>
-                <th className="hidden xl:table-cell px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Últ. Venta</th>
                 {canViewCosts && (
-                  <>
-                    <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Costo CIF</th>
-                    <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Valor</th>
-                  </>
+                  <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Valor</th>
                 )}
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Alerta</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Acciones</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
               {inventoryItems.map((item, index) => {
                 const stockStatus = getStockStatus(item);
                 const imageUrl = PRODUCT_IMAGES[item.group] || PRODUCT_IMAGES['WHISKY'];
-                const hasStagnantAlert = item.alerts.some((a) => a.type === 'stagnant_4m' || a.type === 'stagnant_6m');
 
                 return (
                   <motion.tr
@@ -623,7 +619,7 @@ export default function InventarioPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
-                    className="group transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+                    className="group hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -631,92 +627,54 @@ export default function InventarioPage() {
                           <img src={imageUrl} alt={item.productDescription} className="h-full w-full object-cover" />
                         </div>
                         <div className="min-w-0">
-                          <button
-                            onClick={() => handleViewProduct(item)}
-                            className="block max-w-28 truncate text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-[#00D1B2] sm:max-w-xs"
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                            onClick={() => router.push(`/productos/${item.productId}`)}
                           >
                             {item.productDescription}
-                          </button>
-                          <p className="truncate text-xs text-gray-500 dark:text-[#888888]">{item.productReference}</p>
+                          </Button>
+                          <p className="truncate text-xs text-brand-600 font-medium">{item.productReference}</p>
                         </div>
                       </div>
                     </td>
                     <td className="hidden md:table-cell px-4 py-3">
                       <span className="text-sm text-gray-600 dark:text-gray-400">{item.group}</span>
                     </td>
-                    <td className="hidden sm:table-cell px-4 py-3 text-right">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{item.existence}</span>
-                    </td>
-                    <td className="hidden lg:table-cell px-4 py-3 text-right">
-                      <span className={cn('text-sm', item.arriving > 0 ? 'font-medium text-sky-600' : 'text-gray-400 dark:text-[#666666]')}>
-                        {item.arriving || '-'}
-                      </span>
-                    </td>
-                    <td className="hidden lg:table-cell px-4 py-3 text-right">
-                      <span className={cn('text-sm', item.reserved > 0 ? 'font-medium text-amber-600' : 'text-gray-400 dark:text-[#666666]')}>
-                        {item.reserved || '-'}
-                      </span>
+                    <td className="hidden sm:table-cell px-4 py-3 text-right font-mono text-sm">
+                      {item.existence}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex flex-nowrap items-center justify-end gap-2">
-                        <span className={cn('text-sm font-semibold', stockStatus.textColor)}>
-                          {item.available}
-                        </span>
-                        {canViewInventoryAlerts && stockStatus.label !== 'En Stock' && (
-                          <span className={cn('inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-medium', stockStatus.badge)}>
-                            {stockStatus.label}
-                          </span>
-                        )}
-                      </div>
+                      <span className={cn('text-sm font-bold', stockStatus.textColor)}>
+                        {item.available}
+                      </span>
                     </td>
-                    <td className="hidden md:table-cell px-4 py-3 text-right">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{item.minimumQty}</span>
+                    <td className="hidden md:table-cell px-4 py-3 text-right text-sm text-gray-500">
+                      {item.minimumQty}
                     </td>
                     {canViewInventoryAlerts && (
-                      <td className="hidden xl:table-cell px-4 py-3 text-right">
-                        <span className={cn(
-                          'text-sm',
-                          item.reorderPoint != null ? 'text-gray-600 dark:text-gray-400' : 'text-gray-300 dark:text-[#444444]'
-                        )}>
-                          {item.reorderPoint ?? '-'}
-                        </span>
+                      <td className="hidden xl:table-cell px-4 py-3 text-right text-sm text-gray-500">
+                        {item.reorderPoint ?? '-'}
                       </td>
                     )}
-                    {canViewExpiryAlerts && (() => {
-                      const expiry = getNearestExpiry(item.productId);
-                      if (!expiry) {
-                        return (
-                          <td className="hidden xl:table-cell px-4 py-3 text-center">
-                            <span className="text-gray-300 dark:text-[#444444]">-</span>
-                          </td>
-                        );
-                      }
-                      const config = EXPIRY_ALERT_CONFIG[expiry.alertLevel];
-                      return (
-                        <td className="hidden xl:table-cell px-4 py-3 text-center">
-                          <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', config.bg, config.text)}>
-                            {expiry.daysUntilExpiry < 0
-                              ? 'Vencido'
-                              : `${expiry.daysUntilExpiry}d`}
-                          </span>
-                        </td>
-                      );
-                    })()}
-                    <td className="hidden xl:table-cell px-4 py-3 text-center">
-                      <span className="text-xs text-gray-500 dark:text-[#888888]">{formatDate(item.lastPurchaseDate)}</span>
-                    </td>
-                    <td className="hidden xl:table-cell px-4 py-3 text-center">
-                      <span className="text-xs text-gray-500 dark:text-[#888888]">{formatDate(item.lastSaleDate)}</span>
-                    </td>
+                    {canViewExpiryAlerts && (
+                      <td className="hidden xl:table-cell px-4 py-3 text-center">
+                        {(() => {
+                          const expiry = getNearestExpiry(item.productId);
+                          if (!expiry) return <span className="text-gray-300">-</span>;
+                          const config = EXPIRY_ALERT_CONFIG[expiry.alertLevel];
+                          return (
+                            <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium', config.bg, config.text)}>
+                              {expiry.daysUntilExpiry < 0 ? 'Vencido' : `${expiry.daysUntilExpiry}d`}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    )}
                     {canViewCosts && (
-                      <>
-                        <td className="hidden lg:table-cell px-4 py-3 text-right">
-                          <span className="font-mono text-sm text-gray-700 dark:text-gray-400">{formatCurrency(item.costCIF)}</span>
-                        </td>
-                        <td className="hidden lg:table-cell px-4 py-3 text-right">
-                          <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(item.stockValue)}</span>
-                        </td>
-                      </>
+                      <td className="hidden lg:table-cell px-4 py-3 text-right font-mono text-sm font-medium">
+                        {formatCurrency(item.stockValue)}
+                      </td>
                     )}
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -726,44 +684,30 @@ export default function InventarioPage() {
                             title={alert.message}
                             className={cn(
                               'flex h-6 w-6 items-center justify-center rounded-full',
-                              alert.type === 'out_of_stock' && 'bg-red-100 dark:bg-red-950',
-                              alert.type === 'low_stock' && 'bg-amber-100 dark:bg-amber-950',
-                              alert.type === 'reorder_point' && 'bg-amber-100 dark:bg-amber-950',
-                              (alert.type === 'stagnant_4m' || alert.type === 'stagnant_6m') && 'bg-orange-100 dark:bg-orange-950'
+                              alert.type === 'out_of_stock' && 'bg-red-100',
+                              alert.type === 'low_stock' && 'bg-amber-100',
+                              alert.type === 'reorder_point' && 'bg-amber-100',
+                              (alert.type === 'stagnant_4m' || alert.type === 'stagnant_6m') && 'bg-orange-100'
                             )}
                           >
-                            {alert.type === 'out_of_stock' && <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />}
-                            {alert.type === 'low_stock' && <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />}
-                            {alert.type === 'reorder_point' && <Package className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />}
-                            {(alert.type === 'stagnant_4m' || alert.type === 'stagnant_6m') && <Clock className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />}
+                            {alert.type === 'out_of_stock' && <AlertCircle className="h-3.5 w-3.5 text-red-600" />}
+                            {alert.type === 'low_stock' && <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />}
+                            {alert.type === 'reorder_point' && <Package className="h-3.5 w-3.5 text-amber-600" />}
+                            {(alert.type === 'stagnant_4m' || alert.type === 'stagnant_6m') && <Clock className="h-3.5 w-3.5 text-orange-600" />}
                           </span>
                         ))}
-                        {item.alerts.length === 0 && (
-                          <span className="text-gray-300 dark:text-[#444444]">-</span>
-                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Dropdown placement="bottom-end">
                         <DropdownTrigger>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 dark:text-[#666666] transition-colors hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-white">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400">
                             <MoreVertical className="h-4 w-4" />
-                          </button>
+                          </Button>
                         </DropdownTrigger>
-                        <DropdownMenu
-                          aria-label="Acciones"
-                          classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-                          items={[
-                            { key: 'view', label: 'Ver producto', icon: Eye, action: () => handleViewProduct(item), show: true },
-                            { key: 'adjust', label: 'Crear ajuste', icon: Edit, action: () => handleCreateAdjustment(item), show: canCreateAdjustments },
-                            { key: 'movements', label: 'Ver movimientos', icon: Calendar, action: () => handleViewMovements(item), show: true },
-                          ].filter((menuItem) => menuItem.show)}
-                        >
-                          {(menuItem) => (
-                            <DropdownItem key={menuItem.key} startContent={<menuItem.icon className="h-4 w-4" />} onPress={menuItem.action}>
-                              {menuItem.label}
-                            </DropdownItem>
-                          )}
+                        <DropdownMenu aria-label="Acciones">
+                          <DropdownItem key="view" startContent={<Eye className="h-4 w-4" />} onPress={() => handleViewProduct(item)}>Ver detalle</DropdownItem>
+                          <DropdownItem key="adjust" startContent={<Edit className="h-4 w-4" />} onPress={() => handleCreateAdjustment(item)}>Crear ajuste</DropdownItem>
                         </DropdownMenu>
                       </Dropdown>
                     </td>
@@ -773,16 +717,18 @@ export default function InventarioPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* Empty State */}
-      {inventoryItems.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
-          <Package className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
-          <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">No se encontraron productos</h3>
-          <p className="text-sm text-gray-500 dark:text-[#888888]">Intenta ajustar los filtros o el término de búsqueda</p>
-        </div>
-      )}
+      {
+        inventoryItems.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
+            <Package className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
+            <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">No se encontraron productos</h3>
+            <p className="text-sm text-gray-500 dark:text-[#888888]">Intenta ajustar los filtros o el término de búsqueda</p>
+          </div>
+        )
+      }
 
       {/* Results count */}
       <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
@@ -859,8 +805,8 @@ export default function InventarioPage() {
         </CustomModalBody>
         <CustomModalFooter>
           <Button
-            variant="light"
-            onPress={() => {
+            variant="ghost"
+            onClick={() => {
               setStockRange({ min: '', max: '' });
               setSelectedSupplier(null);
               setShowOnlyWithAlerts(false);
@@ -869,12 +815,10 @@ export default function InventarioPage() {
             Limpiar filtros
           </Button>
           <Button
-            color="primary"
-            onPress={() => {
+            onClick={() => {
               toast.success('Filtros aplicados');
               setIsFilterOpen(false);
             }}
-            className="bg-brand-600"
           >
             Aplicar filtros
           </Button>
@@ -1036,21 +980,19 @@ export default function InventarioPage() {
         </CustomModalBody>
         <CustomModalFooter>
           <Button
-            variant="light"
-            onPress={() => setIsReorderModalOpen(false)}
+            variant="ghost"
+            onClick={() => setIsReorderModalOpen(false)}
           >
             Cerrar
           </Button>
           <Button
-            color="primary"
-            className="bg-brand-600"
-            onPress={handleAcceptAll}
-            isDisabled={recommendations.filter((r) => r.status === 'pending').length === 0}
+            onClick={handleAcceptAll}
+            disabled={recommendations.filter((r) => r.status === 'pending').length === 0}
           >
             Aceptar Todas ({recommendations.filter((r) => r.status === 'pending').length})
           </Button>
         </CustomModalFooter>
       </CustomModal>
-    </div>
+    </div >
   );
 }
