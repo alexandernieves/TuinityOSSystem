@@ -80,6 +80,7 @@ export default function ProductDetailPage() {
 
   // F14 - Brand Protection state
   const [brandProtectionEnabled, setBrandProtectionEnabled] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const BRAND_PROTECTION_RATE = 0.05;
 
   const BARCODE_LABEL_OPTIONS = [
@@ -190,16 +191,15 @@ export default function ProductDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (confirm("¿Estás seguro de que deseas eliminar este producto?")) {
-      try {
-        await api.deleteProduct(product.id);
-        toast.success("Producto eliminado", {
-          description: `"${product.description}" ha sido eliminado.`,
-        });
-        router.push("/productos");
-      } catch (err: any) {
-        toast.error("Error al eliminar", { description: err.message });
-      }
+    setIsDeleteModalOpen(false);
+    try {
+      await api.deleteProduct(product.id);
+      toast.success("Producto eliminado", {
+        description: `"${product.description}" ha sido eliminado.`,
+      });
+      router.push("/productos");
+    } catch (err: any) {
+      toast.error("Error al eliminar", { description: err.message });
     }
   };
 
@@ -437,7 +437,7 @@ export default function ProductDetailPage() {
             variant="bordered"
             color="danger"
             startContent={<Trash2 className="h-4 w-4" />}
-            onPress={handleDelete}
+            onPress={() => setIsDeleteModalOpen(true)}
           >
             Eliminar
           </Button>
@@ -993,6 +993,42 @@ export default function ProductDetailPage() {
           </Button>
           <Button color="primary" size="sm" onPress={handleAddBarcode}>
             Agregar
+          </Button>
+        </CustomModalFooter>
+      </CustomModal>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <CustomModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
+        <CustomModalHeader onClose={() => setIsDeleteModalOpen(false)}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Eliminar Producto</h3>
+              <p className="text-sm text-gray-500">Esta acción no se puede deshacer.</p>
+            </div>
+          </div>
+        </CustomModalHeader>
+        <CustomModalBody>
+          <p className="text-sm text-gray-600 dark:text-gray-400 py-2">
+            ¿Estás seguro de que deseas eliminar <span className="font-semibold text-gray-900 dark:text-white">{product.description}</span>?
+            Se perderá todo el historial y stock asociado a este registro.
+          </p>
+        </CustomModalBody>
+        <CustomModalFooter>
+          <Button
+            variant="bordered"
+            onPress={() => setIsDeleteModalOpen(false)}
+            className="h-10 px-6 font-semibold"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onPress={handleDelete}
+            className="h-10 px-6 font-semibold bg-red-600 hover:bg-red-700 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
+          >
+            Sí, eliminar producto
           </Button>
         </CustomModalFooter>
       </CustomModal>

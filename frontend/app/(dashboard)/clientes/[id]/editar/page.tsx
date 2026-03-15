@@ -2,13 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import {
-  Button,
-  Input,
-  Select,
-  SelectItem,
-} from '@heroui/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Plus,
@@ -18,6 +12,7 @@ import {
   MapPin,
   CreditCard,
   Save,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getClientById, getUniqueCountries, updateClient } from '@/lib/mock-data/clients';
@@ -98,7 +93,7 @@ export default function EditarClientePage() {
       setPaymentType(client.paymentTerms === 'contado' ? 'contado' : 'credito');
 
       setContacts(
-        client.contacts.map((c) => ({
+        client.contacts.map((c: any) => ({
           id: c.id,
           name: c.name,
           email: c.email,
@@ -109,7 +104,7 @@ export default function EditarClientePage() {
       );
 
       setAddresses(
-        client.shippingAddresses.map((a) => ({
+        client.shippingAddresses.map((a: any) => ({
           id: a.id,
           label: a.label,
           address: a.address,
@@ -220,15 +215,22 @@ export default function EditarClientePage() {
     }, 800);
   };
 
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+  const labelStyle = { fontWeight: 600 };
+  const labelClass = "block text-[13px] text-[#1a1a1a] mb-1.5";
+
   if (!client) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Building2 className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
         <h2 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Cliente no encontrado</h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-[#888888]">El cliente con ID {clientId} no existe.</p>
-        <Button color="primary" onPress={() => router.push('/clientes')} className="bg-brand-700">
+        <button
+          onClick={() => router.push('/clientes')}
+          className="px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold"
+        >
           Volver a Clientes
-        </Button>
+        </button>
       </div>
     );
   }
@@ -239,9 +241,12 @@ export default function EditarClientePage() {
         <Building2 className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
         <h2 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Acceso restringido</h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-[#888888]">No tienes permisos para editar clientes.</p>
-        <Button color="primary" onPress={() => router.push(`/clientes/${clientId}`)} className="bg-brand-700">
+        <button
+          onClick={() => router.push(`/clientes/${clientId}`)}
+          className="px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold"
+        >
           Volver al Cliente
-        </Button>
+        </button>
       </div>
     );
   }
@@ -270,22 +275,25 @@ export default function EditarClientePage() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Button
-            variant="flat"
-            onPress={() => router.push(`/clientes/${clientId}`)}
-            isDisabled={isSaving}
+          <button
+            disabled={isSaving}
+            onClick={() => router.push(`/clientes/${clientId}`)}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
           >
             Cancelar
-          </Button>
-          <Button
-            color="primary"
-            startContent={<Save className="h-4 w-4" />}
-            onPress={handleSave}
-            isLoading={isSaving}
-            className="bg-brand-700"
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             Guardar Cambios
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -300,103 +308,94 @@ export default function EditarClientePage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Codigo
-              </label>
-              <Input
+              <label className={labelClass} style={labelStyle}>Codigo</label>
+              <input
+                type="text"
                 value={clientId}
-                variant="bordered"
-                isReadOnly
-                classNames={{ input: 'font-mono text-gray-400 dark:text-[#666666]' }}
+                readOnly
+                className={inputClass + " bg-gray-50 cursor-not-allowed font-mono text-gray-400"}
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Nombre / Razon Social <span className="text-red-500">*</span>
-              </label>
-              <Input
+              <label className={labelClass} style={labelStyle}>Nombre / Razon Social <span className="text-red-500">*</span></label>
+              <input
+                type="text"
                 placeholder="EMPRESA S.A."
-                variant="bordered"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+                required
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Nombre Comercial
-              </label>
-              <Input
+              <label className={labelClass} style={labelStyle}>Nombre Comercial</label>
+              <input
+                type="text"
                 placeholder="Nombre de fantasia"
-                variant="bordered"
                 value={tradeName}
                 onChange={(e) => setTradeName(e.target.value)}
+                className={inputClass}
               />
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                RUC / Tax ID <span className="text-red-500">*</span>
-              </label>
-              <Input
+              <label className={labelClass} style={labelStyle}>RUC / Tax ID <span className="text-red-500">*</span></label>
+              <input
+                type="text"
                 placeholder="000-000000-0-000000"
-                variant="bordered"
                 value={taxId}
                 onChange={(e) => setTaxId(e.target.value)}
+                className={inputClass}
+                required
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Tipo de Documento
-              </label>
-              <Select
-                placeholder="Seleccionar..."
-                variant="bordered"
-                selectedKeys={[taxIdType]}
-                onSelectionChange={(keys) => setTaxIdType(Array.from(keys)[0] as string)}
+              <label className={labelClass} style={labelStyle}>Tipo de Documento</label>
+              <select
+                value={taxIdType}
+                onChange={(e) => setTaxIdType(e.target.value)}
+                className={inputClass}
               >
                 {TAX_ID_TYPES.map((t) => (
-                  <SelectItem key={t}>{t}</SelectItem>
+                  <option key={t} value={t}>{t}</option>
                 ))}
-              </Select>
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Pais <span className="text-red-500">*</span>
-              </label>
-              <Select
-                placeholder="Seleccionar pais..."
-                variant="bordered"
-                selectedKeys={country ? [country] : []}
-                onSelectionChange={(keys) => setCountry(Array.from(keys)[0] as string)}
+              <label className={labelClass} style={labelStyle}>Pais <span className="text-red-500">*</span></label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className={inputClass}
+                required
               >
+                <option value="">Seleccionar pais...</option>
                 {countries.map((c) => (
-                  <SelectItem key={c}>{c}</SelectItem>
+                  <option key={c} value={c}>{c}</option>
                 ))}
-              </Select>
+              </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Ciudad
-              </label>
-              <Input
+              <label className={labelClass} style={labelStyle}>Ciudad</label>
+              <input
+                type="text"
                 placeholder="Ciudad"
-                variant="bordered"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Direccion
-              </label>
-              <Input
+              <label className={labelClass} style={labelStyle}>Direccion</label>
+              <input
+                type="text"
                 placeholder="Direccion completa"
-                variant="bordered"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
+                className={inputClass}
               />
             </div>
           </div>
@@ -442,39 +441,46 @@ export default function EditarClientePage() {
                 )}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  label="Nombre"
-                  placeholder="Nombre del contacto"
-                  variant="bordered"
-                  size="sm"
-                  value={contact.name}
-                  onChange={(e) => updateContact(contact.id, 'name', e.target.value)}
-                />
-                <Input
-                  label="Cargo"
-                  placeholder="Gerente, Director..."
-                  variant="bordered"
-                  size="sm"
-                  value={contact.role}
-                  onChange={(e) => updateContact(contact.id, 'role', e.target.value)}
-                />
-                <Input
-                  label="Email"
-                  placeholder="email@empresa.com"
-                  type="email"
-                  variant="bordered"
-                  size="sm"
-                  value={contact.email}
-                  onChange={(e) => updateContact(contact.id, 'email', e.target.value)}
-                />
-                <Input
-                  label="Telefono"
-                  placeholder="+507 000-0000"
-                  variant="bordered"
-                  size="sm"
-                  value={contact.phone}
-                  onChange={(e) => updateContact(contact.id, 'phone', e.target.value)}
-                />
+                <div>
+                  <label className={labelClass} style={labelStyle}>Nombre</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre del contacto"
+                    value={contact.name}
+                    onChange={(e) => updateContact(contact.id, 'name', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>Cargo</label>
+                  <input
+                    type="text"
+                    placeholder="Gerente, Director..."
+                    value={contact.role}
+                    onChange={(e) => updateContact(contact.id, 'role', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>Email</label>
+                  <input
+                    type="email"
+                    placeholder="email@empresa.com"
+                    value={contact.email}
+                    onChange={(e) => updateContact(contact.id, 'email', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>Telefono</label>
+                  <input
+                    type="text"
+                    placeholder="+507 000-0000"
+                    value={contact.phone}
+                    onChange={(e) => updateContact(contact.id, 'phone', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
               </div>
             </div>
           ))}
@@ -520,39 +526,46 @@ export default function EditarClientePage() {
                 )}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <Input
-                  label="Etiqueta"
-                  placeholder="Principal, Bodega..."
-                  variant="bordered"
-                  size="sm"
-                  value={addr.label}
-                  onChange={(e) => updateAddress(addr.id, 'label', e.target.value)}
-                />
-                <Input
-                  label="Direccion"
-                  placeholder="Direccion completa"
-                  variant="bordered"
-                  size="sm"
-                  value={addr.address}
-                  onChange={(e) => updateAddress(addr.id, 'address', e.target.value)}
-                  className="lg:col-span-2"
-                />
-                <Input
-                  label="Ciudad"
-                  placeholder="Ciudad"
-                  variant="bordered"
-                  size="sm"
-                  value={addr.city}
-                  onChange={(e) => updateAddress(addr.id, 'city', e.target.value)}
-                />
-                <Input
-                  label="Codigo Postal"
-                  placeholder="00000"
-                  variant="bordered"
-                  size="sm"
-                  value={addr.postalCode}
-                  onChange={(e) => updateAddress(addr.id, 'postalCode', e.target.value)}
-                />
+                <div>
+                  <label className={labelClass} style={labelStyle}>Etiqueta</label>
+                  <input
+                    type="text"
+                    placeholder="Principal, Bodega..."
+                    value={addr.label}
+                    onChange={(e) => updateAddress(addr.id, 'label', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <label className={labelClass} style={labelStyle}>Direccion</label>
+                  <input
+                    type="text"
+                    placeholder="Direccion completa"
+                    value={addr.address}
+                    onChange={(e) => updateAddress(addr.id, 'address', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>Ciudad</label>
+                  <input
+                    type="text"
+                    placeholder="Ciudad"
+                    value={addr.city}
+                    onChange={(e) => updateAddress(addr.id, 'city', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>Codigo Postal</label>
+                  <input
+                    type="text"
+                    placeholder="00000"
+                    value={addr.postalCode}
+                    onChange={(e) => updateAddress(addr.id, 'postalCode', e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
               </div>
             </div>
           ))}
@@ -570,24 +583,21 @@ export default function EditarClientePage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Nivel de Precio <span className="text-red-500">*</span>
-              </label>
-              <Select
-                placeholder="Seleccionar nivel..."
-                variant="bordered"
-                selectedKeys={priceLevel ? [priceLevel] : []}
-                onSelectionChange={(keys) => setPriceLevel(Array.from(keys)[0] as PriceLevel)}
+              <label className={labelClass} style={labelStyle}>Nivel de Precio <span className="text-red-500">*</span></label>
+              <select
+                value={priceLevel}
+                onChange={(e) => setPriceLevel(e.target.value as PriceLevel)}
+                className={inputClass}
+                required
               >
+                <option value="">Seleccionar nivel...</option>
                 {PRICE_LEVELS.map((l) => (
-                  <SelectItem key={l}>Nivel {l}</SelectItem>
+                  <option key={l} value={l}>Nivel {l}</option>
                 ))}
-              </Select>
+              </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Tipo de Pago
-              </label>
+              <label className={labelClass} style={labelStyle}>Tipo de Pago</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -598,7 +608,7 @@ export default function EditarClientePage() {
                   className={cn(
                     'flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors',
                     paymentType === 'contado'
-                      ? 'border-brand-500 bg-brand-500/10 text-brand-600'
+                      ? 'border-[#008060] bg-emerald-50 text-[#008060]'
                       : 'border-gray-200 dark:border-[#2a2a2a] text-gray-500 dark:text-gray-400 hover:border-gray-300'
                   )}
                 >
@@ -612,7 +622,7 @@ export default function EditarClientePage() {
                   className={cn(
                     'flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors',
                     paymentType === 'credito'
-                      ? 'border-brand-500 bg-brand-500/10 text-brand-600'
+                      ? 'border-[#008060] bg-emerald-50 text-[#008060]'
                       : 'border-gray-200 dark:border-[#2a2a2a] text-gray-500 dark:text-gray-400 hover:border-gray-300'
                   )}
                 >
@@ -622,55 +632,52 @@ export default function EditarClientePage() {
             </div>
           </div>
 
-          {paymentType === 'credito' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 gap-4 sm:grid-cols-2"
-            >
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Terminos de Credito
-                </label>
-                <Select
-                  placeholder="Seleccionar..."
-                  variant="bordered"
-                  selectedKeys={[paymentTerms]}
-                  onSelectionChange={(keys) => setPaymentTerms(Array.from(keys)[0] as PaymentTerms)}
-                >
-                  <SelectItem key="credito_15">Credito 15 dias</SelectItem>
-                  <SelectItem key="credito_30">Credito 30 dias</SelectItem>
-                  <SelectItem key="credito_45">Credito 45 dias</SelectItem>
-                  <SelectItem key="credito_60">Credito 60 dias</SelectItem>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Limite de Credito (USD)
-                </label>
-                <Input
-                  placeholder="0.00"
-                  type="number"
-                  variant="bordered"
-                  startContent={<span className="text-gray-400">$</span>}
-                  value={creditLimit}
-                  onChange={(e) => setCreditLimit(e.target.value)}
-                />
-              </div>
-            </motion.div>
-          )}
+          <AnimatePresence>
+            {paymentType === 'credito' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+              >
+                <div>
+                  <label className={labelClass} style={labelStyle}>Terminos de Credito</label>
+                  <select
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value as PaymentTerms)}
+                    className={inputClass}
+                  >
+                    <option value="credito_15">Credito 15 dias</option>
+                    <option value="credito_30">Credito 30 dias</option>
+                    <option value="credito_45">Credito 45 dias</option>
+                    <option value="credito_60">Credito 60 dias</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>Limite de Credito (USD)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={creditLimit}
+                      onChange={(e) => setCreditLimit(e.target.value)}
+                      className={inputClass + " pl-6"}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Notas Internas
-            </label>
+            <label className={labelClass} style={labelStyle}>Notas Internas</label>
             <textarea
               placeholder="Observaciones sobre el cliente..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className={inputClass + " resize-none"}
             />
           </div>
         </div>
@@ -678,22 +685,25 @@ export default function EditarClientePage() {
 
       {/* Bottom actions */}
       <div className="flex items-center justify-end gap-3 pb-6">
-        <Button
-          variant="flat"
-          onPress={() => router.push(`/clientes/${clientId}`)}
-          isDisabled={isSaving}
+        <button
+          onClick={() => router.push(`/clientes/${clientId}`)}
+          disabled={isSaving}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
         >
           Cancelar
-        </Button>
-        <Button
-          color="primary"
-          startContent={<Save className="h-4 w-4" />}
-          onPress={handleSave}
-          isLoading={isSaving}
-          className="bg-brand-700"
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
+          {isSaving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
           Guardar Cambios
-        </Button>
+        </button>
       </div>
     </motion.div>
   );

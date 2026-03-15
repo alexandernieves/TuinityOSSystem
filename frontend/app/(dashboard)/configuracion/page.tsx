@@ -118,7 +118,7 @@ export default function ConfiguracionPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50">
           <Settings className="h-5 w-5 text-brand-600" />
         </div>
         <div>
@@ -141,10 +141,10 @@ export default function ConfiguracionPage() {
                 onMouseEnter={() => setActiveSection(section.id)}
                 onMouseLeave={() => setActiveSection(null)}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-all',
+                  'flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left text-sm font-medium transition-all',
                   activeSection === section.id
-                    ? 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-900 dark:text-white'
-                    : 'text-gray-600 dark:text-[#888888] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] hover:text-gray-900 dark:hover:text-white'
+                    ? 'bg-white text-gray-900 dark:text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)]'
+                    : 'text-gray-600 dark:text-[#888888] hover:bg-gray-50'
                 )}
               >
                 <section.icon className={cn('h-4 w-4 shrink-0', activeSection === section.id ? section.color : 'text-gray-400 dark:text-[#666666]')} />
@@ -167,10 +167,8 @@ export default function ConfiguracionPage() {
                 onMouseEnter={() => setActiveSection(section.id)}
                 onMouseLeave={() => setActiveSection(null)}
                 className={cn(
-                  'group flex items-start gap-4 rounded-xl border bg-white dark:bg-[#141414] p-5 text-left transition-all hover:shadow-md',
-                  activeSection === section.id
-                    ? 'border-gray-300 dark:border-[#3a3a3a] shadow-sm'
-                    : 'border-gray-200 dark:border-[#2a2a2a]'
+                  'group flex items-start gap-4 rounded-[12px] bg-white p-5 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
+                  activeSection === section.id && 'ring-2 ring-brand-500 ring-offset-2'
                 )}
               >
                 <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', section.bgColor)}>
@@ -183,7 +181,7 @@ export default function ConfiguracionPage() {
                       <span className="flex h-5 items-center rounded-full bg-gray-100 dark:bg-[#2a2a2a] px-2 text-xs font-medium text-gray-600 dark:text-[#888888]">
                         {section.count} {section.countLabel}
                       </span>
-                      <ChevronRight className="h-4 w-4 text-gray-300 dark:text-[#444444] transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500 dark:group-hover:text-[#888888]" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 dark:text-[#444444] transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-[#888888] line-clamp-2">{section.description}</p>
@@ -196,3 +194,4 @@ export default function ConfiguracionPage() {
     </div>
   );
 }
+

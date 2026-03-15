@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { Spinner } from '@heroui/react';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 export default function HomePage() {
   const router = useRouter();
@@ -19,12 +19,9 @@ export default function HomePage() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-main">
-      <div className="flex flex-col items-center gap-4">
-        <Spinner size="lg" color="primary" />
-        <p className="text-sm text-text-secondary">Cargando...</p>
-      </div>
-    </div>
-  );
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return null;
 }

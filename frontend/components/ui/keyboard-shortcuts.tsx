@@ -54,7 +54,7 @@ const SHORTCUTS: ShortcutDef[] = [
   { keys: ['Ctrl', 'Shift', 'P'], label: 'Nuevo producto', icon: Package, category: 'acciones' },
   { keys: ['Ctrl', 'Shift', 'A'], label: 'Nuevo ajuste inventario', icon: ClipboardEdit, category: 'acciones' },
   { keys: ['Ctrl', 'Shift', 'O'], label: 'Nueva orden de compra', icon: ShoppingCart, category: 'acciones' },
-  { keys: ['Ctrl', 'Shift', 'R'], label: 'Registrar cobro', icon: CircleDollarSign, category: 'acciones' },
+  { keys: ['Ctrl', 'Shift', 'D'], label: 'Registrar cobro', icon: CircleDollarSign, category: 'acciones' },
   // Navegación rápida
   { keys: ['Alt', 'H'], label: 'Dashboard', icon: Home, category: 'navegacion' },
   { keys: ['Alt', 'V'], label: 'Ventas B2B', icon: Briefcase, category: 'navegacion' },
@@ -89,7 +89,8 @@ export function KeyboardShortcuts() {
       const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
       const alt = e.altKey;
-      const key = e.key.toLowerCase();
+      const key = e.key?.toLowerCase();
+      if (!key) return;
 
       // Don't trigger in input fields (except Escape and Ctrl combos)
       const target = e.target as HTMLElement;
@@ -167,8 +168,8 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+Shift+R → Registrar cobro
-      if (ctrl && shift && !alt && key === 'r') {
+      // Ctrl+Shift+D → Registrar cobro
+      if (ctrl && shift && !alt && key === 'd') {
         e.preventDefault();
         router.push('/clientes/cxc/cobro');
         return;

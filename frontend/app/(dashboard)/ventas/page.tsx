@@ -9,9 +9,10 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  Button,
   Tooltip,
 } from '@heroui/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import {
   Search,
@@ -48,7 +49,7 @@ import { getCreditStatus } from '@/lib/mock-data/clients';
 import { api } from '@/lib/services/api';
 import { Loader2 } from 'lucide-react';
 import type { SalesOrder, SalesOrderStatus, DocumentType } from '@/lib/types/sales-order';
-import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS } from '@/lib/types/sales-order';
+import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS, normalizeStatus } from '@/lib/types/sales-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { SkeletonTable } from '@/components/ui/skeleton-table';
@@ -109,24 +110,26 @@ export default function VentasPage() {
 
   // Stats (Simplified for now based on local data)
   const stats = useMemo(() => {
-    const pendingQuotes = salesOrders.filter(o => o.status === 'cotizado').length;
-    const pendingApproval = salesOrders.filter(o => o.status === 'pedido').length;
-    const readyToPack = salesOrders.filter(o => o.status === 'aprobado').length;
-    const readyToInvoice = salesOrders.filter(o => o.status === 'empacado').length;
-    const salesValueThisMonth = salesOrders
+    const normalizedOrders = salesOrders.map(o => ({ ...o, status: normalizeStatus(o.status) }));
+
+    const pendingQuotes = normalizedOrders.filter(o => o.status === 'cotizado').length;
+    const pendingApproval = normalizedOrders.filter(o => o.status === 'pedido').length;
+    const readyToPack = normalizedOrders.filter(o => o.status === 'aprobado').length;
+    const readyToInvoice = normalizedOrders.filter(o => o.status === 'empacado').length;
+    const salesValueThisMonth = normalizedOrders
       .filter(o => o.status === 'facturado')
       .reduce((sum, o) => sum + (o.total || 0), 0);
 
-    const pipelineValue = salesOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const pipelineValue = normalizedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
-    const byStatus = {
-      borrador: salesOrders.filter(o => o.status === 'borrador').length,
+    const byStatus: Record<string, number> = {
+      borrador: normalizedOrders.filter(o => o.status === 'borrador').length,
       cotizado: pendingQuotes,
       pedido: pendingApproval,
       aprobado: readyToPack,
       empacado: readyToInvoice,
-      facturado: salesOrders.filter(o => o.status === 'facturado').length,
-      cancelado: salesOrders.filter(o => o.status === 'cancelado').length,
+      facturado: normalizedOrders.filter(o => o.status === 'facturado').length,
+      cancelado: normalizedOrders.filter(o => o.status === 'cancelado').length,
     };
 
     return {
@@ -224,21 +227,20 @@ export default function VentasPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Ventas B2B</h1>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="secondary"
             onClick={handleExportOrders}
-            className="flex h-9 items-center gap-2 px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <Download className="h-4 w-4" />
             Exportar
-          </button>
+          </Button>
           {canCreateQuotes && (
-            <button
+            <Button
               onClick={() => router.push('/ventas/nueva')}
-              className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
             >
               <Plus className="h-4 w-4" />
               Nueva Cotización
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -297,10 +299,8 @@ export default function VentasPage() {
               transition={{ delay: index * 0.05 }}
               onClick={() => setStatusFilter(statusFilter === stat.filterStatus ? 'all' : stat.filterStatus)}
               className={cn(
-                'rounded-xl border bg-card p-3 text-left transition-all hover:shadow-md',
-                statusFilter === stat.filterStatus
-                  ? 'border-brand-500 ring-1 ring-brand-500'
-                  : 'border-border hover:border-border'
+                'rounded-[12px] border-none bg-white p-3 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
+                statusFilter === stat.filterStatus && 'ring-2 ring-brand-500 ring-offset-2'
               )}
             >
               <div className="flex items-center gap-3">
@@ -337,7 +337,7 @@ export default function VentasPage() {
       </div>
 
       {/* Pipeline Visual */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <Card className="p-4 mb-5">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-medium text-foreground">Pipeline de Ventas</h3>
           <span className="text-xs text-muted-foreground sm:text-sm">
@@ -347,16 +347,17 @@ export default function VentasPage() {
         <div className="flex items-center gap-0.5 overflow-x-auto pb-1 sm:gap-1">
           {PIPELINE_STAGES.map((stage, index) => {
             const count = stats.byStatus[stage.status];
-            const config = STATUS_CONFIG[stage.status];
+            const config = STATUS_CONFIG[stage.status] || STATUS_CONFIG.borrador;
             const isActive = statusFilter === stage.status;
 
             return (
               <div key={stage.status} className="flex min-w-0 flex-1 items-center">
-                <button
+                <Button
+                  variant={isActive ? 'default' : 'ghost'}
                   onClick={() => setStatusFilter(isActive ? 'all' : stage.status)}
                   className={cn(
-                    'flex flex-1 flex-col items-center rounded-lg px-1.5 py-2 transition-all sm:p-3',
-                    isActive ? 'bg-brand-500/10 ring-1 ring-brand-500' : 'hover:bg-accent'
+                    'flex flex-1 flex-col items-center h-auto px-1.5 py-4 transition-all sm:px-3',
+                    isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''
                   )}
                 >
                   <span
@@ -368,8 +369,8 @@ export default function VentasPage() {
                   >
                     {count}
                   </span>
-                  <span className="whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">{stage.label}</span>
-                </button>
+                  <span className="whitespace-nowrap text-[10px] sm:text-xs">{stage.label}</span>
+                </Button>
                 {index < PIPELINE_STAGES.length - 1 && (
                   <ChevronRight className="h-3 w-3 flex-shrink-0 text-muted-foreground/50 sm:h-4 sm:w-4" />
                 )}
@@ -377,7 +378,7 @@ export default function VentasPage() {
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Search and Filters Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -396,17 +397,14 @@ export default function VentasPage() {
           {/* Document Type Filter */}
           <Dropdown>
             <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  docTypeFilter !== 'all'
-                    ? 'bg-brand-500/10 text-brand-500'
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                )}
+              <Button
+                variant={docTypeFilter !== 'all' ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {docTypeFilter !== 'all' ? DOCUMENT_TYPE_LABELS[docTypeFilter] : 'Tipo'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </DropdownTrigger>
             <DropdownMenu
               selectionMode="single"
@@ -425,17 +423,14 @@ export default function VentasPage() {
           {/* Status Filter */}
           <Dropdown>
             <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  statusFilter !== 'all'
-                    ? 'bg-brand-500/10 text-brand-500'
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                )}
+              <Button
+                variant={statusFilter !== 'all' ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
-                {statusFilter !== 'all' ? STATUS_CONFIG[statusFilter].label : 'Estado'}
+                {statusFilter !== 'all' ? (STATUS_CONFIG[statusFilter]?.label || statusFilter) : 'Estado'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </DropdownTrigger>
             <DropdownMenu
               selectionMode="single"
@@ -458,19 +453,16 @@ export default function VentasPage() {
           {/* Customer Filter */}
           <Dropdown>
             <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  selectedCustomer
-                    ? 'bg-brand-500/10 text-brand-500'
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                )}
+              <Button
+                variant={selectedCustomer ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {selectedCustomer
                   ? clients.find((c) => c.id === selectedCustomer)?.name.slice(0, 15) + '...'
                   : 'Cliente'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </DropdownTrigger>
             <DropdownMenu
               selectionMode="single"
@@ -489,186 +481,152 @@ export default function VentasPage() {
 
           {/* Clear Filters */}
           {hasActiveFilters && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={clearFilters}
-              className="flex h-9 items-center gap-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+              className="gap-1 h-9 px-2 text-muted-foreground"
             >
               <X className="h-3.5 w-3.5" />
               Limpiar
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Orders Table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  No. Doc
-                </th>
-                <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Tipo
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Cliente
-                </th>
-                <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Fecha
-                </th>
-                <th className="hidden lg:table-cell px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Líneas
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Total
-                </th>
-                {/* Margin column - different display per role */}
-                <th className="hidden lg:table-cell px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {canViewMargins ? 'Margen' : isVendedor ? 'Comisión' : ''}
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Estado
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Acciones
-                </th>
+              <tr className="border-b border-gray-100 dark:border-[#2a2a2a] bg-gray-50/50 dark:bg-[#1a1a1a]">
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">No. Doc</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Fecha</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cliente</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center whitespace-nowrap">Tipo</th>
+                {canViewMargins && (
+                  <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Total</th>
+                )}
+                <th className="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Estado</th>
+                <th className="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
-              {filteredOrders.map((order, index) => {
-                const statusConfig = (STATUS_CONFIG as any)[order.status] || (STATUS_CONFIG as any).borrador;
-                const docTypeLabel = order.documentType === 'cotizacion' ? 'COT' : order.documentType === 'pedido' ? 'PED' : 'FAC';
-
-                // Check if all lines are commission eligible
-                const allLinesEligible = order.lines.every((l: any) => l.commissionEligible);
-
-                return (
-                  <motion.tr
-                    key={order.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.02 }}
-                    className="group transition-colors hover:bg-accent/50"
-                  >
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleViewOrder(order)}
-                        className="font-mono text-sm font-medium text-brand-500 hover:text-brand-600 hover:underline"
-                      >
-                        {order.orderNumber}
-                      </button>
-                    </td>
-                    <td className="hidden sm:table-cell px-4 py-3">
-                      <span
-                        className={cn(
-                          'inline-flex whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium',
-                          order.documentType === 'cotizacion' && 'bg-blue-500/10 text-blue-500',
-                          order.documentType === 'pedido' && 'bg-purple-500/10 text-purple-500',
-                          order.documentType === 'factura' && 'bg-teal-500/10 text-teal-500'
-                        )}
-                      >
-                        {docTypeLabel}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="min-w-0">
-                        <span className="block max-w-32 truncate text-sm text-foreground sm:max-w-50">{order.clientName}</span>
-                        <p className="text-xs text-muted-foreground">{order.clientCountry}</p>
+            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+              {filteredOrders.map((order, index) => (
+                <motion.tr
+                  key={order.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.02 }}
+                  className="group hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+                >
+                  <td className="px-5 py-4">
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto font-bold text-brand-600 dark:text-brand-400"
+                      onClick={() => handleViewOrder(order)}
+                    >
+                      {order.orderNumber}
+                    </Button>
+                    {order.salesChannel === 'canal_externo' && (
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                        <Briefcase className="h-2.5 w-2.5" />
+                        Tráfico
                       </div>
-                    </td>
-                    <td className="hidden md:table-cell px-4 py-3">
-                      <span className="text-sm text-muted-foreground">{formatDate(order.createdAt)}</span>
-                    </td>
-                    <td className="hidden lg:table-cell px-4 py-3 text-center">
-                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-2 text-xs font-medium text-muted-foreground">
-                        {order.lines.length}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-sm font-medium text-foreground">
-                        {formatCurrency(order.total)}
-                      </span>
-                    </td>
-                    {/* Margin/Commission column */}
-                    <td className="hidden lg:table-cell px-4 py-3 text-center">
-                      {canViewMargins ? (
-                        <span className="font-mono text-sm text-muted-foreground">
-                          {order.marginPercent?.toFixed(1)}%
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-foreground">{formatDate(order.createdAt)}</span>
+                      <span className="text-[10px] text-muted-foreground">por {order.createdBy.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-secondary">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-semibold text-foreground truncate max-w-[140px] md:max-w-[200px]" title={order.clientName}>
+                          {order.clientName}
                         </span>
-                      ) : isVendedor ? (
-                        <Tooltip
-                          content={allLinesEligible ? "Por encima del 10%" : "Por debajo del 10%"}
-                          placement="top"
-                        >
-                          <span
-                            className={cn(
-                              'inline-flex items-center justify-center h-6 w-6 rounded-full cursor-help',
-                              allLinesEligible
-                                ? 'bg-emerald-500/10 text-emerald-500'
-                                : 'bg-red-500/10 text-red-500'
-                            )}
-                          >
-                            {allLinesEligible
-                              ? <CheckCircle2 className="h-4 w-4" />
-                              : <XCircle className="h-4 w-4" />
-                            }
-                          </span>
-                        </Tooltip>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium',
-                          (STATUS_CONFIG as any)[order.status].bg,
-                          (STATUS_CONFIG as any)[order.status].text
-                        )}
-                      >
-                        <span className={cn('h-1.5 w-1.5 rounded-full', (STATUS_CONFIG as any)[order.status].dot)} />
-                        {(STATUS_CONFIG as any)[order.status].label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownTrigger>
-                        <DropdownMenu
-                          aria-label="Acciones"
-                          items={[
-                            { key: 'view', label: 'Ver detalle', icon: Eye, action: () => handleViewOrder(order), show: true },
-                            { key: 'send', label: 'Enviar cotización', icon: Send, action: () => handleUpdateStatus(order.id, 'cotizado'), show: order.status === 'borrador' },
-                            { key: 'convert', label: 'Convertir a pedido', icon: CheckCircle2, action: () => handleUpdateStatus(order.id, 'pedido'), show: order.status === 'cotizado' },
-                            { key: 'approve', label: 'Aprobar', icon: ThumbsUp, action: () => handleUpdateStatus(order.id, 'aprobado'), show: order.status === 'pedido' && canApproveOrders },
-                            { key: 'edit', label: 'Editar', icon: Edit, action: () => handleViewOrder(order), show: order.status === 'borrador' },
-                            { key: 'delete', label: 'Cancelar', icon: Trash2, action: () => handleDeleteOrder(order), show: !['facturado', 'cancelado'].includes(order.status), danger: true },
-                          ].filter(item => item.show)}
-                        >
-                          {(item) => (
-                            <DropdownItem
-                              key={item.key}
-                              startContent={<item.icon className="h-4 w-4" />}
-                              className={item.danger ? 'text-danger' : ''}
-                              color={item.danger ? 'danger' : 'default'}
-                              onPress={item.action}
-                            >
-                              {item.label}
-                            </DropdownItem>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">{order.clientReference || 'Ref: -'}</span>
+                          {getCreditStatus(order.clientId).status === 'warning' && (
+                            <Tooltip content="Mora en crédito" color="warning" size="sm">
+                              <AlertTriangle className="h-3 w-3 text-warning" />
+                            </Tooltip>
                           )}
-                        </DropdownMenu>
-                      </Dropdown>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <span className={cn(
+                      'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+                      order.documentType === 'cotizacion'
+                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
+                    )}>
+                      {DOCUMENT_TYPE_LABELS[order.documentType as DocumentType]}
+                    </span>
+                  </td>
+                  {canViewMargins && (
+                    <td className="px-5 py-4 text-right">
+                      <span className="text-sm font-bold text-foreground">{formatCurrency(order.total)}</span>
                     </td>
-                  </motion.tr>
-                );
-              })}
+                  )}
+                  <td className="px-5 py-4 text-center">
+                    <div className="flex justify-center">
+                      <span className={cn(
+                        'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                        STATUS_CONFIG[order.status]?.bg || 'bg-gray-100',
+                        STATUS_CONFIG[order.status]?.text || 'text-gray-700'
+                      )}>
+                        <span className={cn('mr-1.5 h-1.5 w-1.5 rounded-full', STATUS_CONFIG[order.status]?.dot || 'bg-gray-500')} />
+                        {STATUS_CONFIG[order.status]?.label || order.status}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <Dropdown placement="bottom-end">
+                      <DropdownTrigger>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownTrigger>
+                      <DropdownMenu
+                        aria-label="Acciones de venta"
+                        items={[
+                          { key: 'view', label: 'Ver documento', icon: Eye, action: () => handleViewOrder(order), show: true },
+                          { key: 'print', label: 'Imprimir', icon: Download, action: () => { }, show: true },
+                          { key: 'delete', label: 'Cancelar', icon: Trash2, action: () => handleDeleteOrder(order), show: order.status !== 'facturado' && order.status !== 'cancelada', danger: true },
+                        ].filter(i => i.show)}
+                      >
+                        {(item) => (
+                          <DropdownItem
+                            key={item.key}
+                            startContent={<item.icon className="h-4 w-4" />}
+                            className={item.danger ? 'text-danger' : ''}
+                            color={item.danger ? 'danger' : 'default'}
+                            onPress={item.action}
+                          >
+                            {item.label}
+                          </DropdownItem>
+                        )}
+                      </DropdownMenu>
+                    </Dropdown>
+                  </td>
+                </motion.tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {/* Empty State */}
       {filteredOrders.length === 0 && (
@@ -697,15 +655,15 @@ export default function VentasPage() {
           </p>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsDeleteOpen(false)}>
+          <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>
             Volver
           </Button>
-          <Button color="danger" onPress={confirmDelete}>
+          <Button variant="destructive" onClick={confirmDelete}>
             Cancelar Documento
           </Button>
         </CustomModalFooter>
       </CustomModal>
-
     </div>
   );
 }
+

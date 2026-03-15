@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { WorldMap } from '@/components/ui/world-map';
+import { toast } from 'sonner';
 
 // Panama coordinates adjusted for dotted-map projection (moved outside component to avoid recreating)
 const panamaCoords = { lat: -8, lng: -79.5 };
@@ -47,9 +48,15 @@ export default function LoginPage() {
 
     const success = await login(email, password);
     if (success) {
+      toast.success('Sesión iniciada', {
+        description: 'Bienvenido de vuelta al sistema.'
+      });
       router.push('/dashboard');
     } else {
       setError('Correo electrónico no encontrado');
+      toast.error('Error de autenticación', {
+        description: 'Correo o contraseña incorrectos.'
+      });
     }
     setIsSubmitting(false);
   };
@@ -162,11 +169,10 @@ export default function LoginPage() {
                 </motion.p>
               )}
 
-              <div className="mt-2 flex justify-center">
+              <div className="mt-4 flex justify-center">
                 <Button
                   type="submit"
-                  className="w-3/4 rounded-full bg-gray-800 text-sm font-semibold text-white hover:bg-blue-600"
-                  size="sm"
+                  className="w-full"
                   isLoading={isSubmitting}
                 >
                   Iniciar Sesión

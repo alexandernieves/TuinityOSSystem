@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { api } from '@/lib/services/api';
-import { Card, CardBody, CardHeader, Divider, Progress, Avatar, Button, Chip, Skeleton } from '@heroui/react';
+import { Divider, Progress, Avatar, Button as HeroButton, Chip } from '@heroui/react';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Package,
   ShoppingCart,
@@ -38,6 +40,8 @@ import {
   Receipt,
   CircleDollarSign,
   CreditCard,
+  Settings2,
+  LayoutGrid,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
@@ -45,6 +49,9 @@ import { SEED_PRODUCTS } from '@/lib/mock-data/products';
 import { getUpcomingExpiryAlerts, getExpiryStats } from '@/lib/mock-data/expiry-batches';
 import { EXPIRY_ALERT_CONFIG } from '@/lib/types/expiry';
 import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
+import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 // ============================================
 // MOCK DATA - Business Intelligence
@@ -207,6 +214,19 @@ const CALENDAR_EVENTS = [
   { id: 5, title: 'Auditoría trimestral', date: '2026-03-10', type: 'audit' },
 ];
 
+const WIDGETS_CONFIG = [
+  { id: 'summary', name: 'Resumen General', icon: Landmark, description: 'Balances globales principales' },
+  { id: 'kpis', name: 'Indicadores Clave', icon: Target, description: 'Cumplimiento de metas y KPIs' },
+  { id: 'weeklySales', name: 'Ventas Semanales', icon: BarChart3, description: 'Desempeño diario vs meta' },
+  { id: 'monthlyTrend', name: 'Tendencia Mensual', icon: TrendingUp, description: 'Ingresos vs Utilidad histórica' },
+  { id: 'inventoryAlerts', name: 'Alertas Inventario', icon: AlertTriangle, description: 'Stocks bajos y faltantes' },
+  { id: 'expiryAlerts', name: 'Próximos a Vencer', icon: AlertCircle, description: 'Lotes próximos a expirar' },
+  { id: 'activity', name: 'Actividad Reciente', icon: Clock, description: 'Últimos eventos en la plataforma' },
+  { id: 'quickActions', name: 'Acciones Rápidas', icon: Sparkles, description: 'Accesos directos operativos' },
+  { id: 'customers', name: 'Ranking Clientes', icon: Users, description: 'Top clientes por facturación' },
+  { id: 'products', name: 'Ranking Productos', icon: Package, description: 'Artículos de mayor rotación' },
+];
+
 // ============================================
 // COMPONENT
 // ============================================
@@ -216,6 +236,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const [analytics, setAnalytics] = useState<any>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState(false);
+  const [widgetPrefs, setWidgetPrefs] = useState<Record<string, boolean>>({});
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
 
   const canViewCosts = checkPermission('canViewCosts');
   const canApproveAdjustments = checkPermission('canApproveAdjustments');
@@ -227,7 +250,69 @@ export default function DashboardPage() {
       .then(data => setAnalytics(data))
       .catch(err => console.error('Error fetching dashboard analytics:', err))
       .finally(() => setIsDataLoading(false));
-  }, []);
+
+    // Initialize widget preferences from localStorage (keyed by user email)
+    const storageKey = user?.email ? `widget_prefs_${user.email}` : 'widget_prefs_default';
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as Record<string, boolean>;
+        // Merge: ensure all widgets have a value
+        const prefs = { ...parsed };
+        WIDGETS_CONFIG.forEach(w => {
+          if (prefs[w.id] === undefined) prefs[w.id] = true;
+        });
+        setWidgetPrefs(prefs);
+        return;
+      } catch {
+        // fallback to defaults below
+      }
+    }
+    // No stored prefs: default all to true
+    const defaultPrefs: Record<string, boolean> = {};
+    WIDGETS_CONFIG.forEach(w => defaultPrefs[w.id] = true);
+    setWidgetPrefs(defaultPrefs);
+  }, [user]);
+
+  const handleToggleWidget = (id: string, value: boolean) => {
+    setWidgetPrefs(prev => ({ ...prev, [id]: value }));
+    const widgetName = WIDGETS_CONFIG.find(w => w.id === id)?.name;
+    if (widgetName) {
+      toast.success(`${widgetName} ${value ? 'activado' : 'desactivado'}`, {
+        description: 'Recuerda guardar los cambios.'
+      });
+    }
+  };
+
+  const handleSavePreferences = async () => {
+    setIsSavingPrefs(true);
+    try {
+      // Save to localStorage using email as key (works for both mock and real users)
+      const storageKey = user?.email ? `widget_prefs_${user.email}` : 'widget_prefs_default';
+      localStorage.setItem(storageKey, JSON.stringify(widgetPrefs));
+
+      // Also attempt backend save if user has a real _id or id (non-blocking)
+      const userId = (user as any)?._id || user?.id;
+      if (userId && userId !== 'mock-dev-token') {
+        api.updateUser(userId, { dashboardPreferences: widgetPrefs }).catch(() => {
+          // silently ignore backend failures; prefs are already saved locally
+        });
+      }
+
+      toast.success('Preferencias guardadas', {
+        description: 'El dashboard se ha actualizado correctamente.'
+      });
+      setIsWidgetsModalOpen(false);
+    } catch (error: any) {
+      toast.error('Error al guardar preferencias', {
+        description: error.message
+      });
+    } finally {
+      setIsSavingPrefs(false);
+    }
+  };
+
+  const isVisible = (id: string) => widgetPrefs[id] !== false;
 
   // F4: Expiry data
   const expiryStats = canViewExpiryAlerts ? getExpiryStats() : null;
@@ -321,7 +406,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-8 pb-8">
       {/* Welcome Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -339,289 +424,297 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="bordered"
-            size="sm"
-            startContent={<Calendar className="h-4 w-4" />}
+            variant="secondary"
+            onClick={() => setIsWidgetsModalOpen(true)}
           >
+            <LayoutGrid className="h-4 w-4 mr-1.5" />
+            Widgets
+          </Button>
+          <Button
+            variant="secondary"
+          >
+            <Calendar className="h-4 w-4 mr-1.5" />
             Febrero 2026
           </Button>
         </div>
       </motion.div>
 
       {/* Section: Resumen */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Resumen General</p>
+      {isVisible('summary') && (
+        <>
+          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Resumen General</p>
 
-      {/* Stats Grid - Main 4, unified */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="-mt-4 overflow-hidden rounded-xl border border-border-default bg-surface-main shadow-sm"
-      >
-        <div className="grid grid-cols-1 divide-y divide-border-default sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
-          {realStats.map((stat, index) => {
-            const Icon = stat.icon;
-            const colorClasses = {
-              brand: 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400',
-              success: 'bg-success-bg text-success',
-              warning: 'bg-warning-bg text-warning',
-              danger: 'bg-danger-bg text-danger',
-            };
+          {/* Stats Grid - Main 4, unified */}
+          <Card className="p-0 overflow-hidden divide-y divide-border-default h-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
+              {realStats.map((stat, index) => {
+                const Icon = stat.icon;
+                const colorClasses = {
+                  brand: 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400',
+                  success: 'bg-success-bg text-success',
+                  warning: 'bg-warning-bg text-warning',
+                  danger: 'bg-danger-bg text-danger',
+                };
 
-            return (
-              <motion.div
-                key={stat.label}
-                variants={itemVariants}
-                onClick={() => router.push(stat.href)}
-                className={cn(
-                  'cursor-pointer p-5 transition-colors hover:bg-surface-secondary',
-                  index < 2 && 'sm:border-b sm:border-border-default lg:border-b-0'
-                )}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-text-secondary">{stat.label}</p>
-                    <p className="mt-2 text-2xl font-semibold text-text-primary">{stat.value}</p>
-                    <div className="mt-2 flex items-center gap-1">
-                      {stat.changeType === 'positive' && <ArrowUpRight className="h-4 w-4 text-success" />}
-                      {stat.changeType === 'negative' && <ArrowDownRight className="h-4 w-4 text-danger" />}
-                      <span className={cn('text-xs font-medium', stat.changeType === 'positive' ? 'text-success' : stat.changeType === 'negative' ? 'text-danger' : 'text-warning')}>
-                        {stat.change}
-                      </span>
+                return (
+                  <motion.div
+                    key={stat.label}
+                    variants={itemVariants}
+                    onClick={() => router.push(stat.href)}
+                    className={cn(
+                      'cursor-pointer p-4 transition-colors hover:bg-surface-secondary',
+                      index < 2 && 'sm:border-b sm:border-border-default lg:border-b-0'
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-text-secondary">{stat.label}</p>
+                        <p className="mt-2 text-2xl font-semibold text-text-primary">{stat.value}</p>
+                        <div className="mt-2 flex items-center gap-1">
+                          {stat.changeType === 'positive' && <ArrowUpRight className="h-4 w-4 text-success" />}
+                          {stat.changeType === 'negative' && <ArrowDownRight className="h-4 w-4 text-danger" />}
+                          <span className={cn('text-xs font-medium', stat.changeType === 'positive' ? 'text-success' : stat.changeType === 'negative' ? 'text-danger' : 'text-warning')}>
+                            {stat.change}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[stat.color as keyof typeof colorClasses])}>
+                        <Icon className="h-5 w-5" />
+                      </div>
                     </div>
-                  </div>
-                  <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[stat.color as keyof typeof colorClasses])}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </motion.div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </Card>
+        </>
+      )}
 
       {/* Section: KPIs */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Indicadores Clave</p>
+      {isVisible('kpis') && (
+        <>
+          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Indicadores Clave</p>
 
-      {/* KPIs Row - All together, touching */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="-mt-4 overflow-hidden rounded-xl border border-border-default bg-surface-main shadow-sm"
-      >
-        <div className="grid grid-cols-1 divide-y divide-border-default sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
-          {KPIS.map((kpi, index) => {
-            const Icon = kpi.icon;
-            const progress = (kpi.current / kpi.target) * 100;
-            const isOnTrack = progress >= 80;
+          {/* KPIs Row - All together, touching */}
+          <Card className="p-0 overflow-hidden divide-y divide-border-default h-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
+              {KPIS.map((kpi, index) => {
+                const Icon = kpi.icon;
+                const progress = (kpi.current / kpi.target) * 100;
+                const isOnTrack = progress >= 80;
 
-            const colorClasses = {
-              brand: 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400',
-              info: 'bg-info-bg text-info',
-              success: 'bg-success-bg text-success',
-              warning: 'bg-warning-bg text-warning',
-            };
+                const colorClasses = {
+                  brand: 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400',
+                  info: 'bg-info-bg text-info',
+                  success: 'bg-success-bg text-success',
+                  warning: 'bg-warning-bg text-warning',
+                };
 
-            return (
-              <motion.div
-                key={kpi.label}
-                variants={itemVariants}
-                className={cn(
-                  'p-5',
-                  index < 2 && 'sm:border-b sm:border-border-default lg:border-b-0'
-                )}
-              >
-                <div className="mb-4 flex items-center gap-3">
-                  <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[kpi.color as keyof typeof colorClasses])}>
-                    <Icon className="h-5 w-5" />
+                return (
+                  <motion.div
+                    key={kpi.label}
+                    variants={itemVariants}
+                    className={cn(
+                      'p-4',
+                      index < 2 && 'sm:border-b sm:border-border-default lg:border-b-0'
+                    )}
+                  >
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[kpi.color as keyof typeof colorClasses])}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-text-secondary">{kpi.label}</p>
+                        <p className={cn('text-xl font-bold', isOnTrack ? 'text-success' : 'text-warning')}>
+                          {kpi.unit === '$' ? formatCurrency(kpi.current) : `${kpi.current}${kpi.unit}`}
+                        </p>
+                      </div>
+                    </div>
+                    <Progress
+                      value={Math.min(progress, 100)}
+                      color={isOnTrack ? 'success' : 'warning'}
+                      size="sm"
+                      className="h-2"
+                    />
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-text-muted">
+                        Meta: {kpi.unit === '$' ? formatCurrency(kpi.target) : `${kpi.target}${kpi.unit}`}
+                      </span>
+                      <span className={cn('font-semibold', isOnTrack ? 'text-success' : 'text-warning')}>
+                        {progress.toFixed(0)}%
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* Section: Análisis */}
+      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Análisis de Datos</p>
+
+      {/* Charts Row - Sales + Monthly */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        {/* Weekly Sales Chart */}
+        {isVisible('weeklySales') && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className={cn("lg:col-span-3", !isVisible('monthlyTrend') && "lg:col-span-5")}
+          >
+            <Card className="p-0">
+              <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
+                    <BarChart3 className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-text-secondary">{kpi.label}</p>
-                    <p className={cn('text-xl font-bold', isOnTrack ? 'text-success' : 'text-warning')}>
-                      {kpi.unit === '$' ? formatCurrency(kpi.current) : `${kpi.current}${kpi.unit}`}
+                    <h3 className="text-base font-semibold text-text-primary">Ventas de la Semana</h3>
+                    <p className="text-xs text-text-muted">Comparativa con meta diaria</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="h-2.5 w-2.5 rounded-full bg-brand-500" />
+                    <span className="text-text-secondary">Ventas</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="h-2.5 w-2.5 rounded-full bg-text-muted/30" />
+                    <span className="text-text-secondary">Meta</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <Divider />
+              <CardContent className="p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold text-text-primary">{formatCurrency(totalWeeklySales)}</p>
+                    <p className="text-sm text-text-secondary">
+                      {totalWeeklySales >= weeklyTarget ? (
+                        <span className="text-success">+{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% sobre meta</span>
+                      ) : (
+                        <span className="text-danger">{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% bajo meta</span>
+                      )}
                     </p>
                   </div>
                 </div>
-                <Progress
-                  value={Math.min(progress, 100)}
-                  color={isOnTrack ? 'success' : 'warning'}
-                  size="sm"
-                  className="h-2"
-                />
-                <div className="mt-3 flex items-center justify-between text-xs">
-                  <span className="text-text-muted">
-                    Meta: {kpi.unit === '$' ? formatCurrency(kpi.target) : `${kpi.target}${kpi.unit}`}
-                  </span>
-                  <span className={cn('font-semibold', isOnTrack ? 'text-success' : 'text-warning')}>
-                    {progress.toFixed(0)}%
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </motion.div>
+                <div className="flex h-48 items-end justify-between gap-3">
+                  {displayWeeklySales.map((day: any, index: number) => {
+                    const heightPercent = (day.value / maxWeeklySale) * 100;
+                    const targetPercent = ((day.target || 50000) / maxWeeklySale) * 100;
+                    const isAboveTarget = day.value >= (day.target || 50000);
 
-      {/* Section: Análisis */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Análisis de Ventas</p>
-
-      {/* Charts Row - Sales + Monthly */}
-      <div className="-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Weekly Sales Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="lg:col-span-3"
-        >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
-                  <BarChart3 className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">Ventas de la Semana</h3>
-                  <p className="text-xs text-text-muted">Comparativa con meta diaria</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="h-2.5 w-2.5 rounded-full bg-brand-500" />
-                  <span className="text-text-secondary">Ventas</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="h-2.5 w-2.5 rounded-full bg-text-muted/30" />
-                  <span className="text-text-secondary">Meta</span>
-                </div>
-              </div>
-            </CardHeader>
-            <Divider />
-            <CardBody className="p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-text-primary">{formatCurrency(totalWeeklySales)}</p>
-                  <p className="text-sm text-text-secondary">
-                    {totalWeeklySales >= weeklyTarget ? (
-                      <span className="text-success">+{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% sobre meta</span>
-                    ) : (
-                      <span className="text-danger">{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% bajo meta</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-              <div className="flex h-48 items-end justify-between gap-3">
-                {displayWeeklySales.map((day: any, index: number) => {
-                  const heightPercent = (day.value / maxWeeklySale) * 100;
-                  const targetPercent = ((day.target || 50000) / maxWeeklySale) * 100;
-                  const isAboveTarget = day.value >= (day.target || 50000);
-
-                  return (
-                    <div key={day.day} className="group relative flex flex-1 flex-col items-center">
-                      <div className="relative flex h-40 w-full flex-col justify-end">
-                        {/* Target line */}
-                        <div
-                          className="absolute left-0 right-0 border-t-2 border-dashed border-text-muted/30"
-                          style={{ bottom: `${targetPercent}%` }}
-                        />
-                        {/* Bar */}
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${heightPercent}%` }}
-                          transition={{ delay: 0.3 + index * 0.05, duration: 0.4 }}
-                          className={cn(
-                            'w-full rounded-t-md transition-colors',
-                            isAboveTarget
-                              ? 'bg-brand-500 group-hover:bg-brand-600 dark:bg-brand-600 dark:group-hover:bg-brand-500'
-                              : 'bg-warning group-hover:bg-warning/80'
-                          )}
-                        />
+                    return (
+                      <div key={day.day} className="group relative flex flex-1 flex-col items-center">
+                        <div className="relative flex h-40 w-full flex-col justify-end">
+                          {/* Target line */}
+                          <div
+                            className="absolute left-0 right-0 border-t-2 border-dashed border-text-muted/30"
+                            style={{ bottom: `${targetPercent}%` }}
+                          />
+                          {/* Bar */}
+                          <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: `${heightPercent}%` }}
+                            transition={{ delay: 0.3 + index * 0.05, duration: 0.4 }}
+                            className={cn(
+                              'w-full rounded-t-md transition-colors',
+                              isAboveTarget
+                                ? 'bg-brand-500 group-hover:bg-brand-600 dark:bg-brand-600 dark:group-hover:bg-brand-500'
+                                : 'bg-warning group-hover:bg-warning/80'
+                            )}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs font-medium text-text-secondary">{day.day}</p>
+                        {/* Tooltip */}
+                        <div className="pointer-events-none absolute -top-12 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-surface-secondary px-3 py-2 text-xs text-text-primary opacity-0 shadow-lg ring-1 ring-border-default transition-opacity group-hover:opacity-100 dark:bg-surface-tertiary">
+                          <p className="font-semibold">{formatCurrency(day.value)}</p>
+                          <p className="text-text-muted">Meta: {formatCurrency(day.target)}</p>
+                        </div>
                       </div>
-                      <p className="mt-2 text-xs font-medium text-text-secondary">{day.day}</p>
-                      {/* Tooltip */}
-                      <div className="pointer-events-none absolute -top-12 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-surface-secondary px-3 py-2 text-xs text-text-primary opacity-0 shadow-lg ring-1 ring-border-default transition-opacity group-hover:opacity-100 dark:bg-surface-tertiary">
-                        <p className="font-semibold">{formatCurrency(day.value)}</p>
-                        <p className="text-text-muted">Meta: {formatCurrency(day.target)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardBody>
-          </Card>
-        </motion.div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Monthly Revenue */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="lg:col-span-2"
-        >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center gap-3 px-5 py-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success-bg">
-                <TrendingUp className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-text-primary">Tendencia Mensual</h3>
-                <p className="text-xs text-text-muted">Últimos 6 meses</p>
-              </div>
-            </CardHeader>
-            <Divider />
-            <CardBody className="p-4">
-              <div className="space-y-3">
-                {displayMonthlyRevenue.map((month: any, index: number) => {
-                  const maxRevenue = Math.max(...displayMonthlyRevenue.map((m: any) => m.revenue));
-                  const widthPercent = (month.revenue / maxRevenue) * 100;
-                  const isCurrentMonth = index === displayMonthlyRevenue.length - 1;
+        {isVisible('monthlyTrend') && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className={cn("lg:col-span-2", !isVisible('weeklySales') && "lg:col-span-5")}
+          >
+            <Card className="p-0">
+              <CardHeader className="flex flex-row items-center gap-3 p-4 mb-0">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success-bg">
+                  <TrendingUp className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-text-primary">Tendencia Mensual</h3>
+                  <p className="text-xs text-text-muted">Últimos 6 meses</p>
+                </div>
+              </CardHeader>
+              <Divider />
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {displayMonthlyRevenue.map((month: any, index: number) => {
+                    const maxRevenue = Math.max(...displayMonthlyRevenue.map((m: any) => m.revenue));
+                    const widthPercent = (month.revenue / maxRevenue) * 100;
+                    const isCurrentMonth = index === displayMonthlyRevenue.length - 1;
 
-                  return (
-                    <div key={month.month} className="flex items-center gap-3">
-                      <span className={cn('w-8 text-xs font-medium', isCurrentMonth ? 'text-brand-600 dark:text-brand-400' : 'text-text-muted')}>
-                        {month.month}
-                      </span>
-                      <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-surface-secondary">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${widthPercent}%` }}
-                          transition={{ delay: 0.3 + index * 0.05, duration: 0.4 }}
-                          className={cn(
-                            'absolute inset-y-0 left-0 rounded-md',
-                            isCurrentMonth
-                              ? 'bg-brand-500 dark:bg-brand-600'
-                              : 'bg-brand-200 dark:bg-brand-800'
-                          )}
-                        />
-                      </div>
-                      {canViewCosts && (
-                        <span className={cn('w-20 text-right text-xs font-semibold', isCurrentMonth ? 'text-text-primary' : 'text-text-secondary')}>
-                          {formatCurrency(month.revenue)}
+                    return (
+                      <div key={month.month} className="flex items-center gap-3">
+                        <span className={cn('w-8 text-xs font-medium', isCurrentMonth ? 'text-brand-600 dark:text-brand-400' : 'text-text-muted')}>
+                          {month.month}
                         </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardBody>
-          </Card>
-        </motion.div>
+                        <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-surface-secondary">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${widthPercent}%` }}
+                            transition={{ delay: 0.3 + index * 0.05, duration: 0.4 }}
+                            className={cn(
+                              'absolute inset-y-0 left-0 rounded-md',
+                              isCurrentMonth
+                                ? 'bg-brand-500 dark:bg-brand-600'
+                                : 'bg-brand-200 dark:bg-brand-800'
+                            )}
+                          />
+                        </div>
+                        {canViewCosts && (
+                          <span className={cn('w-20 text-right text-xs font-semibold', isCurrentMonth ? 'text-text-primary' : 'text-text-secondary')}>
+                            {formatCurrency(month.revenue)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
 
       {/* Pending Approvals + Inventory Alerts */}
       {canApproveAdjustments && (
         <>
           <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Gestión Operativa</p>
-          <div className="-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Pending Approvals */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 }}
             >
-              <Card className="border border-border-default bg-surface-main shadow-sm">
-                <CardHeader className="flex items-center justify-between px-5 py-4">
+              <Card className="p-0">
+                <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning-bg">
                       <ClipboardList className="h-5 w-5 text-warning" />
@@ -636,12 +729,12 @@ export default function DashboardPage() {
                   </Chip>
                 </CardHeader>
                 <Divider />
-                <CardBody className="p-0">
+                <CardContent className="p-0">
                   <ul className="divide-y divide-border-default">
                     {PENDING_APPROVALS.map((item) => (
                       <li
                         key={item.id}
-                        className="cursor-pointer px-5 py-4 transition-colors hover:bg-surface-secondary"
+                        className="cursor-pointer px-4 py-4 transition-colors hover:bg-surface-secondary"
                         onClick={() => router.push(item.type === 'adjustment' ? `/inventario/ajustes/${item.id}` : `/inventario/transferencias/${item.id}`)}
                       >
                         <div className="flex items-center justify-between">
@@ -667,7 +760,7 @@ export default function DashboardPage() {
                       </li>
                     ))}
                   </ul>
-                </CardBody>
+                </CardContent>
               </Card>
             </motion.div>
 
@@ -677,8 +770,8 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <Card className="border border-border-default bg-surface-main shadow-sm">
-                <CardHeader className="flex items-center justify-between px-5 py-4">
+              <Card className="p-0">
+                <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-danger-bg">
                       <AlertCircle className="h-5 w-5 text-danger" />
@@ -690,8 +783,7 @@ export default function DashboardPage() {
                   </div>
                   <Button
                     size="sm"
-                    variant="light"
-                    onPress={() => router.push('/inventario?filter=low_stock')}
+                    onClick={() => router.push('/inventario?filter=low_stock')}
                   >
                     Ver todos
                   </Button>
@@ -699,25 +791,25 @@ export default function DashboardPage() {
                 <Divider />
                 {/* F1: Reorder Point Summary */}
                 {canViewInventoryAlerts && REORDER_POINT_COUNT > 0 && (
-                  <div className="mx-5 mt-4 mb-2 flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5">
+                  <div className="mx-4 mt-4 mb-2 flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
                         {REORDER_POINT_COUNT} producto{REORDER_POINT_COUNT !== 1 ? 's' : ''} bajo punto de reorden
                       </span>
                     </div>
-                    <button
+                    <Button
+                      size="sm"
                       onClick={() => router.push('/inventario?filter=below_reorder')}
-                      className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 transition-colors"
                     >
                       Ver Inventario
-                    </button>
+                    </Button>
                   </div>
                 )}
-                <CardBody className="p-0">
+                <CardContent className="p-0">
                   <ul className="divide-y divide-border-default">
                     {INVENTORY_ALERTS.map((alert) => (
-                      <li key={alert.id} className="px-5 py-3">
+                      <li key={alert.id} className="px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn(
@@ -747,9 +839,8 @@ export default function DashboardPage() {
                         </div>
                       </li>
                     ))}
-                    {/* F1: Reorder point alert items */}
                     {canViewInventoryAlerts && REORDER_POINT_ALERTS.slice(0, 5).map((alert) => (
-                      <li key={`rp-${alert.id}`} className="px-5 py-3">
+                      <li key={`rp-${alert.id}`} className="px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn(
@@ -778,262 +869,263 @@ export default function DashboardPage() {
                       </li>
                     ))}
                   </ul>
-                </CardBody>
+                </CardContent>
               </Card>
             </motion.div>
           </div>
         </>
       )}
 
+
       {/* F4: Expiry Alerts Widget */}
-      {canViewExpiryAlerts && expiryStats && (expiryStats.expired > 0 || expiryStats.critical > 0 || expiryStats.warning > 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.42 }}
-        >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500/10">
-                  <Clock className="h-5 w-5 text-red-500" />
+      {
+        canViewExpiryAlerts && expiryStats && (expiryStats.expired > 0 || expiryStats.critical > 0 || expiryStats.warning > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.42 }}
+          >
+            <Card className="p-0">
+              <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500/10">
+                    <Clock className="h-5 w-5 text-red-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-text-primary">Próximos a Vencer</h3>
+                    <p className="text-xs text-text-muted">Lotes con fecha de vencimiento cercana</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary">Próximos a Vencer</h3>
-                  <p className="text-xs text-text-muted">Lotes con fecha de vencimiento cercana</p>
+                <Button
+                  size="sm"
+                  onClick={() => router.push('/inventario')}
+                >
+                  Ver inventario
+                </Button>
+              </CardHeader>
+              <Divider />
+              {/* Stats row */}
+              <div className="grid grid-cols-3 divide-x divide-border-default border-b border-border-default">
+                <div className="px-5 py-3 text-center">
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{expiryStats.expired}</p>
+                  <p className="text-xs text-text-muted">Vencidos</p>
+                </div>
+                <div className="px-5 py-3 text-center">
+                  <p className="text-xl font-bold text-red-500">{expiryStats.critical}</p>
+                  <p className="text-xs text-text-muted">Críticos (&lt;30d)</p>
+                </div>
+                <div className="px-5 py-3 text-center">
+                  <p className="text-xl font-bold text-amber-500">{expiryStats.warning}</p>
+                  <p className="text-xs text-text-muted">Advertencia (30-60d)</p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="light"
-                onPress={() => router.push('/inventario')}
-              >
-                Ver inventario
-              </Button>
-            </CardHeader>
-            <Divider />
-            {/* Stats row */}
-            <div className="grid grid-cols-3 divide-x divide-border-default border-b border-border-default">
-              <div className="px-5 py-3 text-center">
-                <p className="text-xl font-bold text-red-600 dark:text-red-400">{expiryStats.expired}</p>
-                <p className="text-xs text-text-muted">Vencidos</p>
-              </div>
-              <div className="px-5 py-3 text-center">
-                <p className="text-xl font-bold text-red-500">{expiryStats.critical}</p>
-                <p className="text-xs text-text-muted">Críticos (&lt;30d)</p>
-              </div>
-              <div className="px-5 py-3 text-center">
-                <p className="text-xl font-bold text-amber-500">{expiryStats.warning}</p>
-                <p className="text-xs text-text-muted">Advertencia (30-60d)</p>
-              </div>
-            </div>
-            <CardBody className="p-0">
-              <ul className="divide-y divide-border-default">
-                {upcomingExpiryAlerts.map((alert) => {
-                  const config = EXPIRY_ALERT_CONFIG[alert.alertLevel];
-                  return (
-                    <li key={alert.batch.id} className="px-5 py-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', config.bg)}>
-                            <Clock className={cn('h-4 w-4', config.text)} />
+              <CardContent className="p-4">
+                <ul className="divide-y divide-border-default">
+                  {upcomingExpiryAlerts.map((alert) => {
+                    const config = EXPIRY_ALERT_CONFIG[alert.alertLevel];
+                    return (
+                      <li key={alert.batch.id} className="px-5 py-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', config.bg)}>
+                              <Clock className={cn('h-4 w-4', config.text)} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-text-primary line-clamp-1">{alert.batch.productDescription}</p>
+                              <p className="text-xs text-text-muted">Lote: {alert.batch.batchNumber} &middot; {alert.batch.quantity} uds</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-text-primary line-clamp-1">{alert.batch.productDescription}</p>
-                            <p className="text-xs text-text-muted">Lote: {alert.batch.batchNumber} &middot; {alert.batch.quantity} uds</p>
+                          <div className="text-right">
+                            <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium', config.bg, config.text)}>
+                              {alert.label}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium', config.bg, config.text)}>
-                            {alert.label}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardBody>
-          </Card>
-        </motion.div>
-      )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )
+      }
 
       {/* Section: Finanzas */}
-      {checkPermission('canAccessCxC') && (
-        <>
-          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Finanzas y Cobranzas</p>
-          <div className="-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* CxC Overview */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.42 }}
-              className="lg:col-span-2"
-            >
-              <Card className="border border-border-default bg-surface-main shadow-sm">
-                <CardHeader className="flex items-center justify-between px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning-bg">
-                      <Receipt className="h-5 w-5 text-warning" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-text-primary">Cuentas por Cobrar</h3>
-                      <p className="text-xs text-text-muted">Resumen de cartera</p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="light"
-                    onPress={() => router.push('/clientes/cxc')}
-                  >
-                    Ver CxC
-                  </Button>
-                </CardHeader>
-                <Divider />
-                <CardBody className="p-5">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <div>
-                      <p className="text-xs text-text-muted">Total Pendiente</p>
-                      <p className="mt-1 text-xl font-bold text-text-primary">{formatCurrency(CXC_SUMMARY.totalPending)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Corriente</p>
-                      <p className="mt-1 text-xl font-bold text-success">{formatCurrency(CXC_SUMMARY.current)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Vencido 30-60</p>
-                      <p className="mt-1 text-xl font-bold text-warning">{formatCurrency(CXC_SUMMARY.overdue30)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Vencido 60+</p>
-                      <p className="mt-1 text-xl font-bold text-danger">{formatCurrency(CXC_SUMMARY.overdue60 + CXC_SUMMARY.overdue90)}</p>
-                    </div>
-                  </div>
-                  {/* Aging bar */}
-                  <div className="mt-4 flex h-3 overflow-hidden rounded-full">
-                    <div className="bg-success" style={{ width: `${(CXC_SUMMARY.current / CXC_SUMMARY.totalPending) * 100}%` }} />
-                    <div className="bg-warning" style={{ width: `${(CXC_SUMMARY.overdue30 / CXC_SUMMARY.totalPending) * 100}%` }} />
-                    <div className="bg-orange-500" style={{ width: `${(CXC_SUMMARY.overdue60 / CXC_SUMMARY.totalPending) * 100}%` }} />
-                    <div className="bg-danger" style={{ width: `${(CXC_SUMMARY.overdue90 / CXC_SUMMARY.totalPending) * 100}%` }} />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
-                    <div className="flex items-center gap-4">
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />Corriente</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />30d</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" />60d</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-danger" />90+d</span>
-                    </div>
-                  </div>
-                  {/* Cobros del mes progress */}
-                  <div className="mt-4 rounded-lg bg-surface-secondary p-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-text-secondary">Cobros del mes</span>
-                      <span className="font-semibold text-text-primary">{formatCurrency(CXC_SUMMARY.collectedThisMonth)} / {formatCurrency(CXC_SUMMARY.collectionTarget)}</span>
-                    </div>
-                    <Progress
-                      value={(CXC_SUMMARY.collectedThisMonth / CXC_SUMMARY.collectionTarget) * 100}
-                      color="success"
-                      size="sm"
-                      className="mt-2"
-                    />
-                  </div>
-                </CardBody>
-              </Card>
-            </motion.div>
-
-            {/* Bank Balances + Overdue Alerts */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.47 }}
-              className="space-y-6"
-            >
-              {/* Bank Balances */}
-              {checkPermission('canViewBankBalances') && (
-                <Card className="border border-border-default bg-surface-main shadow-sm">
-                  <CardHeader className="flex items-center justify-between px-5 py-4">
+      {
+        checkPermission('canAccessCxC') && (
+          <>
+            <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Finanzas y Cobranzas</p>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {/* CxC Overview */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.42 }}
+                className="lg:col-span-2"
+              >
+                <Card className="p-0">
+                  <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
-                        <Landmark className="h-5 w-5 text-info" />
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning-bg">
+                        <Receipt className="h-5 w-5 text-warning" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-text-primary">Saldos Bancarios</h3>
+                        <h3 className="text-base font-semibold text-text-primary">Cuentas por Cobrar</h3>
+                        <p className="text-xs text-text-muted">Resumen de cartera</p>
                       </div>
                     </div>
                     <Button
                       size="sm"
-                      variant="light"
-                      onPress={() => router.push('/contabilidad/tesoreria')}
+                      onClick={() => router.push('/clientes/cxc')}
                     >
-                      Ver
+                      Ver CxC
                     </Button>
                   </CardHeader>
                   <Divider />
-                  <CardBody className="p-0">
+                  <CardContent className="p-5">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <div>
+                        <p className="text-xs text-text-muted">Total Pendiente</p>
+                        <p className="mt-1 text-xl font-bold text-text-primary">{formatCurrency(CXC_SUMMARY.totalPending)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Corriente</p>
+                        <p className="mt-1 text-xl font-bold text-success">{formatCurrency(CXC_SUMMARY.current)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-muted">Vencido 30-60</p>
+                        <p className="mt-1 text-xl font-bold text-warning">{formatCurrency(CXC_SUMMARY.overdue30)}</p>
+                      </div>
+                      <div>
+                        <p className="mt-1 text-xl font-bold text-danger">{formatCurrency(CXC_SUMMARY.overdue60 + CXC_SUMMARY.overdue90)}</p>
+                      </div>
+                    </div>
+                    {/* Aging bar */}
+                    <div className="mt-4 flex h-3 overflow-hidden rounded-full">
+                      <div className="bg-success" style={{ width: `${(CXC_SUMMARY.current / CXC_SUMMARY.totalPending) * 100}%` }} />
+                      <div className="bg-warning" style={{ width: `${(CXC_SUMMARY.overdue30 / CXC_SUMMARY.totalPending) * 100}%` }} />
+                      <div className="bg-orange-500" style={{ width: `${(CXC_SUMMARY.overdue60 / CXC_SUMMARY.totalPending) * 100}%` }} />
+                      <div className="bg-danger" style={{ width: `${(CXC_SUMMARY.overdue90 / CXC_SUMMARY.totalPending) * 100}%` }} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />Corriente</span>
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />30d</span>
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" />60d</span>
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-danger" />90+d</span>
+                      </div>
+                    </div>
+                    {/* Cobros del mes progress */}
+                    <div className="mt-4 rounded-lg bg-surface-secondary p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-text-secondary">Cobros del mes</span>
+                        <span className="font-semibold text-text-primary">{formatCurrency(CXC_SUMMARY.collectedThisMonth)} / {formatCurrency(CXC_SUMMARY.collectionTarget)}</span>
+                      </div>
+                      <Progress
+                        value={(CXC_SUMMARY.collectedThisMonth / CXC_SUMMARY.collectionTarget) * 100}
+                        color="success"
+                        size="sm"
+                        className="mt-2"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Bank Balances + Overdue Alerts */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.47 }}
+                className="space-y-6"
+              >
+                {/* Bank Balances */}
+                {checkPermission('canViewBankBalances') && (
+                  <Card className="p-0">
+                    <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
+                          <Landmark className="h-5 w-5 text-info" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-text-primary">Saldos Bancarios</h3>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => router.push('/contabilidad/tesoreria')}
+                      >
+                        Ver
+                      </Button>
+                    </CardHeader>
+                    <Divider />
+                    <CardContent className="p-0">
+                      <ul className="divide-y divide-border-default">
+                        {BANK_BALANCES.map((bank) => (
+                          <li key={bank.name} className="flex items-center justify-between px-5 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className={cn('h-2.5 w-2.5 rounded-full', bank.color)} />
+                              <span className="text-sm text-text-secondary">{bank.name}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-text-primary">{formatCurrency(bank.balance)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="border-t border-border-default bg-surface-secondary px-5 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-text-secondary">Total</span>
+                          <span className="text-sm font-bold text-text-primary">{formatCurrency(BANK_BALANCES.reduce((s, b) => s + b.balance, 0))}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Overdue Alerts */}
+                <Card className="p-0">
+                  <CardHeader className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-danger" />
+                      <h3 className="text-sm font-semibold text-text-primary">Alertas de Morosidad</h3>
+                    </div>
+                  </CardHeader>
+                  <Divider />
+                  <CardContent className="p-0">
                     <ul className="divide-y divide-border-default">
-                      {BANK_BALANCES.map((bank) => (
-                        <li key={bank.name} className="flex items-center justify-between px-5 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className={cn('h-2.5 w-2.5 rounded-full', bank.color)} />
-                            <span className="text-sm text-text-secondary">{bank.name}</span>
+                      {OVERDUE_CLIENTS.map((client) => (
+                        <li key={client.name} className="px-5 py-2.5">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-text-primary line-clamp-1">{client.name}</p>
+                              <p className="text-xs text-danger">{client.days} días vencido</p>
+                            </div>
+                            <span className="text-sm font-semibold text-danger">{formatCurrency(client.amount)}</span>
                           </div>
-                          <span className="text-sm font-semibold text-text-primary">{formatCurrency(bank.balance)}</span>
                         </li>
                       ))}
                     </ul>
-                    <div className="border-t border-border-default bg-surface-secondary px-5 py-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-text-secondary">Total</span>
-                        <span className="text-sm font-bold text-text-primary">{formatCurrency(BANK_BALANCES.reduce((s, b) => s + b.balance, 0))}</span>
-                      </div>
-                    </div>
-                  </CardBody>
+                  </CardContent>
                 </Card>
-              )}
-
-              {/* Overdue Alerts */}
-              <Card className="border border-border-default bg-surface-main shadow-sm">
-                <CardHeader className="px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-danger" />
-                    <h3 className="text-sm font-semibold text-text-primary">Alertas de Morosidad</h3>
-                  </div>
-                </CardHeader>
-                <Divider />
-                <CardBody className="p-0">
-                  <ul className="divide-y divide-border-default">
-                    {OVERDUE_CLIENTS.map((client) => (
-                      <li key={client.name} className="px-5 py-2.5">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-text-primary line-clamp-1">{client.name}</p>
-                            <p className="text-xs text-danger">{client.days} días vencido</p>
-                          </div>
-                          <span className="text-sm font-semibold text-danger">{formatCurrency(client.amount)}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </CardBody>
-              </Card>
-            </motion.div>
-          </div>
-        </>
-      )}
+              </motion.div>
+            </div>
+          </>
+        )
+      }
 
       {/* Section: Logística */}
       <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Logística y Productos</p>
 
       {/* Upcoming Shipments + Top Products */}
-      <div className="-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Upcoming Shipments */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
         >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center justify-between px-5 py-4">
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
                   <Ship className="h-5 w-5 text-info" />
@@ -1045,14 +1137,13 @@ export default function DashboardPage() {
               </div>
               <Button
                 size="sm"
-                variant="light"
-                onPress={() => router.push('/trafico')}
+                onClick={() => router.push('/trafico')}
               >
                 Ver todos
               </Button>
             </CardHeader>
             <Divider />
-            <CardBody className="p-0">
+            <CardContent className="p-0">
               <ul className="divide-y divide-border-default">
                 {UPCOMING_SHIPMENTS.map((shipment) => (
                   <li key={shipment.id} className="px-5 py-3">
@@ -1087,7 +1178,7 @@ export default function DashboardPage() {
                   </li>
                 ))}
               </ul>
-            </CardBody>
+            </CardContent>
           </Card>
         </motion.div>
 
@@ -1097,8 +1188,8 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center justify-between px-5 py-4">
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
                   <Award className="h-5 w-5 text-brand-600 dark:text-brand-400" />
@@ -1110,14 +1201,13 @@ export default function DashboardPage() {
               </div>
               <Button
                 size="sm"
-                variant="light"
-                onPress={() => router.push('/reportes')}
+                onClick={() => router.push('/reportes')}
               >
                 Ver reporte
               </Button>
             </CardHeader>
             <Divider />
-            <CardBody className="p-0">
+            <CardContent className="p-0">
               <ul className="divide-y divide-border-default">
                 {TOP_PRODUCTS.slice(0, 4).map((product, index) => (
                   <li key={product.id} className="px-5 py-3">
@@ -1152,16 +1242,16 @@ export default function DashboardPage() {
                   </li>
                 ))}
               </ul>
-            </CardBody>
+            </CardContent>
           </Card>
         </motion.div>
       </div>
 
       {/* Section: Clientes y Agenda */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Clientes y Agenda</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-text-muted"> Clientes y Agenda</p>
 
       {/* Top Customers + Calendar */}
-      <div className="-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Top Customers */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1169,8 +1259,8 @@ export default function DashboardPage() {
           transition={{ delay: 0.55 }}
           className="lg:col-span-2"
         >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center justify-between px-5 py-4">
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
                   <Users className="h-5 w-5 text-info" />
@@ -1182,14 +1272,13 @@ export default function DashboardPage() {
               </div>
               <Button
                 size="sm"
-                variant="light"
-                onPress={() => router.push('/clientes')}
+                onClick={() => router.push('/clientes')}
               >
                 Ver todos
               </Button>
             </CardHeader>
             <Divider />
-            <CardBody className="p-0">
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -1229,10 +1318,10 @@ export default function DashboardPage() {
                         )}
                         <td className="px-5 py-3 text-right">
                           <Button
-                            isIconOnly
                             size="sm"
-                            variant="light"
-                            onPress={() => router.push(`/clientes/${customer.id}`)}
+                            variant="ghost"
+                            onClick={() => router.push(`/clientes/${customer.id}`)}
+                            className="p-2 h-8 w-8 min-w-0"
                           >
                             <ChevronRight className="h-4 w-4" />
                           </Button>
@@ -1242,7 +1331,7 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
-            </CardBody>
+            </CardContent>
           </Card>
         </motion.div>
 
@@ -1252,8 +1341,8 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center gap-3 px-5 py-4">
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center gap-3 p-4 mb-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-danger-bg">
                 <Calendar className="h-5 w-5 text-danger" />
               </div>
@@ -1263,7 +1352,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <Divider />
-            <CardBody className="p-0">
+            <CardContent className="p-0">
               <ul className="divide-y divide-border-default">
                 {CALENDAR_EVENTS.map((event) => {
                   const eventDate = new Date(event.date);
@@ -1299,16 +1388,16 @@ export default function DashboardPage() {
                   );
                 })}
               </ul>
-            </CardBody>
+            </CardContent>
           </Card>
         </motion.div>
       </div>
 
       {/* Section: Actividad */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Actividad y Acciones</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-text-muted"> Actividad y Acciones</p>
 
       {/* Recent Activity + Quick Actions */}
-      <div className="-mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent Activity */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1316,13 +1405,18 @@ export default function DashboardPage() {
           transition={{ delay: 0.65 }}
           className="lg:col-span-2"
         >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
-            <CardHeader className="flex items-center justify-between px-5 py-4">
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <h3 className="text-base font-semibold text-text-primary">Actividad Reciente</h3>
-              <button onClick={() => router.push('/historial')} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Ver todo</button>
+              <Button
+                size="sm"
+                onClick={() => router.push('/historial')}
+              >
+                Ver todo
+              </Button>
             </CardHeader>
             <Divider />
-            <CardBody className="p-0">
+            <CardContent className="p-0">
               <ul className="divide-y divide-border-default">
                 {realActivity.map((activity: any) => (
                   <li key={activity.id} className="px-5 py-4">
@@ -1355,7 +1449,7 @@ export default function DashboardPage() {
                   </li>
                 ))}
               </ul>
-            </CardBody>
+            </CardContent>
           </Card>
         </motion.div>
 
@@ -1365,65 +1459,126 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
         >
-          <Card className="border border-border-default bg-surface-main shadow-sm">
+          <Card className="p-0">
             <CardHeader className="px-5 py-4">
               <h3 className="text-base font-semibold text-text-primary">Acciones Rápidas</h3>
             </CardHeader>
             <Divider />
-            <CardBody className="space-y-2 p-4">
-              <button
+            <CardContent className="space-y-3 p-4">
+              <Button
                 onClick={() => router.push('/compras?action=new')}
-                className="flex w-full items-center gap-3 rounded-lg bg-brand-600 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                className="w-full justify-start py-6"
               >
                 <ShoppingCart className="h-4 w-4" />
                 Nueva Orden de Compra
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => router.push('/productos?action=new')}
-                className="flex w-full items-center gap-3 rounded-lg border border-brand-600 px-4 py-3 text-left text-sm font-medium text-brand-600 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/20"
+                variant="secondary"
+                className="w-full justify-start py-6"
               >
                 <Package className="h-4 w-4" />
                 Nuevo Producto
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => router.push('/ventas?action=new')}
-                className="flex w-full items-center gap-3 rounded-lg border border-border-default px-4 py-3 text-left text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary"
+                variant="secondary"
+                className="w-full justify-start py-6"
               >
                 <TrendingUp className="h-4 w-4" />
                 Nueva Cotización
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => router.push('/inventario?tab=transferencias&action=new')}
-                className="flex w-full items-center gap-3 rounded-lg border border-border-default px-4 py-3 text-left text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary"
+                variant="secondary"
+                className="w-full justify-start py-6"
               >
                 <ArrowRightLeft className="h-4 w-4" />
                 Nueva Transferencia
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => router.push('/inventario?tab=conteo&action=new')}
-                className="flex w-full items-center gap-3 rounded-lg border border-border-default px-4 py-3 text-left text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary"
+                variant="secondary"
+                className="w-full justify-start py-6"
               >
                 <ClipboardList className="h-4 w-4" />
                 Conteo Físico
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => router.push('/clientes/cxc/cobro')}
-                className="flex w-full items-center gap-3 rounded-lg border border-border-default px-4 py-3 text-left text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary"
+                variant="secondary"
+                className="w-full justify-start py-6"
               >
                 <CircleDollarSign className="h-4 w-4" />
                 Registrar Cobro
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => router.push('/clientes/nuevo')}
-                className="flex w-full items-center gap-3 rounded-lg border border-border-default px-4 py-3 text-left text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary"
+                variant="secondary"
+                className="w-full justify-start py-6"
               >
                 <Users className="h-4 w-4" />
                 Nuevo Cliente
-              </button>
-            </CardBody>
+              </Button>
+            </CardContent>
           </Card>
         </motion.div>
       </div>
+
+      <CustomModal isOpen={isWidgetsModalOpen} onClose={() => !isSavingPrefs && setIsWidgetsModalOpen(false)}>
+        <CustomModalHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+              <LayoutGrid className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary">Configurar Widgets</h3>
+              <p className="text-sm text-text-muted">Personaliza la información de tu dashboard</p>
+            </div>
+          </div>
+        </CustomModalHeader>
+        <CustomModalBody className="p-0">
+          <div className="max-h-[60vh] overflow-y-auto w-full">
+            <div className="divide-y divide-border-default">
+              {WIDGETS_CONFIG.map((widget) => (
+                <div key={widget.id} className="flex items-center justify-between p-5 hover:bg-surface-secondary transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-tertiary">
+                      <widget.icon className="h-4 w-4 text-text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{widget.name}</p>
+                      <p className="text-xs text-text-muted mt-0.5 max-w-[200px]">{widget.description}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={widgetPrefs[widget.id] ?? true}
+                    onCheckedChange={(checked) => handleToggleWidget(widget.id, checked)}
+                    disabled={isSavingPrefs}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </CustomModalBody>
+        <CustomModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setIsWidgetsModalOpen(false)}
+            disabled={isSavingPrefs}
+            className="h-10 px-6 font-semibold"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSavePreferences}
+            isLoading={isSavingPrefs}
+            className="h-10 px-6 font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)] bg-[#1a1a1a] text-white hover:bg-[#333333]"
+          >
+            Guardar Cambios
+          </Button>
+        </CustomModalFooter>
+      </CustomModal>
     </div>
   );
 }

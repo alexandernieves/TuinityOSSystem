@@ -1,11 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, UnauthorizedException, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, UnauthorizedException, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { StorageService } from '../storage/storage.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-    constructor(private readonly usersService: UsersService) { }
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly storageService: StorageService
+    ) { }
 
     @Get()
     findAll() {
@@ -32,5 +37,15 @@ export class UsersController {
     @Patch(':id/toggle')
     toggleActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
         return this.usersService.toggleActive(id, isActive);
+    }
+
+    @Post(':id/avatar')
+    @UseInterceptors(FileInterceptor('avatar'))
+    async uploadAvatar(
+        @Param('id') id: string,
+        @UploadedFile() file: Express.Multer.File
+    ) {
+        const avatarUrl = await this.storageService.uploadFile(file, 'user-profiles');
+        return this.usersService.update(id, { avatar: avatarUrl });
     }
 }

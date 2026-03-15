@@ -127,6 +127,13 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ═══════════════════════════════════════════════
+     SHOPIFY-LIKE DESIGN TOKENS
+     ═══════════════════════════════════════════════ */
+  --shopify-green: #1a1a1a;
+  --shopify-green-hover: #333333;
+  --shopify-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
 }
 
 /* ═══════════════════════════════════════════════
@@ -156,45 +163,215 @@ body {
 /* ═══════════════════════════════════════════════
    TYPOGRAPHY
    ═══════════════════════════════════════════════ */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-dm-sans), system-ui, sans-serif;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
-h1 { font-size: 2rem; line-height: 1.25; }
-h2 { font-size: 1.5rem; line-height: 1.3; }
-h3 { font-size: 1.25rem; line-height: 1.4; }
-h4 { font-size: 1.125rem; line-height: 1.4; }
-h5 { font-size: 1rem; line-height: 1.5; }
-h6 { font-size: 0.875rem; line-height: 1.5; }
+h1 {
+  font-size: 2rem;
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+h4 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+h5 {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+h6 {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
 
 /* Monospace for codes, references */
-.font-mono, code, pre, .reference {
+.font-mono,
+code,
+pre,
+.reference {
   font-family: var(--font-jetbrains-mono), monospace;
 }
 
 /* ═══════════════════════════════════════════════
-   SCROLLBAR STYLING
+   SCROLLBAR STYLING — Minimalist & Transparent
    ═══════════════════════════════════════════════ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 2px;
+  height: 2px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface-secondary);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--brand-300);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+  transition: background 0.3s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-400);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════
+   FORM ELEMENTS — CLEAN & SHOPIFY STYLE
+   ═══════════════════════════════════════════════ */
+
+/* Remove ALL shadows and glows from Form Elements — EXTREMELY STRICT */
+[data-slot="input-wrapper"],
+[data-slot="input-wrapper"] *,
+[data-slot="inner-wrapper"],
+[data-slot="trigger"],
+[data-slot="main-wrapper"],
+[data-slot="base"],
+.heroui-input-wrapper,
+.rounded-xl,
+.rounded-lg,
+.rounded-2xl,
+.card,
+.shadow-sm,
+.shadow-md,
+.shadow-lg {
+  box-shadow: none !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+}
+
+/* Ensure Input Wrappers look like Shopify (clean border, no shadow) */
+[data-slot="input-wrapper"],
+[data-slot="trigger"],
+[data-slot="base"][variant="flat"] [data-slot="input-wrapper"] {
+  background-color: #FFFFFF !important;
+  border: 1px solid #D1D5DB !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  opacity: 1 !important;
+}
+
+.dark [data-slot="input-wrapper"],
+.dark [data-slot="trigger"],
+.dark [data-slot="base"][variant="flat"] [data-slot="input-wrapper"] {
+  background-color: #111111 !important;
+  border: 1px solid #333 !important;
+}
+
+/* Fix Label Overlap for GOOD */
+[data-slot="label"] {
+  position: relative !important;
+  transform: none !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  font-size: 0.875rem !important;
+  z-index: 1 !important;
+}
+
+.dark [data-slot="label"] {
+  color: #D1D5DB !important;
+}
+
+/* Force content to not overlap even if placement is 'inside' */
+[data-slot="base"][data-label-placement="inside"] [data-slot="input-wrapper"],
+[data-slot="base"][data-label-placement="inside"] [data-slot="trigger"] {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 8px 12px !important;
+  height: auto !important;
+  min-height: 3.5rem !important;
+}
+
+[data-slot="input"],
+[data-slot="value"] {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+
+/* ═══════════════════════════════════════════════
+   BUTTONS — SHOPIFY PREMIUM STYLE
+   ═══════════════════════════════════════════════ */
+
+/* Universal Shopify button style */
+[data-slot="base"][class*="Button"],
+button:not([class*="select"]):not([class*="dropdown"]):not(.h-9.w-9) {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Success Buttons (like the one in the screenshot) */
+[data-slot="base"].bg-success,
+.shopify-btn-success {
+  background-color: #008060 !important;
+  /* Shopify Green */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -2.5px 0 rgba(0, 0, 0, 0.2) !important;
+  color: white !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Primary/Brand buttons */
+[data-slot="base"].bg-primary,
+[data-slot="base"].bg-brand-700,
+.shopify-btn-primary {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -2.5px 0 rgba(0, 0, 0, 0.3) !important;
+  color: white !important;
+}
+
+[data-slot="base"].bg-primary:active,
+[data-slot="base"].bg-brand-700:active {
+  transform: translateY(1px) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, inset 0 1px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Secondary / Ghost buttons */
+[data-slot="base"].bg-secondary,
+[data-slot="base"][variant="flat"],
+[data-slot="base"][variant="bordered"] {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
+  border: none !important;
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 /* ═══════════════════════════════════════════════
@@ -258,8 +435,15 @@ select:focus-visible,
    ANIMATION UTILITIES
    ═══════════════════════════════════════════════ */
 @keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .animate-pulse-subtle {
@@ -271,6 +455,7 @@ select:focus-visible,
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -282,8 +467,13 @@ select:focus-visible,
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .animate-fade-in {
@@ -321,76 +511,271 @@ select:focus-visible,
 }
 
 /* ═══════════════════════════════════════════════
+   SHOPIFY-LIKE UTILITIES
+   ═══════════════════════════════════════════════ */
+.shopify-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shopify-shadow);
+}
+
+.shopify-btn-primary {
+  padding: 8px 16px;
+  border-radius: 10px;
+  background-color: var(--shopify-green);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: var(--shopify-shadow);
+}
+
+.shopify-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.shopify-btn-primary:hover {
+  background-color: var(--shopify-green-hover);
+}
+
+.shopify-btn-secondary {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: var(--shopify-shadow);
+}
+
+.shopify-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.shopify-btn-secondary:hover {
+  background-color: #f7f7f7;
+}
+
+/* ═══════════════════════════════════════════════
    TAILWIND COLOR CLASSES (using CSS variables)
    ═══════════════════════════════════════════════ */
 
 /* Brand colors */
-.bg-brand-50 { background-color: var(--brand-50); }
-.bg-brand-100 { background-color: var(--brand-100); }
-.bg-brand-200 { background-color: var(--brand-200); }
-.bg-brand-300 { background-color: var(--brand-300); }
-.bg-brand-400 { background-color: var(--brand-400); }
-.bg-brand-500 { background-color: var(--brand-500); }
-.bg-brand-600 { background-color: var(--brand-600); }
-.bg-brand-700 { background-color: var(--brand-700); }
-.bg-brand-800 { background-color: var(--brand-800); }
-.bg-brand-900 { background-color: var(--brand-900); }
-.bg-brand-950 { background-color: var(--brand-950); }
+.bg-brand-50 {
+  background-color: var(--brand-50);
+}
 
-.text-brand-50 { color: var(--brand-50); }
-.text-brand-100 { color: var(--brand-100); }
-.text-brand-200 { color: var(--brand-200); }
-.text-brand-300 { color: var(--brand-300); }
-.text-brand-400 { color: var(--brand-400); }
-.text-brand-500 { color: var(--brand-500); }
-.text-brand-600 { color: var(--brand-600); }
-.text-brand-700 { color: var(--brand-700); }
-.text-brand-800 { color: var(--brand-800); }
-.text-brand-900 { color: var(--brand-900); }
-.text-brand-950 { color: var(--brand-950); }
+.bg-brand-100 {
+  background-color: var(--brand-100);
+}
 
-.border-brand-400 { border-color: var(--brand-400); }
-.border-brand-800 { border-color: var(--brand-800); }
+.bg-brand-200 {
+  background-color: var(--brand-200);
+}
+
+.bg-brand-300 {
+  background-color: var(--brand-300);
+}
+
+.bg-brand-400 {
+  background-color: var(--brand-400);
+}
+
+.bg-brand-500 {
+  background-color: var(--brand-500);
+}
+
+.bg-brand-600 {
+  background-color: var(--brand-600);
+}
+
+.bg-brand-700 {
+  background-color: var(--brand-700);
+}
+
+.bg-brand-800 {
+  background-color: var(--brand-800);
+}
+
+.bg-brand-900 {
+  background-color: var(--brand-900);
+}
+
+.bg-brand-950 {
+  background-color: var(--brand-950);
+}
+
+.text-brand-50 {
+  color: var(--brand-50);
+}
+
+.text-brand-100 {
+  color: var(--brand-100);
+}
+
+.text-brand-200 {
+  color: var(--brand-200);
+}
+
+.text-brand-300 {
+  color: var(--brand-300);
+}
+
+.text-brand-400 {
+  color: var(--brand-400);
+}
+
+.text-brand-500 {
+  color: var(--brand-500);
+}
+
+.text-brand-600 {
+  color: var(--brand-600);
+}
+
+.text-brand-700 {
+  color: var(--brand-700);
+}
+
+.text-brand-800 {
+  color: var(--brand-800);
+}
+
+.text-brand-900 {
+  color: var(--brand-900);
+}
+
+.text-brand-950 {
+  color: var(--brand-950);
+}
+
+.border-brand-400 {
+  border-color: var(--brand-400);
+}
+
+.border-brand-800 {
+  border-color: var(--brand-800);
+}
 
 /* Surface colors */
-.bg-surface-main { background-color: var(--surface-main); }
-.bg-surface-secondary { background-color: var(--surface-secondary); }
-.bg-surface-tertiary { background-color: var(--surface-tertiary); }
-.bg-surface-hover { background-color: var(--surface-hover); }
-.bg-surface-selected { background-color: var(--surface-selected); }
-.bg-surface-sidebar { background-color: var(--surface-sidebar); }
+.bg-surface-main {
+  background-color: var(--surface-main);
+}
+
+.bg-surface-secondary {
+  background-color: var(--surface-secondary);
+}
+
+.bg-surface-tertiary {
+  background-color: var(--surface-tertiary);
+}
+
+.bg-surface-hover {
+  background-color: var(--surface-hover);
+}
+
+.bg-surface-selected {
+  background-color: var(--surface-selected);
+}
+
+.bg-surface-sidebar {
+  background-color: var(--surface-sidebar);
+}
 
 /* Text colors */
-.text-text-primary { color: var(--text-primary); }
-.text-text-secondary { color: var(--text-secondary); }
-.text-text-muted { color: var(--text-muted); }
+.text-text-primary {
+  color: var(--text-primary);
+}
+
+.text-text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-text-muted {
+  color: var(--text-muted);
+}
 
 /* Semantic colors */
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-danger { color: var(--danger); }
-.text-info { color: var(--info); }
+.text-success {
+  color: var(--success);
+}
 
-.bg-success { background-color: var(--success); }
-.bg-warning { background-color: var(--warning); }
-.bg-danger { background-color: var(--danger); }
-.bg-info { background-color: var(--info); }
+.text-warning {
+  color: var(--warning);
+}
 
-.bg-success-bg { background-color: var(--success-bg); }
-.bg-warning-bg { background-color: var(--warning-bg); }
-.bg-danger-bg { background-color: var(--danger-bg); }
-.bg-info-bg { background-color: var(--info-bg); }
+.text-danger {
+  color: var(--danger);
+}
+
+.text-info {
+  color: var(--info);
+}
+
+.bg-success {
+  background-color: var(--success);
+}
+
+.bg-warning {
+  background-color: var(--warning);
+}
+
+.bg-danger {
+  background-color: var(--danger);
+}
+
+.bg-info {
+  background-color: var(--info);
+}
+
+.bg-success-bg {
+  background-color: var(--success-bg);
+}
+
+.bg-warning-bg {
+  background-color: var(--warning-bg);
+}
+
+.bg-danger-bg {
+  background-color: var(--danger-bg);
+}
+
+.bg-info-bg {
+  background-color: var(--info-bg);
+}
 
 /* Border colors */
-.border-border-default { border-color: var(--border-default); }
-.border-border-strong { border-color: var(--border-strong); }
+.border-border-default {
+  border-color: var(--border-default);
+}
+
+.border-border-strong {
+  border-color: var(--border-strong);
+}
 
 /* Hover variants */
-.hover\:bg-brand-50:hover { background-color: var(--brand-50); }
-.hover\:bg-brand-700:hover { background-color: var(--brand-700); }
-.hover\:bg-surface-tertiary:hover { background-color: var(--surface-tertiary); }
-.hover\:text-brand-700:hover { color: var(--brand-700); }
-.hover\:text-text-primary:hover { color: var(--text-primary); }
+.hover\:bg-brand-50:hover {
+  background-color: var(--brand-50);
+}
+
+.hover\:bg-brand-700:hover {
+  background-color: var(--brand-700);
+}
+
+.hover\:bg-surface-tertiary:hover {
+  background-color: var(--surface-tertiary);
+}
+
+.hover\:text-brand-700:hover {
+  color: var(--brand-700);
+}
+
+.hover\:text-text-primary:hover {
+  color: var(--text-primary);
+}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -534,18 +919,26 @@ select:focus-visible,
   * {
     @apply border-border;
   }
+
   /* Only apply outline to non-form elements */
   *:not(input):not(textarea):not(select):not([data-slot]) {
     @apply outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   /* Ensure inputs use box-shadow for focus instead of outline */
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     outline: none !important;
   }
-  input:focus, textarea:focus, select:focus {
+
+  input:focus,
+  textarea:focus,
+  select:focus {
     outline: none !important;
   }
 }
@@ -564,6 +957,13 @@ section[data-slot="base"] {
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
   border-radius: 12px !important;
   overflow: hidden !important;
+}
+
+/* Specific override for Cards to use Shopify shadow */
+div[data-slot="base"].card,
+.shopify-card {
+  box-shadow: var(--shopify-shadow) !important;
+  border-radius: 12px !important;
 }
 
 .dark div[data-slot="content"],
@@ -609,8 +1009,8 @@ ul[role="menu"] {
 }
 
 /* Target all floating elements from HeroUI */
-[data-floating-ui-portal] > div,
-[data-floating-ui-portal] > div > div {
+[data-floating-ui-portal]>div,
+[data-floating-ui-portal]>div>div {
   background-color: transparent !important;
 }
 
@@ -747,7 +1147,7 @@ div[role="menuitem"]:hover,
 /* HeroUI Input focus - uses border color change instead of outline */
 [data-slot="input-wrapper"]:focus-within {
   border-color: var(--brand-400) !important;
-  box-shadow: 0 0 0 1px var(--brand-400) !important;
+  box-shadow: 0 0 0 1px var(--brand-400), 0 0 0 4px rgba(58, 90, 140, 0.1) !important;
 }
 
 /* Remove focus ring from native inputs inside HeroUI wrappers */
@@ -805,7 +1205,7 @@ section[role="dialog"] {
    HEROUI MODAL BACKDROP BLUR
    Blur background when modal/dialog is open
    ═══════════════════════════════════════════════ */
-div:has(> [data-slot="wrapper"]) > div.fixed {
+div:has(> [data-slot="wrapper"])>div.fixed {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   --tw-backdrop-opacity: 1 !important;
@@ -822,6 +1222,7 @@ div:has(> [data-slot="wrapper"]) > div.fixed {
   main {
     padding-left: 0 !important;
   }
+
   header.fixed {
     left: 0 !important;
   }
@@ -832,6 +1233,7 @@ div:has(> [data-slot="wrapper"]) > div.fixed {
    Hide navigation, header, and layout chrome when printing
    ═══════════════════════════════════════════════ */
 @media print {
+
   /* Hide sidebar, header, and other UI chrome */
   aside,
   nav,
@@ -844,7 +1246,7 @@ div:has(> [data-slot="wrapper"]) > div.fixed {
 
   /* Make main content full width without offsets */
   main,
-  main > div {
+  main>div {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;

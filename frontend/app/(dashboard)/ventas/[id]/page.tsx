@@ -97,24 +97,57 @@ export default function SalesOrderDetailPage() {
 
   if (error || !order) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <AlertCircle className="mb-4 h-12 w-12 text-muted-foreground" />
-        <h2 className="mb-2 text-lg font-medium text-foreground">{error || 'Documento no encontrado'}</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          {error ? 'Hubo un problema al cargar el documento.' : `El documento ${orderId} no existe o fue eliminado.`}
-        </p>
-        <Button color="primary" onPress={() => router.push('/ventas')}>
-          Volver a Ventas
-        </Button>
+      <div className="flex flex-col items-center justify-center py-24 px-4 sm:px-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md bg-card/50 backdrop-blur-sm border border-border p-8 rounded-3xl shadow-xl flex flex-col items-center text-center"
+        >
+          <div className="mb-6 relative">
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+            <div className="relative bg-card border border-border h-20 w-20 rounded-2xl flex items-center justify-center shadow-inner">
+              <AlertCircle className="h-10 w-10 text-primary" />
+            </div>
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="absolute -top-2 -right-2 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg"
+            >
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            </motion.div>
+          </div>
+
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-foreground">{error || 'Documento no encontrado'}</h2>
+          <p className="mb-8 text-muted-foreground leading-relaxed">
+            {error ? 'Hubo un problema al cargar el documento.' : `Parece el documento con ID "${orderId}" no existe en nuestros registros o ha sido eliminado recientemente.`}
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <Button 
+              className="flex-1 h-12 rounded-2xl font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+              onPress={() => router.push('/ventas')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver a Ventas
+            </Button>
+            <Button 
+              variant="bordered"
+              className="flex-1 h-12 rounded-2xl font-semibold border-border hover:bg-accent transition-all"
+              onPress={() => window.location.reload()}
+            >
+              Reintentar
+            </Button>
+          </div>
+        </motion.div>
       </div>
     );
   }
 
-  const statusConfig = (STATUS_CONFIG as any)[order.status] || (STATUS_CONFIG as any).borrador;
-  const docTypeLabel = order.documentType === 'cotizacion' ? 'COT' : order.documentType === 'pedido' ? 'PED' : 'FAC';
+  const statusConfig = (STATUS_CONFIG as any)[order?.status || ''] || (STATUS_CONFIG as any).borrador;
+  const docTypeLabel = order?.documentType === 'cotizacion' ? 'COT' : order?.documentType === 'pedido' ? 'PED' : 'FAC';
 
   // Check if all lines are commission eligible
-  const allLinesEligible = order.lines.every((l: any) => l.commissionEligible);
+  const allLinesEligible = (order?.lines || []).every((l: any) => l.commissionEligible);
 
   // Actions based on status
   const canSendQuote = order.status === 'borrador' && canCreateQuotes;
@@ -219,12 +252,12 @@ export default function SalesOrderDetailPage() {
               <span
                 className={cn(
                   'inline-flex whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium',
-                  order.documentType === 'cotizacion' && 'bg-blue-500/10 text-blue-500',
-                  order.documentType === 'pedido' && 'bg-purple-500/10 text-purple-500',
-                  order.documentType === 'factura' && 'bg-teal-500/10 text-teal-500'
+                  order?.documentType === 'cotizacion' && 'bg-blue-500/10 text-blue-500',
+                  order?.documentType === 'pedido' && 'bg-purple-500/10 text-purple-500',
+                  order?.documentType === 'factura' && 'bg-teal-500/10 text-teal-500'
                 )}
               >
-                {(DOCUMENT_TYPE_LABELS as any)[order.documentType] || order.documentType}
+                {(DOCUMENT_TYPE_LABELS as any)[order?.documentType || ''] || order?.documentType || 'Documento'}
               </span>
               <h1 className="font-mono text-xl font-semibold text-foreground sm:text-2xl">{order.orderNumber}</h1>
               <span
@@ -253,8 +286,8 @@ export default function SalesOrderDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           {canSendQuote && (
             <Button
-              color="primary"
               onPress={handleSendQuote}
+              className="h-9 px-4 rounded-xl bg-[#253D6B] text-white font-semibold text-xs shadow-lg shadow-[#253D6B]/20 hover:bg-[#1e3156] transition-all"
               startContent={<Send className="h-4 w-4" />}
             >
               Enviar Cotización
@@ -262,8 +295,8 @@ export default function SalesOrderDetailPage() {
           )}
           {canConvertToOrder && (
             <Button
-              color="primary"
               onPress={handleConvertToOrder}
+              className="h-9 px-4 rounded-xl bg-[#253D6B] text-white font-semibold text-xs shadow-lg shadow-[#253D6B]/20 hover:bg-[#1e3156] transition-all"
               startContent={<CheckCircle2 className="h-4 w-4" />}
             >
               Convertir a Pedido
@@ -274,14 +307,16 @@ export default function SalesOrderDetailPage() {
               <Button
                 color="success"
                 onPress={() => setIsApproveOpen(true)}
+                className="h-9 px-4 rounded-xl font-semibold text-xs shadow-lg shadow-success/20 transition-all"
                 startContent={<ThumbsUp className="h-4 w-4" />}
               >
                 Aprobar
               </Button>
               <Button
                 color="danger"
-                variant="bordered"
+                variant="flat"
                 onPress={() => setIsRejectOpen(true)}
+                className="h-9 px-4 rounded-xl font-semibold text-xs transition-all"
                 startContent={<XCircle className="h-4 w-4" />}
               >
                 Rechazar
@@ -292,6 +327,7 @@ export default function SalesOrderDetailPage() {
             <Button
               color="warning"
               onPress={handlePack}
+              className="h-9 px-4 rounded-xl font-semibold text-xs shadow-lg shadow-warning/20 transition-all"
               startContent={<PackageCheck className="h-4 w-4" />}
             >
               Marcar Empacado
@@ -301,6 +337,7 @@ export default function SalesOrderDetailPage() {
             <Button
               color="success"
               onPress={handleInvoice}
+              className="h-9 px-4 rounded-xl font-semibold text-xs shadow-lg shadow-success/20 transition-all"
               startContent={<FileCheck className="h-4 w-4" />}
             >
               Generar Factura
@@ -308,7 +345,8 @@ export default function SalesOrderDetailPage() {
           )}
           {canEdit && (
             <Button
-              variant="bordered"
+              variant="flat"
+              className="h-9 px-4 rounded-xl font-semibold text-xs transition-all"
               startContent={<Edit className="h-4 w-4" />}
               onPress={() => toast.info('Editar', { description: 'Funcionalidad próximamente.' })}
             >
@@ -316,7 +354,8 @@ export default function SalesOrderDetailPage() {
             </Button>
           )}
           <Button
-            variant="bordered"
+            variant="flat"
+            className="h-9 px-4 rounded-xl font-semibold text-xs transition-all"
             startContent={<Printer className="h-4 w-4" />}
             onPress={() => {
               printSalesOrder(
@@ -327,7 +366,7 @@ export default function SalesOrderDetailPage() {
                   requestedDeliveryDate: order.requestedDeliveryDate,
                   shippingAddress: order.shippingAddress,
                   status: statusConfig.label,
-                  lines: order.lines.map((line: any) => ({
+                  lines: (order?.lines || []).map((line: any) => ({
                     productReference: line.productReference,
                     productDescription: line.productDescription,
                     productBrand: line.productBrand,
@@ -336,10 +375,10 @@ export default function SalesOrderDetailPage() {
                     unitPrice: line.unitPrice,
                     total: line.subtotal,
                   })),
-                  subtotal: order.subtotal,
-                  tax: order.taxAmount,
-                  total: order.total,
-                  notes: order.notes,
+                  subtotal: order?.subtotal || 0,
+                  tax: order?.taxAmount || 0,
+                  total: order?.total || 0,
+                  notes: order?.notes,
                 },
                 true, // showPrices
                 getSwornDeclarationStamp()
@@ -605,7 +644,7 @@ export default function SalesOrderDetailPage() {
         className="overflow-hidden rounded-xl border border-border bg-card"
       >
         <div className="border-b border-border bg-muted/50 px-5 py-3">
-          <h3 className="font-medium text-foreground">Líneas del Documento ({order.lines.length})</h3>
+          <h3 className="font-medium text-foreground">Líneas del Documento ({(order?.lines || []).length})</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -644,9 +683,9 @@ export default function SalesOrderDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {order.lines.map((line: any, index: number) => (
+              {(order?.lines || []).map((line: any, index: number) => (
                 <motion.tr
-                  key={line.id}
+                  key={line.id || `line-${index}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 + index * 0.03 }}
@@ -729,7 +768,7 @@ export default function SalesOrderDetailPage() {
       </motion.div>
 
       {/* Additional Expenses */}
-      {order.additionalExpenses.length > 0 && (
+      {order?.additionalExpenses && order.additionalExpenses.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -742,8 +781,8 @@ export default function SalesOrderDetailPage() {
           <div className="p-5">
             <table className="w-full">
               <tbody className="divide-y divide-border">
-                {order.additionalExpenses.map((expense: any) => (
-                  <tr key={expense.id}>
+                {(order?.additionalExpenses || []).map((expense: any, index: number) => (
+                  <tr key={expense.id || `expense-${index}`}>
                     <td className="py-2 text-sm text-foreground">{expense.description}</td>
                     <td className="py-2 text-right">
                       <span className="font-mono text-sm text-foreground">{formatCurrency(expense.amount)}</span>

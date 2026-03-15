@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CustomModal,
   CustomModalHeader,
@@ -19,17 +18,16 @@ import {
   Package,
   ImagePlus,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { cn } from "@/lib/utils/cn";
 import { api } from "@/lib/services/api";
-import { useStore } from "@/hooks/use-store";
 import {
   ADJUSTMENT_REASONS,
   type AdjustmentType,
   type AdjustmentReason,
-  type AdjustmentLine,
 } from "@/lib/types/inventory";
 
 interface FormLine {
@@ -56,6 +54,7 @@ export default function NuevoAjustePage() {
   const [observation, setObservation] = useState("");
   const [lines, setLines] = useState<FormLine[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Product search modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -204,7 +203,7 @@ export default function NuevoAjustePage() {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setLoading(true);
+    setIsSaving(true);
     try {
       await api.createAdjustment({
         createdBy: user?.id,
@@ -215,7 +214,7 @@ export default function NuevoAjustePage() {
         lines: lines.map((l) => ({
           productId: l.productId,
           currentStock: l.currentStock,
-          adjustmentQty: l.adjustmentQty, // Note: backend could expect absolute or relative positive quantity depending on type. Our schema takes absolute quantity.
+          adjustmentQty: l.adjustmentQty,
           resultingStock:
             adjustmentType === "positivo"
               ? l.currentStock + l.adjustmentQty
@@ -236,8 +235,7 @@ export default function NuevoAjustePage() {
       toast.error("Error al crear el ajuste", {
         description: err.message,
       });
-    } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -248,6 +246,10 @@ export default function NuevoAjustePage() {
       currency: "USD",
     }).format(value);
   };
+
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+  const labelStyle = { fontWeight: 600 };
+  const labelClass = "block text-[13px] text-[#1a1a1a] mb-1.5";
 
   return (
     <div className="space-y-6">
@@ -260,14 +262,14 @@ export default function NuevoAjustePage() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-            <FileText className="h-5 w-5 text-brand-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950">
+            <FileText className="h-5 w-5 text-[#008060]" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
               Nuevo Ajuste de Inventario
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-[#888888]">
               Crear ajuste positivo o negativo
             </p>
           </div>
@@ -275,40 +277,39 @@ export default function NuevoAjustePage() {
       </div>
 
       {/* Form Card */}
-      <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
         {/* Form Header */}
-        <div className="border-b border-gray-200 p-6">
+        <div className="border-b border-gray-200 dark:border-[#2a2a2a] p-6">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {/* Warehouse */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className={labelClass} style={labelStyle}>
                 Bodega
               </label>
-              <Select
-                selectedKeys={[warehouseId]}
+              <select
+                value={warehouseId}
                 onChange={(e) => setWarehouseId(e.target.value)}
-                variant="bordered"
-                classNames={{ trigger: "bg-white" }}
+                className={inputClass}
               >
                 {warehouses.map((w) => (
-                  <SelectItem key={w.id}>{w.name}</SelectItem>
+                  <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
-              </Select>
+              </select>
             </div>
 
             {/* Type */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className={labelClass} style={labelStyle}>
                 Tipo de Ajuste
               </label>
-              <div className="flex rounded-lg border border-gray-200 p-1">
+              <div className="flex rounded-lg border border-gray-200 dark:border-[#2a2a2a] p-1 bg-gray-50 dark:bg-[#1a1a1a]">
                 <button
                   onClick={() => setAdjustmentType("positivo")}
                   className={cn(
-                    "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                    "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all",
                     adjustmentType === "positivo"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "text-gray-600 hover:bg-gray-50",
+                      ? "bg-white dark:bg-[#141414] text-emerald-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700 dark:hover:text-white",
                   )}
                 >
                   + Positivo
@@ -316,10 +317,10 @@ export default function NuevoAjustePage() {
                 <button
                   onClick={() => setAdjustmentType("negativo")}
                   className={cn(
-                    "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                    "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all",
                     adjustmentType === "negativo"
-                      ? "bg-red-100 text-red-700"
-                      : "text-gray-600 hover:bg-gray-50",
+                      ? "bg-white dark:bg-[#141414] text-red-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700 dark:hover:text-white",
                   )}
                 >
                   - Negativo
@@ -329,44 +330,43 @@ export default function NuevoAjustePage() {
 
             {/* Reason */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className={labelClass} style={labelStyle}>
                 Motivo <span className="text-red-500">*</span>
               </label>
-              <Select
-                placeholder="Seleccionar motivo"
-                selectedKeys={reason ? [reason] : []}
+              <select
+                value={reason}
                 onChange={(e) => setReason(e.target.value as AdjustmentReason)}
-                variant="bordered"
-                classNames={{ trigger: "bg-white" }}
+                className={inputClass}
               >
+                <option value="">Seleccionar motivo</option>
                 {Object.entries(ADJUSTMENT_REASONS).map(([key, label]) => (
-                  <SelectItem key={key}>{label}</SelectItem>
+                  <option key={key} value={key}>{label}</option>
                 ))}
-              </Select>
+              </select>
             </div>
           </div>
 
           {/* Observation */}
           <div className="mt-6">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className={labelClass} style={labelStyle}>
               Observación
             </label>
-            <Textarea
+            <textarea
               placeholder="Detalle adicional del ajuste (opcional)"
               value={observation}
               onChange={(e) => setObservation(e.target.value)}
-              variant="bordered"
-              classNames={{ inputWrapper: "bg-white" }}
+              className={cn(inputClass, "resize-none h-24")}
+              rows={3}
             />
           </div>
 
           {/* Evidence Upload */}
           <div className="mt-6">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className={labelClass} style={labelStyle}>
               Evidencia (opcional)
             </label>
-            <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-brand-400 hover:bg-brand-50">
-              <div className="flex flex-col items-center text-gray-500">
+            <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer">
+              <div className="flex flex-col items-center text-gray-500 dark:text-[#888888]">
                 <ImagePlus className="mb-1 h-6 w-6" />
                 <span className="text-xs">
                   Click o arrastra para subir fotos
@@ -379,12 +379,12 @@ export default function NuevoAjustePage() {
         {/* Products Section */}
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Productos a Ajustar
             </h2>
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+              className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-[#2a2a2a] px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 transition-all hover:bg-gray-200 dark:hover:bg-[#333]"
             >
               <Plus className="h-4 w-4" />
               Agregar Producto
@@ -393,34 +393,34 @@ export default function NuevoAjustePage() {
 
           {/* Products Table */}
           {lines.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-[#2a2a2a]">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                       Producto
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                       Stock Actual
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                       Cantidad{" "}
                       {adjustmentType === "positivo" ? "a Sumar" : "a Restar"}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                       Stock Resultante
                     </th>
                     {canViewCosts && (
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                         Valor
                       </th>
                     )}
-                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                       Acción
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
                   {lines.map((line, index) => {
                     const resultingStock =
                       adjustmentType === "positivo"
@@ -429,24 +429,24 @@ export default function NuevoAjustePage() {
                     const isNegativeResult = resultingStock < 0;
 
                     return (
-                      <tr key={line.productId} className="hover:bg-gray-50">
+                      <tr key={line.productId} className="hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
                         <td className="px-4 py-3">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
                               {line.productDescription}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-[#888888]">
                               {line.productReference}
                             </p>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
                             {line.currentStock}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <Input
+                          <input
                             type="number"
                             min={1}
                             value={line.adjustmentQty.toString()}
@@ -456,13 +456,7 @@ export default function NuevoAjustePage() {
                                 parseInt(e.target.value) || 0,
                               )
                             }
-                            variant="bordered"
-                            size="sm"
-                            classNames={{
-                              base: "w-24 ml-auto",
-                              inputWrapper: "bg-white",
-                              input: "text-right",
-                            }}
+                            className={cn(inputClass, "w-24 ml-auto text-right")}
                           />
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -471,7 +465,7 @@ export default function NuevoAjustePage() {
                               "text-sm font-semibold",
                               isNegativeResult
                                 ? "text-red-600"
-                                : "text-gray-900",
+                                : "text-gray-900 dark:text-white",
                             )}
                           >
                             {resultingStock}
@@ -482,7 +476,7 @@ export default function NuevoAjustePage() {
                         </td>
                         {canViewCosts && (
                           <td className="px-4 py-3 text-right">
-                            <span className="font-mono text-sm text-gray-700">
+                            <span className="font-mono text-sm text-gray-700 dark:text-gray-400">
                               {formatCurrency(
                                 line.adjustmentQty * line.costCIF,
                               )}
@@ -492,7 +486,7 @@ export default function NuevoAjustePage() {
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => handleRemoveLine(index)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                            className="flex mx-auto h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -504,17 +498,17 @@ export default function NuevoAjustePage() {
               </table>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12">
+            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] py-12">
               <Package className="mb-3 h-10 w-10 text-gray-400" />
-              <p className="mb-1 text-sm font-medium text-gray-900">
+              <p className="mb-1 text-sm font-medium text-gray-900 dark:text-white">
                 Sin productos
               </p>
-              <p className="mb-4 text-xs text-gray-500">
+              <p className="mb-4 text-xs text-gray-500 dark:text-[#888888]">
                 Agrega productos para el ajuste
               </p>
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all"
               >
                 <Plus className="h-4 w-4" />
                 Agregar Producto
@@ -524,39 +518,42 @@ export default function NuevoAjustePage() {
 
           {/* Summary */}
           {lines.length > 0 && (
-            <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4">
+            <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 dark:bg-[#1a1a1a] p-4 border border-gray-100 dark:border-[#2a2a2a]">
               <div className="flex gap-8">
                 <div>
-                  <p className="text-xs text-gray-500">Total Items</p>
-                  <p className="text-lg font-semibold text-gray-900">
+                  <p className="text-xs text-gray-500 dark:text-[#888888]">Total Items</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
                     {totalItems}
                   </p>
                 </div>
                 {canViewCosts && (
                   <div>
-                    <p className="text-xs text-gray-500">Valor Total</p>
-                    <p className="text-lg font-semibold text-gray-900">
+                    <p className="text-xs text-gray-500 dark:text-[#888888]">Valor Total</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
                       {formatCurrency(totalValue)}
                     </p>
                   </div>
                 )}
               </div>
               <div className="flex gap-3">
-                <Button
-                  variant="light"
-                  onPress={() => router.back()}
-                  isDisabled={loading}
+                <button
+                  onClick={() => router.back()}
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
                 >
                   Cancelar
-                </Button>
-                <Button
-                  color="primary"
-                  onPress={handleSubmit}
-                  className="bg-brand-600"
-                  isLoading={loading}
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSaving}
+                  className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px]"
                 >
-                  {loading ? "Enviando..." : "Enviar para Aprobación"}
-                </Button>
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Enviar para Aprobación"
+                  )}
+                </button>
               </div>
             </div>
           )}
@@ -571,48 +568,61 @@ export default function NuevoAjustePage() {
         scrollable
       >
         <CustomModalHeader onClose={() => setIsSearchOpen(false)}>
-          <Search className="h-5 w-5 text-gray-600" />
-          Buscar Producto
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950">
+              <Search className="h-5 w-5 text-[#008060]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Buscar Producto
+              </h2>
+            </div>
+          </div>
         </CustomModalHeader>
         <CustomModalBody className="space-y-4">
-          <Input
-            placeholder="Buscar por nombre, referencia o código de barras..."
-            value={productSearch}
-            onChange={(e) => setProductSearch(e.target.value)}
-            variant="bordered"
-            startContent={<Search className="h-4 w-4 text-gray-400" />}
-            classNames={{ inputWrapper: "bg-white" }}
-          />
-          <div className="mt-4 max-h-96 space-y-2 overflow-y-auto">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              placeholder="Buscar por nombre, referencia o código de barras..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className={cn(inputClass, "pl-10")}
+            />
+          </div>
+          <div className="mt-4 max-h-96 space-y-2 overflow-y-auto pr-1">
             {filteredProducts.slice(0, 20).map((product) => (
               <button
                 key={product.id}
                 onClick={() => handleAddProduct(product.id)}
-                className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
+                className="flex w-full items-center gap-3 rounded-lg border border-gray-200 dark:border-[#2a2a2a] p-3 text-left transition-all hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 group"
               >
-                <div className="h-10 w-10 shrink-0 rounded-lg bg-gray-100" />
+                <div className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 dark:bg-[#2a2a2a]" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#008060] transition-colors">
                     {product.description}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-[#888888]">
                     {product.reference} • Stock: {product.stock?.existence || 0}
                   </p>
                 </div>
-                <Plus className="h-4 w-4 text-gray-400" />
+                <Plus className="h-4 w-4 text-gray-400 group-hover:text-[#008060]" />
               </button>
             ))}
             {filteredProducts.length === 0 && (
-              <div className="py-8 text-center text-sm text-gray-500">
+              <div className="py-12 text-center text-sm text-gray-500 dark:text-[#888888]">
+                <Package className="mx-auto h-8 w-8 mb-2 opacity-20" />
                 No se encontraron productos
               </div>
             )}
           </div>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsSearchOpen(false)}>
+          <button
+            onClick={() => setIsSearchOpen(false)}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+          >
             Cerrar
-          </Button>
+          </button>
         </CustomModalFooter>
       </CustomModal>
     </div>

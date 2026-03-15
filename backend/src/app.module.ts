@@ -19,6 +19,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
 import { TrafficModule } from './traffic/traffic.module';
 import { AccountingModule } from './accounting/accounting.module';
+import { SettingsModule } from './settings/settings.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -27,9 +29,15 @@ import { AccountingModule } from './accounting/accounting.module';
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const uri = configService.get<string>('MONGODB_URI');
+        if (!uri) {
+          console.error('CRITICAL ERROR: MONGODB_URI is undefined. Check Render environment variables!');
+        }
+        return {
+          uri: uri || 'mongodb://localhost/fallback',
+        };
+      },
       inject: [ConfigService],
     }),
     AuthModule,
@@ -48,6 +56,8 @@ import { AccountingModule } from './accounting/accounting.module';
     ReportsModule,
     TrafficModule,
     AccountingModule,
+    SettingsModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

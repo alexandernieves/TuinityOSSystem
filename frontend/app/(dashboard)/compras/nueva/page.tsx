@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, SelectItem, Textarea } from '@heroui/react';
-import { ArrowLeft, ClipboardList, Plus, Trash2, Package } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Plus, Trash2, Package, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { api } from '@/lib/services/api';
@@ -29,6 +28,7 @@ export default function NuevaCompraPage() {
   const [bodegas, setBodegas] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form state
   const [orderFormData, setOrderFormData] = useState(initialOrderForm);
@@ -111,10 +111,11 @@ export default function NuevaCompraPage() {
       return;
     }
 
+    setIsSaving(true);
     const supplier = suppliers.find((s) => s.id === orderFormData.supplierId);
     const bodega = bodegas.find((b) => b.id === orderFormData.bodegaId);
 
-    // Generar un número de orden temporal o dejar que el backend lo haga (aquí usaremos uno temporal para avisar)
+    // Generar un número de orden temporal o dejar que el backend lo haga
     const orderNumber = `OC-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
 
     const newOrderPayload = {
@@ -147,10 +148,15 @@ export default function NuevaCompraPage() {
       router.push('/compras');
     } catch (error: any) {
       toast.error('Error al crear orden', { description: error.message });
+      setIsSaving(false);
     }
   };
 
   const totalFOB = orderLines.reduce((sum, l) => sum + l.totalFOB, 0);
+
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+  const labelStyle = { fontWeight: 600 };
+  const labelClass = "block text-[13px] text-[#1a1a1a] mb-1.5";
 
   if (loading) {
     return <div className="flex h-96 items-center justify-center text-gray-500">Cargando formulario...</div>;
@@ -167,8 +173,8 @@ export default function NuevaCompraPage() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900">
-            <ClipboardList className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950">
+            <ClipboardList className="h-5 w-5 text-[#008060]" />
           </div>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Nueva Orden de Compra</h1>
@@ -184,79 +190,66 @@ export default function NuevaCompraPage() {
             {/* Supplier and Bodega */}
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Proveedor <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  placeholder="Seleccionar proveedor"
-                  selectedKeys={orderFormData.supplierId ? [orderFormData.supplierId] : []}
+                <label className={labelClass} style={labelStyle}>Proveedor</label>
+                <select
+                  value={orderFormData.supplierId}
                   onChange={(e) => handleFormChange('supplierId', e.target.value)}
-                  variant="bordered"
-                  classNames={{ trigger: 'bg-white dark:bg-[#1a1a1a]' }}
+                  className={inputClass}
+                  required
                 >
+                  <option value="">Seleccionar proveedor</option>
                   {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id}>{supplier.name}</SelectItem>
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
                   ))}
-                </Select>
+                </select>
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Bodega destino <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  placeholder="Seleccionar bodega"
-                  selectedKeys={orderFormData.bodegaId ? [orderFormData.bodegaId] : []}
+                <label className={labelClass} style={labelStyle}>Bodega destino</label>
+                <select
+                  value={orderFormData.bodegaId}
                   onChange={(e) => handleFormChange('bodegaId', e.target.value)}
-                  variant="bordered"
-                  classNames={{ trigger: 'bg-white dark:bg-[#1a1a1a]' }}
+                  className={inputClass}
+                  required
                 >
+                  <option value="">Seleccionar bodega</option>
                   {bodegas.map((bodega) => (
-                    <SelectItem key={bodega.id}>{bodega.name}</SelectItem>
+                    <option key={bodega.id} value={bodega.id}>{bodega.name}</option>
                   ))}
-                </Select>
+                </select>
               </div>
             </div>
 
             {/* Invoice and Date */}
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  No. Factura proveedor
-                </label>
-                <Input
+                <label className={labelClass} style={labelStyle}>No. Factura proveedor</label>
+                <input
+                  type="text"
                   placeholder="INV-2024-0001"
                   value={orderFormData.supplierInvoice}
                   onChange={(e) => handleFormChange('supplierInvoice', e.target.value)}
-                  variant="bordered"
-                  classNames={{ inputWrapper: 'bg-white dark:bg-[#1a1a1a]' }}
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Llegada estimada
-                </label>
-                <Input
+                <label className={labelClass} style={labelStyle}>Llegada estimada</label>
+                <input
                   type="date"
                   value={orderFormData.expectedArrivalDate}
                   onChange={(e) => handleFormChange('expectedArrivalDate', e.target.value)}
-                  variant="bordered"
-                  classNames={{ inputWrapper: 'bg-white dark:bg-[#1a1a1a]' }}
+                  className={inputClass}
                 />
               </div>
             </div>
 
-            {/* Notes */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Notas
-              </label>
-              <Textarea
+              <label className={labelClass} style={labelStyle}>Notas</label>
+              <textarea
                 placeholder="Instrucciones especiales..."
                 value={orderFormData.notes}
                 onChange={(e) => handleFormChange('notes', e.target.value)}
-                variant="bordered"
-                minRows={2}
-                classNames={{ inputWrapper: 'bg-white dark:bg-[#1a1a1a]' }}
+                rows={3}
+                className={inputClass + " resize-none"}
               />
             </div>
 
@@ -267,58 +260,51 @@ export default function NuevaCompraPage() {
               {/* Add Product Row */}
               <div className="flex items-end gap-3">
                 <div className="flex-1">
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Producto
-                  </label>
-                  <Select
-                    placeholder="Seleccionar producto..."
-                    selectedKeys={newLineProduct ? [newLineProduct] : []}
+                  <label className={labelClass} style={labelStyle}>Producto</label>
+                  <select
+                    value={newLineProduct}
                     onChange={(e) => setNewLineProduct(e.target.value)}
-                    variant="bordered"
-                    classNames={{ trigger: 'bg-white dark:bg-[#1a1a1a]' }}
+                    className={inputClass}
                   >
+                    <option value="">Seleccionar producto...</option>
                     {products.slice(0, 50).map((product: any) => (
-                      <SelectItem key={product.id} textValue={product.description}>
-                        <div className="flex flex-col">
-                          <span className="text-sm">{product.description}</span>
-                          <span className="text-xs text-gray-500">{product.reference}</span>
-                        </div>
-                      </SelectItem>
+                      <option key={product.id} value={product.id}>
+                        {product.description} - {product.reference}
+                      </option>
                     ))}
-                  </Select>
+                  </select>
                 </div>
                 <div className="w-24">
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Cant.
-                  </label>
-                  <Input
-                    placeholder="0"
+                  <label className={labelClass} style={labelStyle}>Cant.</label>
+                  <input
                     type="number"
+                    placeholder="0"
                     value={newLineQty}
                     onChange={(e) => setNewLineQty(e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: 'bg-white dark:bg-[#1a1a1a]' }}
+                    className={inputClass}
                   />
                 </div>
                 {canViewCosts && (
                   <div className="w-28">
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Costo
-                    </label>
-                    <Input
-                      placeholder="0.00"
-                      type="number"
-                      value={newLineCost}
-                      onChange={(e) => setNewLineCost(e.target.value)}
-                      variant="bordered"
-                      startContent={<span className="text-xs text-gray-400">$</span>}
-                      classNames={{ inputWrapper: 'bg-white dark:bg-[#1a1a1a]' }}
-                    />
+                    <label className={labelClass} style={labelStyle}>Costo</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#8c9196]">$</span>
+                      <input
+                        type="number"
+                        placeholder="0.00"
+                        value={newLineCost}
+                        onChange={(e) => setNewLineCost(e.target.value)}
+                        className={inputClass + " pl-6"}
+                      />
+                    </div>
                   </div>
                 )}
-                <Button color="primary" onPress={handleAddLine} isIconOnly className="bg-brand-600 mb-0.5">
+                <button
+                  onClick={handleAddLine}
+                  className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#008060] text-white shadow-[0_1px_0_rgba(0,0,0,0.1)] hover:bg-[#006e52] transition-colors"
+                >
                   <Plus className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
 
               {/* Lines List */}
@@ -398,12 +384,24 @@ export default function NuevaCompraPage() {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-gray-200 dark:border-[#2a2a2a] px-6 py-4">
-          <Button variant="light" onPress={() => router.back()}>
+          <button
+            onClick={() => router.back()}
+            disabled={isSaving}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+          >
             Cancelar
-          </Button>
-          <Button color="primary" onPress={handleCreateOrder} className="bg-brand-600">
-            Crear Orden
-          </Button>
+          </button>
+          <button
+            onClick={handleCreateOrder}
+            disabled={isSaving}
+            className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              'Crear Orden'
+            )}
+          </button>
         </div>
       </div>
     </div>
