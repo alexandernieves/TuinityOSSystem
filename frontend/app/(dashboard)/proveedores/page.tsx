@@ -10,6 +10,7 @@ import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } fr
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
 import { SkeletonGrid } from '@/components/ui/skeleton-grid';
+import { cn } from '@/lib/utils/cn';
 
 interface Supplier {
     id: string;
@@ -121,6 +122,12 @@ export default function ProveedoresPage() {
         }
     };
 
+    const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+    const labelClass = "block text-[13px] font-semibold text-[#1a1a1a] mb-1.5";
+    const searchInputClass = "w-full px-3 py-[7px] pl-10 h-10 rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+    const buttonPrimaryClass = "flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#253D6B] text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#1e3156] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+    const buttonSecondaryClass = "px-4 py-2 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors disabled:opacity-50";
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -128,10 +135,13 @@ export default function ProveedoresPage() {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Proveedores</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Gestiona los proveedores de mercancía</p>
                 </div>
-                <Button onClick={handleOpenAdd}>
+                <button
+                    onClick={handleOpenAdd}
+                    className={buttonPrimaryClass}
+                >
                     <Plus className="h-4 w-4" />
                     Nuevo Proveedor
-                </Button>
+                </button>
             </div>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -142,7 +152,7 @@ export default function ProveedoresPage() {
                         placeholder="Buscar por nombre o país..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-10 pr-4 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className={searchInputClass}
                     />
                 </div>
             </div>
@@ -231,29 +241,29 @@ export default function ProveedoresPage() {
                     <CustomModalHeader onClose={() => setIsAddOpen(false)}>Nuevo Proveedor</CustomModalHeader>
                     <CustomModalBody className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre de Empresa *</label>
-                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Nombre de Empresa *</label>
+                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">País *</label>
-                            <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>País *</label>
+                            <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Persona de Contacto</label>
-                            <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Persona de Contacto</label>
+                            <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Correo Electrónico</label>
-                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Correo Electrónico</label>
+                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Teléfono</label>
-                            <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Teléfono</label>
+                            <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
                         </div>
                     </CustomModalBody>
                     <CustomModalFooter>
-                        <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
-                        <Button type="submit">Guardar</Button>
+                        <button type="button" onClick={() => setIsAddOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+                        <button type="submit" className={buttonPrimaryClass}>Guardar</button>
                     </CustomModalFooter>
                 </form>
             </CustomModal>
@@ -263,29 +273,29 @@ export default function ProveedoresPage() {
                     <CustomModalHeader onClose={() => setIsEditOpen(false)}>Editar Proveedor</CustomModalHeader>
                     <CustomModalBody className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre de Empresa *</label>
-                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Nombre de Empresa *</label>
+                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">País *</label>
-                            <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>País *</label>
+                            <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Persona de Contacto</label>
-                            <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Persona de Contacto</label>
+                            <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Correo Electrónico</label>
-                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Correo Electrónico</label>
+                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Teléfono</label>
-                            <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="mt-1 block w-full rounded-lg border-gray-300 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] shadow-sm sm:text-sm" />
+                            <label className={labelClass}>Teléfono</label>
+                            <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
                         </div>
                     </CustomModalBody>
                     <CustomModalFooter>
-                        <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-                        <Button type="submit">Actualizar</Button>
+                        <button type="button" onClick={() => setIsEditOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+                        <button type="submit" className={buttonPrimaryClass}>Actualizar</button>
                     </CustomModalFooter>
                 </form>
             </CustomModal>
@@ -296,8 +306,8 @@ export default function ProveedoresPage() {
                     ¿Estás seguro que deseas eliminar permanente a <strong>{selectedSupplier?.name}</strong>? Esta acción no se puede revertir.
                 </CustomModalBody>
                 <CustomModalFooter>
-                    <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>Cancelar</Button>
-                    <Button variant="destructive" onClick={handleDeleteSubmit}>Eliminar</Button>
+                    <button type="button" onClick={() => setIsDeleteOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+                    <button type="button" onClick={handleDeleteSubmit} className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-red-600 text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-red-700 active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all">Eliminar</button>
                 </CustomModalFooter>
             </CustomModal>
         </div>

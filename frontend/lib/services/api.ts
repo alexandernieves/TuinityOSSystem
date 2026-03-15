@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 async function fetcher(endpoint: string, options: RequestInit = {}) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('evolution_auth_token') : null;
@@ -20,7 +20,28 @@ async function fetcher(endpoint: string, options: RequestInit = {}) {
             return null;
         }
         const error = await response.json().catch(() => ({ message: 'An error occurred' }));
+        console.error(`[API Error] ${response.status} ${endpoint}:`, error);
         throw new Error(error.message || 'API request failed');
+    }
+
+    return response.json();
+}
+
+async function uploadFetcher(endpoint: string, formData: FormData) {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('evolution_auth_token') : null;
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'An error occurred' }));
+        throw new Error(error.message || 'Upload failed');
     }
 
     return response.json();
@@ -50,6 +71,11 @@ export const api = {
     deleteProduct: (id: string) => fetcher(`/products/${id}`, {
         method: 'DELETE',
     }),
+    uploadProductImage: (id: string, file: File) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        return uploadFetcher(`/products/${id}/image`, formData);
+    },
 
 
     // Transfers
@@ -69,6 +95,11 @@ export const api = {
     createUser: (data: any) => fetcher('/users', { method: 'POST', body: JSON.stringify(data) }),
     updateUser: (id: string, data: any) => fetcher(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     toggleUserActive: (id: string, isActive: boolean) => fetcher(`/users/${id}/toggle`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
+    uploadUserAvatar: (id: string, file: File) => {
+        const formData = new FormData();
+        formData.append('avatar', file);
+        return uploadFetcher(`/users/${id}/avatar`, formData);
+    },
 
     // Suppliers
     getSuppliers: async () => {
@@ -129,11 +160,19 @@ export const api = {
         const query = new URLSearchParams(filters).toString();
         const path = `/clients${query ? `?${query}` : ''}`;
         const clients = await fetcher(path);
-        return clients.map((c: any) => ({ ...c, id: c._id }));
+        return clients.map((c: any) => ({
+            ...c,
+            id: c._id,
+            creditAvailable: c.creditAvailable ?? ((c.creditLimit ?? 0) - (c.currentBalance ?? 0))
+        }));
     },
     getClientById: async (id: string) => {
         const c = await fetcher(`/clients/${id}`);
-        return { ...c, id: c._id };
+        return {
+            ...c,
+            id: c._id,
+            creditAvailable: c.creditAvailable ?? ((c.creditLimit ?? 0) - (c.currentBalance ?? 0))
+        };
     },
     createClient: (data: any) => fetcher('/clients', {
         method: 'POST',
@@ -181,11 +220,25 @@ export const api = {
     // Analytics
     getDashboardAnalytics: () => fetcher('/analytics/dashboard'),
 
-    // Warehouses
+    // Warehouses / Sucursales
     getWarehouses: async () => {
         const warehouses = await fetcher('/warehouses');
         return warehouses.map((w: any) => ({ ...w, id: w._id }));
     },
+    createWarehouse: (data: any) => fetcher('/warehouses', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    }),
+    updateWarehouse: (id: string, data: any) => fetcher(`/warehouses/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    }),
+    deleteWarehouse: (id: string) => fetcher(`/warehouses/${id}`, {
+        method: 'DELETE',
+    }),
+    setMainBranch: (id: string) => fetcher(`/warehouses/${id}/set-main`, {
+        method: 'PATCH',
+    }),
 
     // Stock
     getStock: () => fetcher('/stock'),
@@ -221,5 +274,23 @@ export const api = {
     getJournalEntries: () => fetcher('/accounting/entries'),
     createJournalEntry: (data: any) => fetcher('/accounting/entries', { method: 'POST', body: JSON.stringify(data) }),
     seedCOA: () => fetcher('/accounting/seed', { method: 'POST' }),
+
+    // Settings
+    getCommercialParams: () => fetcher('/settings/commercial-params'),
+    updateCommercialParams: (data: any) => fetcher('/settings/commercial-params', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    }),
+    getDocumentNumbering: () => fetcher('/settings/document-numbering'),
+    updateDocumentNumbering: (id: string, data: any) => fetcher(`/settings/document-numbering/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    }),
+
+    // Auth
+    logout: () => fetcher('/auth/logout', { method: 'POST' }),
+    getSessions: () => fetcher('/auth/sessions'),
+    logoutAll: () => fetcher('/auth/logout-all', { method: 'POST' }),
+    me: () => fetcher('/auth/me'),
 };
 

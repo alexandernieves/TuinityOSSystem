@@ -20,6 +20,11 @@ export class WarehousesController {
         return this.warehousesService.create(createWarehouseDto);
     }
 
+    @Patch(':id/set-main')
+    setMain(@Param('id') id: string) {
+        return this.warehousesService.setMainBranch(id);
+    }
+
     @Patch(':id')
     update(@Param('id') id: string, @Body() updateWarehouseDto: any) {
         return this.warehousesService.update(id, updateWarehouseDto);

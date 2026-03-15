@@ -54,7 +54,6 @@ const NAV_ITEMS: NavItem[] = [
     href: '/compras',
     icon: <ShoppingCart className="h-5 w-5" />,
     permission: 'canAccessCompras',
-    badge: 5,
   },
   {
     label: 'Inventario',
@@ -141,13 +140,14 @@ export function Sidebar() {
     }
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setIsLogoutModalOpen(false);
-    logout();
-    toast.success('Sesión cerrada', {
-      description: 'Has cerrado sesión exitosamente.'
+
+    toast.promise(logout(), {
+      loading: 'Cerrando sesión...',
+      success: 'Sesión cerrada con éxito',
+      error: 'Error al cerrar sesión',
     });
-    router.push('/login');
   };
 
   // On mobile, show sidebar as overlay when isMobileOpen

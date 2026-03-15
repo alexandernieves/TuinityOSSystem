@@ -7,14 +7,14 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { KeyboardShortcuts } from '@/components/ui/keyboard-shortcuts';
-import { ChatWidget } from '@/components/chat';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { SidebarProvider, useSidebar } from '@/lib/contexts/sidebar-context';
-import { Spinner } from '@heroui/react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
+
+import { LoadingScreen } from '@/components/ui/loading-screen';
 
 function DashboardContent({ children }: DashboardLayoutProps) {
   const router = useRouter();
@@ -30,14 +30,7 @@ function DashboardContent({ children }: DashboardLayoutProps) {
 
   // Show loading state while checking auth
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <Spinner size="lg" color="primary" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // Don't render dashboard if not authenticated
@@ -83,7 +76,6 @@ function DashboardContent({ children }: DashboardLayoutProps) {
 
       {/* Keyboard Shortcuts & Global Widgets */}
       <KeyboardShortcuts />
-      <ChatWidget />
     </div>
   );
 }

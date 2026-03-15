@@ -214,25 +214,164 @@ pre,
 }
 
 /* ═══════════════════════════════════════════════
-   SCROLLBAR STYLING
+   SCROLLBAR STYLING — Minimalist & Transparent
    ═══════════════════════════════════════════════ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 2px;
+  height: 2px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface-secondary);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--brand-300);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+  transition: background 0.3s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-400);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════
+   FORM ELEMENTS — CLEAN & SHOPIFY STYLE
+   ═══════════════════════════════════════════════ */
+
+/* Remove ALL shadows and glows from Form Elements — EXTREMELY STRICT */
+[data-slot="input-wrapper"],
+[data-slot="input-wrapper"] *,
+[data-slot="inner-wrapper"],
+[data-slot="trigger"],
+[data-slot="main-wrapper"],
+[data-slot="base"],
+.heroui-input-wrapper,
+.rounded-xl,
+.rounded-lg,
+.rounded-2xl,
+.card,
+.shadow-sm,
+.shadow-md,
+.shadow-lg {
+  box-shadow: none !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+}
+
+/* Ensure Input Wrappers look like Shopify (clean border, no shadow) */
+[data-slot="input-wrapper"],
+[data-slot="trigger"],
+[data-slot="base"][variant="flat"] [data-slot="input-wrapper"] {
+  background-color: #FFFFFF !important;
+  border: 1px solid #D1D5DB !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  opacity: 1 !important;
+}
+
+.dark [data-slot="input-wrapper"],
+.dark [data-slot="trigger"],
+.dark [data-slot="base"][variant="flat"] [data-slot="input-wrapper"] {
+  background-color: #111111 !important;
+  border: 1px solid #333 !important;
+}
+
+/* Fix Label Overlap for GOOD */
+[data-slot="label"] {
+  position: relative !important;
+  transform: none !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  font-size: 0.875rem !important;
+  z-index: 1 !important;
+}
+
+.dark [data-slot="label"] {
+  color: #D1D5DB !important;
+}
+
+/* Force content to not overlap even if placement is 'inside' */
+[data-slot="base"][data-label-placement="inside"] [data-slot="input-wrapper"],
+[data-slot="base"][data-label-placement="inside"] [data-slot="trigger"] {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 8px 12px !important;
+  height: auto !important;
+  min-height: 3.5rem !important;
+}
+
+[data-slot="input"],
+[data-slot="value"] {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+
+/* ═══════════════════════════════════════════════
+   BUTTONS — SHOPIFY PREMIUM STYLE
+   ═══════════════════════════════════════════════ */
+
+/* Universal Shopify button style */
+[data-slot="base"][class*="Button"],
+button:not([class*="select"]):not([class*="dropdown"]):not(.h-9.w-9) {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Success Buttons (like the one in the screenshot) */
+[data-slot="base"].bg-success,
+.shopify-btn-success {
+  background-color: #008060 !important;
+  /* Shopify Green */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -2.5px 0 rgba(0, 0, 0, 0.2) !important;
+  color: white !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Primary/Brand buttons */
+[data-slot="base"].bg-primary,
+[data-slot="base"].bg-brand-700,
+.shopify-btn-primary {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -2.5px 0 rgba(0, 0, 0, 0.3) !important;
+  color: white !important;
+}
+
+[data-slot="base"].bg-primary:active,
+[data-slot="base"].bg-brand-700:active {
+  transform: translateY(1px) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, inset 0 1px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Secondary / Ghost buttons */
+[data-slot="base"].bg-secondary,
+[data-slot="base"][variant="flat"],
+[data-slot="base"][variant="bordered"] {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
+  border: none !important;
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1008,7 +1147,7 @@ div[role="menuitem"]:hover,
 /* HeroUI Input focus - uses border color change instead of outline */
 [data-slot="input-wrapper"]:focus-within {
   border-color: var(--brand-400) !important;
-  box-shadow: 0 0 0 1px var(--brand-400) !important;
+  box-shadow: 0 0 0 1px var(--brand-400), 0 0 0 4px rgba(58, 90, 140, 0.1) !important;
 }
 
 /* Remove focus ring from native inputs inside HeroUI wrappers */

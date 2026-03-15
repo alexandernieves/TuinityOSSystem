@@ -49,7 +49,7 @@ import { getCreditStatus } from '@/lib/mock-data/clients';
 import { api } from '@/lib/services/api';
 import { Loader2 } from 'lucide-react';
 import type { SalesOrder, SalesOrderStatus, DocumentType } from '@/lib/types/sales-order';
-import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS } from '@/lib/types/sales-order';
+import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS, normalizeStatus } from '@/lib/types/sales-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { SkeletonTable } from '@/components/ui/skeleton-table';
@@ -110,24 +110,26 @@ export default function VentasPage() {
 
   // Stats (Simplified for now based on local data)
   const stats = useMemo(() => {
-    const pendingQuotes = salesOrders.filter(o => o.status === 'cotizado').length;
-    const pendingApproval = salesOrders.filter(o => o.status === 'pedido').length;
-    const readyToPack = salesOrders.filter(o => o.status === 'aprobado').length;
-    const readyToInvoice = salesOrders.filter(o => o.status === 'empacado').length;
-    const salesValueThisMonth = salesOrders
+    const normalizedOrders = salesOrders.map(o => ({ ...o, status: normalizeStatus(o.status) }));
+
+    const pendingQuotes = normalizedOrders.filter(o => o.status === 'cotizado').length;
+    const pendingApproval = normalizedOrders.filter(o => o.status === 'pedido').length;
+    const readyToPack = normalizedOrders.filter(o => o.status === 'aprobado').length;
+    const readyToInvoice = normalizedOrders.filter(o => o.status === 'empacado').length;
+    const salesValueThisMonth = normalizedOrders
       .filter(o => o.status === 'facturado')
       .reduce((sum, o) => sum + (o.total || 0), 0);
 
-    const pipelineValue = salesOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const pipelineValue = normalizedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
-    const byStatus = {
-      borrador: salesOrders.filter(o => o.status === 'borrador').length,
+    const byStatus: Record<string, number> = {
+      borrador: normalizedOrders.filter(o => o.status === 'borrador').length,
       cotizado: pendingQuotes,
       pedido: pendingApproval,
       aprobado: readyToPack,
       empacado: readyToInvoice,
-      facturado: salesOrders.filter(o => o.status === 'facturado').length,
-      cancelado: salesOrders.filter(o => o.status === 'cancelado').length,
+      facturado: normalizedOrders.filter(o => o.status === 'facturado').length,
+      cancelado: normalizedOrders.filter(o => o.status === 'cancelado').length,
     };
 
     return {
@@ -345,7 +347,7 @@ export default function VentasPage() {
         <div className="flex items-center gap-0.5 overflow-x-auto pb-1 sm:gap-1">
           {PIPELINE_STAGES.map((stage, index) => {
             const count = stats.byStatus[stage.status];
-            const config = STATUS_CONFIG[stage.status];
+            const config = STATUS_CONFIG[stage.status] || STATUS_CONFIG.borrador;
             const isActive = statusFilter === stage.status;
 
             return (
@@ -426,7 +428,7 @@ export default function VentasPage() {
                 size="sm"
                 className="gap-2"
               >
-                {statusFilter !== 'all' ? STATUS_CONFIG[statusFilter].label : 'Estado'}
+                {statusFilter !== 'all' ? (STATUS_CONFIG[statusFilter]?.label || statusFilter) : 'Estado'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownTrigger>
@@ -578,11 +580,11 @@ export default function VentasPage() {
                     <div className="flex justify-center">
                       <span className={cn(
                         'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                        STATUS_CONFIG[order.status as SalesOrderStatus].bg,
-                        STATUS_CONFIG[order.status as SalesOrderStatus].text
+                        STATUS_CONFIG[order.status]?.bg || 'bg-gray-100',
+                        STATUS_CONFIG[order.status]?.text || 'text-gray-700'
                       )}>
-                        <span className={cn('mr-1.5 h-1.5 w-1.5 rounded-full', STATUS_CONFIG[order.status as SalesOrderStatus].dot)} />
-                        {STATUS_CONFIG[order.status as SalesOrderStatus].label}
+                        <span className={cn('mr-1.5 h-1.5 w-1.5 rounded-full', STATUS_CONFIG[order.status]?.dot || 'bg-gray-500')} />
+                        {STATUS_CONFIG[order.status]?.label || order.status}
                       </span>
                     </div>
                   </td>

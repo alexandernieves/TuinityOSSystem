@@ -55,13 +55,19 @@ export function Header() {
     setIsLogoutModalOpen(true);
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setIsLogoutModalOpen(false);
-    logout();
-    toast.success('Sesión cerrada', {
-      description: 'Has cerrado sesión exitosamente.'
+    const toastId = toast.loading('Cerrando sesión...', {
+      description: 'Por favor, espera un momento.'
     });
-    router.push('/login');
+
+    try {
+      await logout();
+      toast.success('Sesión cerrada exitosamente', { id: toastId });
+      router.push('/login');
+    } catch {
+      toast.error('Error al cerrar sesión', { id: toastId });
+    }
   };
 
   return (
@@ -125,6 +131,7 @@ export function Header() {
                 <button className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[#2a2a2a]">
                   <Avatar
                     name={user.name}
+                    src={user.avatar}
                     size="sm"
                     classNames={{
                       base: 'h-7 w-7 bg-emerald-600 text-white text-xs',
@@ -141,12 +148,14 @@ export function Header() {
                 <DropdownItem
                   key="profile"
                   startContent={<User className="h-4 w-4" />}
+                  onPress={() => router.push('/perfil')}
                 >
                   Mi Perfil
                 </DropdownItem>
                 <DropdownItem
                   key="settings"
                   startContent={<Settings className="h-4 w-4" />}
+                  onPress={() => router.push('/configuracion')}
                 >
                   Configuración
                 </DropdownItem>

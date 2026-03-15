@@ -10,6 +10,7 @@ import { PRODUCT_GROUPS } from "@/lib/mock-data/products";
 import { api } from "@/lib/services/api";
 import { MOCK_SUPPLIERS } from "@/lib/mock-data/purchase-orders";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
+import { cn } from "@/lib/utils/cn";
 
 export default function EditarProductoPage() {
   const params = useParams();
@@ -19,6 +20,8 @@ export default function EditarProductoPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -50,6 +53,7 @@ export default function EditarProductoPage() {
           costCIF: data.costCIF?.toString() || "",
           status: data.status === "active",
         });
+        setImagePreview(data.image || null);
       } catch (err: any) {
         toast.error("Error al cargar producto");
       } finally {
@@ -140,404 +144,386 @@ export default function EditarProductoPage() {
     }
   };
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview local
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setUploadingImage(true);
+    try {
+      const response = await api.uploadProductImage(productId, file);
+      toast.success("Imagen subida correctamente");
+      setImagePreview(response.image); // URL de S3
+    } catch (err: any) {
+      toast.error("Error al subir imagen");
+      console.error(err);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const inputClasses = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]";
+  const labelClasses = "block text-[13px] text-[#1a1a1a] mb-1.5";
+  const sectionTitleClasses = "text-[11px] text-[#1a1a1a] mb-4 border-l-4 border-[#ff6f00] pl-2 font-[700] tracking-[0.5px] uppercase";
+
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => router.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a] hover:text-gray-700 dark:hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#c9cccf] bg-white text-[#1a1a1a] transition-all hover:bg-[#f6f6f7] shadow-sm"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900">
-            <Package className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Editar Producto
-            </h1>
-            <p className="font-mono text-sm text-gray-500 dark:text-[#888888]">
-              {product.reference}
-            </p>
-          </div>
+        <div className="flex items-center gap-2">
+          <Package className="h-5 w-5 text-[#1a1a1a]" />
+          <h1 className="text-[20px] font-bold text-[#1a1a1a] tracking-tight">
+            Editar producto
+          </h1>
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-        <div className="p-6">
-          <div className="space-y-6">
-            {/* Main Info */}
-            <div className="flex gap-4">
-              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-brand-400 cursor-pointer">
-                <ImagePlus className="h-6 w-6 text-gray-400" />
-                <span className="text-[10px] text-gray-500 mt-1">Imagen</span>
-              </div>
-              <div className="flex-1 space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Descripción <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="WHISKY JOHNNIE WALKER BLACK 12YRS 750ML"
-                    value={formData.description}
-                    onChange={(e) =>
-                      handleFormChange("description", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Marca <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      placeholder="JOHNNIE WALKER"
-                      value={formData.brand}
-                      onChange={(e) =>
-                        handleFormChange("brand", e.target.value)
-                      }
-                      variant="bordered"
-                      classNames={{
-                        inputWrapper: "bg-white dark:bg-[#1a1a1a]",
-                      }}
+      <div className="bg-white rounded-[12px] border border-[#e1e3e5] shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
+        <div className="p-8">
+          {/* SECCIÓN 1: Información Principal con Imagen */}
+          <div className="flex flex-col md:flex-row gap-8 mb-8">
+            {/* Imagen del Producto */}
+            <div className="shrink-0">
+              <label className={labelClasses} style={{ fontWeight: 600 }}>
+                Imagen del Producto
+              </label>
+              <div 
+                onClick={() => document.getElementById("image-upload")?.click()}
+                className="group relative flex h-40 w-40 flex-col items-center justify-center overflow-hidden rounded-[12px] border border-[#c9cccf] bg-[#f6f6f7] transition-all hover:border-[#8c9196] cursor-pointer shadow-sm"
+              >
+                {imagePreview ? (
+                  <>
+                    <img 
+                      src={imagePreview} 
+                      alt="Product" 
+                      className="h-full w-full object-cover" 
                     />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <ImagePlus className="h-6 w-6 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="h-6 w-6 text-[#8c9196] mb-2" />
+                    <span className="text-[12px] font-medium text-[#8c9196]">Añadir imagen</span>
+                  </>
+                )}
+                {uploadingImage && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#008060] border-t-transparent" />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Categoría <span className="text-red-500">*</span>
-                    </label>
-                    <Select
-                      placeholder="Seleccionar"
-                      selectedKeys={formData.group ? [formData.group] : []}
-                      onChange={(e) =>
-                        handleFormChange("group", e.target.value)
-                      }
-                      variant="bordered"
-                      classNames={{ trigger: "bg-white dark:bg-[#1a1a1a]" }}
-                    >
-                      {PRODUCT_GROUPS.map((group) => (
-                        <SelectItem key={group.id}>{group.label}</SelectItem>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
+                )}
               </div>
+              <input 
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageChange}
+              />
             </div>
 
-            {/* Identification */}
-            <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Identificación
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Referencia
-                  </label>
-                  <Input
-                    placeholder="EVL-00001"
-                    value={formData.reference}
-                    onChange={(e) =>
-                      handleFormChange("reference", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Código de barras
-                  </label>
-                  <Input
-                    placeholder="7501050439022"
-                    value={formData.barcode}
-                    onChange={(e) =>
-                      handleFormChange("barcode", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Cod. arancelario
-                  </label>
-                  <Input
-                    placeholder="2208.30.00"
-                    value={formData.tariffCode}
-                    onChange={(e) =>
-                      handleFormChange("tariffCode", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Supplier & Unit */}
-            <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Proveedor y Unidad
-              </h3>
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Proveedor <span className="text-red-500">*</span>
-                  </label>
-                  <Select
-                    placeholder="Seleccionar"
-                    selectedKeys={formData.supplier ? [formData.supplier] : []}
-                    onChange={(e) =>
-                      handleFormChange("supplier", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ trigger: "bg-white dark:bg-[#1a1a1a]" }}
-                  >
-                    {MOCK_SUPPLIERS.map((supplier) => (
-                      <SelectItem key={supplier.id}>{supplier.name}</SelectItem>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    País de origen
-                  </label>
-                  <Input
-                    placeholder="ESCOCIA"
-                    value={formData.country}
-                    onChange={(e) =>
-                      handleFormChange("country", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Unidad
-                  </label>
-                  <Select
-                    selectedKeys={[formData.unit]}
-                    onChange={(e) => handleFormChange("unit", e.target.value)}
-                    variant="bordered"
-                    classNames={{ trigger: "bg-white dark:bg-[#1a1a1a]" }}
-                  >
-                    <SelectItem key="CJA">Caja</SelectItem>
-                    <SelectItem key="UND">Unidad</SelectItem>
-                    <SelectItem key="BOT">Botella</SelectItem>
-                    <SelectItem key="PAQ">Paquete</SelectItem>
-                  </Select>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Unidades por caja
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="12"
-                    value={formData.unitsPerCase}
-                    onChange={(e) =>
-                      handleFormChange("unitsPerCase", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Cantidad mínima de pedido
-                </label>
-                <Input
-                  type="number"
-                  placeholder="10"
-                  value={formData.minimumQty}
-                  onChange={(e) =>
-                    handleFormChange("minimumQty", e.target.value)
-                  }
-                  variant="bordered"
-                  className="max-w-xs"
-                  classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                />
-              </div>
-            </div>
-
-            {/* Prices Section */}
-            <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Precios por nivel de cliente
-              </h3>
-              <div className="grid grid-cols-5 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    A (Mayor)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceA}
-                    onChange={(e) => handleFormChange("priceA", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    B (Distr)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceB}
-                    onChange={(e) => handleFormChange("priceB", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    C (Detal)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceC}
-                    onChange={(e) => handleFormChange("priceC", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    D (Espec)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceD}
-                    onChange={(e) => handleFormChange("priceD", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    E (Públ)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceE}
-                    onChange={(e) => handleFormChange("priceE", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Costs Section */}
-            <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Costos
-              </h3>
-              <div className="grid grid-cols-2 gap-4 max-w-md">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Costo FOB
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.costFOB}
-                    onChange={(e) =>
-                      handleFormChange("costFOB", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Costo CIF
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.costCIF}
-                    onChange={(e) =>
-                      handleFormChange("costCIF", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-4">
+            <div className="flex-1 space-y-4">
+              {/* Descripción */}
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Estado del producto
-                </p>
-                <p className="text-xs text-gray-500 dark:text-[#888888]">
-                  Productos inactivos no aparecen en ventas
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={formData.status}
-                  onCheckedChange={(value) => handleFormChange("status", value)}
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Descripción del Producto *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: WHISKY JOHNNIE WALKER BLACK 12YRS 750ML"
+                  value={formData.description}
+                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  className={inputClasses}
                 />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {formData.status ? "Activo" : "Inactivo"}
-                </span>
+              </div>
+
+              {/* Marca y Categoría */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClasses} style={{ fontWeight: 600 }}>
+                    Marca *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: JOHNNIE WALKER"
+                    value={formData.brand}
+                    onChange={(e) => handleFormChange("brand", e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+                <div>
+                  <label className={labelClasses} style={{ fontWeight: 600 }}>
+                    Categoría *
+                  </label>
+                  <select
+                    value={formData.group}
+                    onChange={(e) => handleFormChange("group", e.target.value)}
+                    className="w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                  >
+                    <option value="">Seleccionar</option>
+                    {PRODUCT_GROUPS.map((group) => (
+                      <option key={group.id} value={group.id}>{group.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 dark:border-[#2a2a2a] px-6 py-4">
-          <Button variant="light" onPress={() => router.back()}>
-            Cancelar
-          </Button>
-          <Button
-            color="primary"
-            onPress={handleSaveProduct}
-            isLoading={saving}
-            className="bg-brand-600"
-          >
-            {saving ? "Guardando..." : "Guardar Cambios"}
-          </Button>
+          {/* SECCIÓN 2: IDENTIFICACIÓN TÉCNICA */}
+          <div className="mb-6">
+            <h2 className={sectionTitleClasses}>
+              IDENTIFICACIÓN TÉCNICA
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Referencia Interna
+                </label>
+                <input
+                  type="text"
+                  value={formData.reference}
+                  onChange={(e) => handleFormChange("reference", e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Código de Barras
+                </label>
+                <input
+                  type="text"
+                  value={formData.barcode}
+                  onChange={(e) => handleFormChange("barcode", e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Posición Arancelaria
+                </label>
+                <input
+                  type="text"
+                  value={formData.tariffCode}
+                  onChange={(e) => handleFormChange("tariffCode", e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN 3: PROVEEDOR Y LOGÍSTICA */}
+          <div className="mb-6">
+            <h2 className={sectionTitleClasses}>
+              PROVEEDOR Y LOGÍSTICA
+            </h2>
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Proveedor *
+                </label>
+                <select
+                  value={formData.supplier}
+                  onChange={(e) => handleFormChange("supplier", e.target.value)}
+                  className="w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                >
+                  <option value="">Seleccionar</option>
+                  {MOCK_SUPPLIERS.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  País de Origen
+                </label>
+                <input
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => handleFormChange("country", e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Empaque / Unidad
+                </label>
+                <select
+                  value={formData.unit}
+                  onChange={(e) => handleFormChange("unit", e.target.value)}
+                  className="w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                >
+                  <option value="CJA">Caja</option>
+                  <option value="UND">Unidad</option>
+                  <option value="BOT">Botella</option>
+                  <option value="PAQ">Paquete</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Unidades por Caja
+                </label>
+                <input
+                  type="number"
+                  value={formData.unitsPerCase}
+                  onChange={(e) => handleFormChange("unitsPerCase", e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+            </div>
+            <div className="max-w-xs">
+              <label className={labelClasses} style={{ fontWeight: 600 }}>
+                Cantidad Mínima Requerida
+              </label>
+              <input
+                type="number"
+                value={formData.minimumQty}
+                onChange={(e) => handleFormChange("minimumQty", e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+          </div>
+
+          {/* SECCIÓN 4: NIVELES DE VENTA (PRECIOS) */}
+          <div className="mb-6">
+            <h2 className={sectionTitleClasses}>
+              NIVELES DE VENTA (PRECIOS)
+            </h2>
+            <div className="grid grid-cols-5 gap-4">
+              {[
+                { label: "Nivel A (Mayor)", field: "priceA" },
+                { label: "Nivel B (Distr)", field: "priceB" },
+                { label: "Nivel C (Detal)", field: "priceC" },
+                { label: "Nivel D (Espec)", field: "priceD" },
+                { label: "Nivel E (Pial)", field: "priceE" },
+              ].map((price) => (
+                <div key={price.field}>
+                  <label className={labelClasses} style={{ fontWeight: 600 }}>
+                    {price.label}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-[7px] text-[13px] text-[#008060]" style={{ fontWeight: 600 }}>$</span>
+                    <input
+                      type="number"
+                      value={formData[price.field]}
+                      onChange={(e) => handleFormChange(price.field, e.target.value)}
+                      className="w-full pl-6 pr-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SECCIÓN 5: GESTIÓN DE COSTOS */}
+          <div className="mb-6">
+            <h2 className={sectionTitleClasses}>
+              GESTIÓN DE COSTOS
+            </h2>
+            <div className="grid grid-cols-2 gap-4 max-w-md">
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Costo FOB Operativo
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-[7px] text-[13px] text-[#008060]" style={{ fontWeight: 600 }}>$</span>
+                  <input
+                    type="number"
+                    value={formData.costFOB}
+                    onChange={(e) => handleFormChange("costFOB", e.target.value)}
+                    className="w-full pl-6 pr-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={labelClasses} style={{ fontWeight: 600 }}>
+                  Costo CIF Proyectado
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-[7px] text-[13px] text-[#008060]" style={{ fontWeight: 600 }}>$</span>
+                  <input
+                    type="number"
+                    value={formData.costCIF}
+                    onChange={(e) => handleFormChange("costCIF", e.target.value)}
+                    className="w-full pl-6 pr-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN 6: TOGGLE SWITCH */}
+          <div className="mb-8 bg-white rounded-[12px] p-4 shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08)]">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={cn("w-2 h-2 rounded-full", formData.status ? "bg-[#008060]" : "bg-[#6d7175]")}></div>
+                  <h3 className="text-[13px] text-[#1a1a1a]" style={{ fontWeight: 600 }}>
+                    Visibilidad y Estado del Producto
+                  </h3>
+                </div>
+                <p className="text-[13px] text-[#6d7175] leading-relaxed">
+                  Al desactivar este producto, dejará de estar disponible para nuevos pedidos, facturas y proformas. Los datos históricos y reportes previos permanecerán intactos.
+                </p>
+              </div>
+              <div className="ml-4 flex items-center gap-2">
+                <span className="text-[11px] text-[#6d7175]" style={{ fontWeight: 600 }}>
+                  {formData.status ? "SISTEMA ACTIVO" : "SISTEMA INACTIVO"}
+                </span>
+                <button 
+                  onClick={() => handleFormChange("status", !formData.status)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    formData.status ? "bg-[#008060]" : "bg-[#c9cccf]"
+                  )}
+                >
+                  <span className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    formData.status ? "translate-x-6" : "translate-x-1"
+                  )}></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* BOTONES DE ACCIÓN */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#e1e3e5]">
+            <button 
+              onClick={() => router.back()}
+              className="px-4 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[#1a1a1a] text-[13px] hover:bg-[#f6f6f7] transition-colors shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+              style={{ fontWeight: 600 }}
+            >
+              Cancelar trámite
+            </button>
+            <button
+              onClick={handleSaveProduct}
+              disabled={saving}
+              className="px-4 py-[7px] rounded-[8px] bg-[#2c5282] text-white text-[13px] hover:bg-[#1e3a5f] transition-colors shadow-[0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] flex items-center gap-2 disabled:opacity-50"
+              style={{ fontWeight: 600 }}
+            >
+              {saving ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 2v12M2 8h12"/>
+                </svg>
+              )}
+              Actualizar inventario
+            </button>
+          </div>
         </div>
       </div>
     </div>

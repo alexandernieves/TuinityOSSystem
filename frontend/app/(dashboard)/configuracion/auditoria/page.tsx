@@ -31,9 +31,6 @@ import {
   getAuditLog,
   getAuditLogData,
   subscribeAuditLog,
-  getActiveSessionsData,
-  subscribeActiveSessions,
-  removeActiveSession,
   getSecurityPoliciesData,
   subscribeSecurityPolicies,
   updateSecurityPolicies,
@@ -42,8 +39,10 @@ import {
   AUDIT_ACTION_LABELS,
   AUDIT_ACTION_COLORS,
 } from '@/lib/types/configuration';
-import type { AuditAction, AuditLogEntry } from '@/lib/types/configuration';
+import type { AuditAction, AuditLogEntry, ActiveSession } from '@/lib/types/configuration';
 import { ROLE_LABELS } from '@/lib/constants/roles';
+import { api } from '@/lib/services/api';
+import { useEffect } from 'react';
 
 const TABS = [
   { id: 'log', label: 'Log de Auditoría' },
@@ -59,12 +58,42 @@ const ACTIONS: { value: AuditAction; label: string }[] = Object.entries(AUDIT_AC
 
 export default function AuditoriaPage() {
   const router = useRouter();
-  const { checkPermission } = useAuth();
+  const { checkPermission, user: currentUser } = useAuth();
   const canViewAuditLog = checkPermission('canViewAuditLog');
 
   const auditLogAll = useStore(subscribeAuditLog, getAuditLogData);
-  const activeSessions = useStore(subscribeActiveSessions, getActiveSessionsData);
   const securityPolicies = useStore(subscribeSecurityPolicies, getSecurityPoliciesData);
+
+  const [realActiveSessions, setRealActiveSessions] = useState<ActiveSession[]>([]);
+  const [activeTab, setActiveTab] = useState<TabId>('log');
+
+  const fetchSessions = async () => {
+    try {
+      const sessions = await api.getSessions();
+      if (sessions) {
+        setRealActiveSessions(sessions.map((s: any) => ({
+          id: s._id,
+          userId: s.userId?._id || s.userId,
+          userName: s.userId?.name || 'Usuario desconocido',
+          userRole: s.userId?.role || 'vendedor',
+          loginAt: s.loginAt,
+          lastActivity: s.lastActivity,
+          ipAddress: s.ipAddress,
+          browser: s.userAgent || 'Desconocido',
+          isCurrent: s._id === (currentUser as any)?.sessionId || false // we might need to store sessionId in user object
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      toast.error('Error al cargar sesiones');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'sesiones') {
+      fetchSessions();
+    }
+  }, [activeTab]);
 
   // Derived unique modules/users from the store-backed audit log
   const UNIQUE_MODULES = useMemo(() => [...new Set(auditLogAll.map((e) => e.module))].map((m) => ({
@@ -76,8 +105,6 @@ export default function AuditoriaPage() {
     value: id,
     label: auditLogAll.find((e) => e.userId === id)?.userName || id,
   })), [auditLogAll]);
-
-  const [activeTab, setActiveTab] = useState<TabId>('log');
 
   // Audit log filters
   const [filterUser, setFilterUser] = useState('');
@@ -97,11 +124,30 @@ export default function AuditoriaPage() {
     });
   }, [filterUser, filterModule, filterAction]);
 
-  const handleCloseSession = (sessionId: string, userName: string) => {
-    removeActiveSession(sessionId);
-    toast.success('Sesión cerrada', {
-      description: `Se ha cerrado la sesión de ${userName}`,
-    });
+  const handleCloseSession = async (sessionId: string, userName: string) => {
+    try {
+      // If we had a specific endpoint to close OTHER sessions:
+      // await api.closeSession(sessionId);
+      // For now, let's assume we use a logout-like endpoint for specific session if needed,
+      // or just hit a new endpoint I should add.
+      // I'll use the existing logout logic but it's for current session.
+      // Let's add a specific 'close session' endpoint in backend if we want to manage others.
+
+      // I'll call a generic endpoint I promised in API:
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout/${sessionId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('evolution_auth_token')}`
+        }
+      });
+
+      await fetchSessions();
+      toast.success('Sesión cerrada', {
+        description: `Se ha cerrado la sesión de ${userName}`,
+      });
+    } catch (error) {
+      toast.error('Error al cerrar sesión');
+    }
   };
 
   const handleSavePolicies = () => {
@@ -345,7 +391,7 @@ export default function AuditoriaPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                    {activeSessions.map((session, index) => (
+                    {realActiveSessions.map((session, index) => (
                       <motion.tr
                         key={session.id}
                         initial={{ opacity: 0 }}

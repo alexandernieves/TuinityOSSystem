@@ -12,10 +12,10 @@ export type SalesOrderStatus =
   | 'borrador'      // Draft - being created
   | 'cotizado'      // Quote sent to customer
   | 'pedido'        // Order confirmed by customer
-  | 'aprobado'      // Approved by gerencia
+  | 'aprobado' | 'aprobada'       // Approved by gerencia
   | 'empacado'      // Packed by bodega
-  | 'facturado'     // Invoiced
-  | 'cancelado';    // Cancelled
+  | 'facturado' | 'facturada'     // Invoiced
+  | 'cancelado' | 'cancelada';    // Cancelled
 
 // Document type
 export type DocumentType = 'cotizacion' | 'pedido' | 'factura';
@@ -343,8 +343,20 @@ export interface SalesOrderFilters {
   priceLevel?: PriceLevel | 'all';
 }
 
+// Backend status variations normalization map
+export const normalizeStatus = (status: string): SalesOrderStatus => {
+  const s = status?.toLowerCase();
+  if (s === 'facturada') return 'facturado';
+  if (s === 'aprobada') return 'aprobado';
+  if (s === 'cancelada') return 'cancelado';
+  if (s === 'empaque') return 'empacado';
+  if (s === 'despachada') return 'facturado'; // Fallback for despachada
+  if (s === 'pendiente') return 'pedido';
+  return s as SalesOrderStatus;
+};
+
 // Status configuration for UI
-export const STATUS_CONFIG: Record<SalesOrderStatus, {
+export const STATUS_CONFIG: Record<string, {
   bg: string;
   text: string;
   dot: string;
@@ -375,7 +387,19 @@ export const STATUS_CONFIG: Record<SalesOrderStatus, {
     dot: 'bg-emerald-500',
     label: 'Aprobado',
   },
+  aprobada: {
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    dot: 'bg-emerald-500',
+    label: 'Aprobado',
+  },
   empacado: {
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    dot: 'bg-amber-500',
+    label: 'Empacado',
+  },
+  empaque: {
     bg: 'bg-amber-50',
     text: 'text-amber-700',
     dot: 'bg-amber-500',
@@ -387,11 +411,35 @@ export const STATUS_CONFIG: Record<SalesOrderStatus, {
     dot: 'bg-teal-500',
     label: 'Facturado',
   },
+  facturada: {
+    bg: 'bg-teal-50',
+    text: 'text-teal-700',
+    dot: 'bg-teal-500',
+    label: 'Facturado',
+  },
   cancelado: {
     bg: 'bg-red-50',
     text: 'text-red-700',
     dot: 'bg-red-500',
     label: 'Cancelado',
+  },
+  cancelada: {
+    bg: 'bg-red-50',
+    text: 'text-red-700',
+    dot: 'bg-red-500',
+    label: 'Cancelado',
+  },
+  despachada: {
+    bg: 'bg-teal-50',
+    text: 'text-teal-700',
+    dot: 'bg-teal-500',
+    label: 'Despachado',
+  },
+  pendiente: {
+    bg: 'bg-purple-50',
+    text: 'text-purple-700',
+    dot: 'bg-purple-500',
+    label: 'Pendiente',
   },
 };
 

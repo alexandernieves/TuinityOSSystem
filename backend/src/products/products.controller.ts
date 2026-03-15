@@ -1,11 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { StorageService } from '../storage/storage.service';
 
 @Controller('products')
 @UseGuards(JwtAuthGuard)
 export class ProductsController {
-    constructor(private readonly productsService: ProductsService) { }
+    constructor(
+        private readonly productsService: ProductsService,
+        private readonly storageService: StorageService
+    ) { }
 
     @Get()
     findAll() {
@@ -35,5 +40,15 @@ export class ProductsController {
     @Delete(':id')
     remove(@Param('id') id: string) {
         return this.productsService.remove(id);
+    }
+
+    @Post(':id/image')
+    @UseInterceptors(FileInterceptor('image'))
+    async uploadImage(
+        @Param('id') id: string,
+        @UploadedFile() file: Express.Multer.File
+    ) {
+        const imageUrl = await this.storageService.uploadFile(file, 'products');
+        return this.productsService.update(id, { image: imageUrl });
     }
 }

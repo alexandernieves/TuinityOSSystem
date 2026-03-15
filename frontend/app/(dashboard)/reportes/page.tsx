@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { FileDown, FileText, Table, BarChart3, Calendar, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { toast } from 'sonner';
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -66,7 +67,7 @@ export default function ReportsPage() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading report:', error);
-      alert('Error al descargar el reporte. Por favor intente más tarde.');
+      toast.error('Error al descargar el reporte. Por favor intente más tarde.');
     } finally {
       setLoading(null);
     }

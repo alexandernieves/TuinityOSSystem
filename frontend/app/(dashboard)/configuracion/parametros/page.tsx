@@ -1,12 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Button,
-  Input,
-} from '@heroui/react';
+// HeroUI components removed to use standard Polaris-styled elements
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -25,31 +22,50 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/cn';
-import { useStore } from '@/hooks/use-store';
-import {
-  getCommercialParamsData,
-  subscribeCommercialParams,
-  updateCommercialParams,
-  getDocumentNumberingData,
-  subscribeDocumentNumbering,
-  updateDocumentNumbering,
-} from '@/lib/mock-data/configuration';
+import { api } from '@/lib/services/api';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 export default function ParametrosPage() {
   const router = useRouter();
 
-  const commercialParams = useStore(subscribeCommercialParams, getCommercialParamsData);
-  const documentNumbering = useStore(subscribeDocumentNumbering, getDocumentNumberingData);
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+  const labelClass = "block text-[13px] font-semibold text-[#1a1a1a] mb-1.5";
+  const buttonPrimaryClass = "flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#253D6B] text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#1e3156] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+  const buttonSecondaryClass = "px-4 py-2 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors";
+
+  const [commercialParams, setCommercialParams] = useState<any>(null);
+  const [documentNumbering, setDocumentNumbering] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [isOpen, setIsOpen] = useState(false);
 
   const [expandedSection, setExpandedSection] = useState<string | null>('precios');
-  const [commissionThreshold, setCommissionThreshold] = useState(commercialParams.commissionThreshold.toString());
-  const [taxRate, setTaxRate] = useState(commercialParams.taxRate.toString());
+  const [commissionThreshold, setCommissionThreshold] = useState('10');
+  const [taxRate, setTaxRate] = useState('7');
 
   // Document numbering modal
-  const [editingDoc, setEditingDoc] = useState<(typeof documentNumbering)[0] | null>(null);
+  const [editingDoc, setEditingDoc] = useState<any | null>(null);
   const [docForm, setDocForm] = useState({ prefix: '', paddingLength: '5' });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [params, numbering] = await Promise.all([
+          api.getCommercialParams(),
+          api.getDocumentNumbering()
+        ]);
+        setCommercialParams(params);
+        setDocumentNumbering(numbering);
+        setCommissionThreshold(params?.commissionThreshold?.toString() || '10');
+        setTaxRate(params?.taxRate?.toString() || '7');
+      } catch (error) {
+        toast.error('Error al cargar configuración');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const toggleSection = (id: string) => {
     setExpandedSection(expandedSection === id ? null : id);
@@ -61,25 +77,40 @@ export default function ParametrosPage() {
     setIsOpen(true);
   };
 
-  const handleSaveDoc = () => {
+  const handleSaveDoc = async () => {
     if (editingDoc) {
-      updateDocumentNumbering(editingDoc.id, { prefix: docForm.prefix, paddingLength: parseInt(docForm.paddingLength) || 5 });
+      try {
+        await api.updateDocumentNumbering(editingDoc._id, {
+          prefix: docForm.prefix,
+          paddingLength: parseInt(docForm.paddingLength) || 5
+        });
+        const updatedNumbering = await api.getDocumentNumbering();
+        setDocumentNumbering(updatedNumbering);
+        toast.success('Numeración actualizada', {
+          description: `Se actualizó la numeración de ${editingDoc?.documentLabel}`,
+        });
+        setIsOpen(false);
+      } catch (error) {
+        toast.error('Error al actualizar numeración');
+      }
     }
-    toast.success('Numeración actualizada', {
-      description: `Se actualizó la numeración de ${editingDoc?.documentLabel}`,
-    });
-    setIsOpen(false);
   };
 
-  const handleSaveParams = () => {
-    updateCommercialParams({
-      commissionThreshold: parseFloat(commissionThreshold) || 0,
-      taxRate: parseFloat(taxRate) || 0,
-    });
-    toast.success('Parámetros guardados', {
-      description: 'Los parámetros comerciales se han actualizado correctamente.',
-    });
+  const handleSaveParams = async () => {
+    try {
+      await api.updateCommercialParams({
+        commissionThreshold: parseFloat(commissionThreshold) || 0,
+        taxRate: parseFloat(taxRate) || 0,
+      });
+      toast.success('Parámetros guardados', {
+        description: 'Los parámetros comerciales se han actualizado correctamente.',
+      });
+    } catch (error) {
+      toast.error('Error al guardar parámetros');
+    }
   };
+
+  if (loading) return <SkeletonDashboard />;
 
   const sections = [
     {
@@ -142,7 +173,7 @@ export default function ParametrosPage() {
           </div>
           <button
             onClick={handleSaveParams}
-            className="flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+            className={buttonPrimaryClass}
           >
             <Save className="h-4 w-4" />
             Guardar Todo
@@ -198,7 +229,7 @@ export default function ParametrosPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                              {commercialParams.priceLevels.map((level) => (
+                              {commercialParams?.priceLevels?.map((level: any) => (
                                 <tr key={level.level} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
                                   <td className="px-4 py-3">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500/10 text-sm font-bold text-brand-600">
@@ -239,9 +270,9 @@ export default function ParametrosPage() {
                                 type="number"
                                 value={commissionThreshold}
                                 onChange={(e) => setCommissionThreshold(e.target.value)}
-                                className="h-9 w-20 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-center text-sm font-medium text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                className={cn(inputClass, "w-20 text-center")}
                               />
-                              <span className="text-sm text-gray-500">%</span>
+                              <span className="text-sm text-gray-500 font-medium">%</span>
                             </div>
                           </div>
 
@@ -255,7 +286,7 @@ export default function ParametrosPage() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                                {commercialParams.commissionRates.map((rate) => (
+                                {commercialParams?.commissionRates?.map((rate: any) => (
                                   <tr key={rate.userId} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
                                     <td className="px-4 py-3">
                                       <span className="text-sm font-medium text-gray-900 dark:text-white">{rate.userName}</span>
@@ -265,7 +296,7 @@ export default function ParametrosPage() {
                                         type="number"
                                         step="0.5"
                                         defaultValue={rate.rate}
-                                        className="h-8 w-20 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-center text-sm font-medium text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                        className={cn(inputClass, "w-20 text-center h-8")}
                                       />
                                     </td>
                                     <td className="px-4 py-3 text-center">
@@ -302,8 +333,8 @@ export default function ParametrosPage() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                                {commercialParams.paymentTermsOptions.map((term) => (
-                                  <tr key={term.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
+                                {commercialParams?.paymentTermsOptions?.map((term: any) => (
+                                  <tr key={term.code} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
                                     <td className="px-4 py-3">
                                       <span className="rounded bg-gray-100 dark:bg-[#2a2a2a] px-2 py-0.5 font-mono text-xs text-gray-700 dark:text-gray-300">{term.code}</span>
                                     </td>
@@ -337,16 +368,16 @@ export default function ParametrosPage() {
                                 type="number"
                                 value={taxRate}
                                 onChange={(e) => setTaxRate(e.target.value)}
-                                className="h-9 w-20 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-center text-sm font-medium text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                className={cn(inputClass, "w-20 text-center")}
                               />
-                              <span className="text-sm text-gray-500">%</span>
+                              <span className="text-sm text-gray-500 font-medium">%</span>
                             </div>
                           </div>
 
                           <div>
                             <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Zonas Exentas de Impuesto</h4>
                             <div className="flex flex-wrap gap-2">
-                              {commercialParams.taxExemptZones.map((zone) => (
+                              {commercialParams?.taxExemptZones?.map((zone: string) => (
                                 <span
                                   key={zone}
                                   className="rounded-full bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-600"
@@ -381,8 +412,8 @@ export default function ParametrosPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                              {documentNumbering.map((doc) => (
-                                <tr key={doc.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
+                              {documentNumbering.map((doc: any) => (
+                                <tr key={doc._id} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
                                   <td className="px-4 py-3">
                                     <span className="text-sm font-medium text-gray-900 dark:text-white">{doc.documentLabel}</span>
                                   </td>
@@ -437,12 +468,23 @@ export default function ParametrosPage() {
         <CustomModalBody className="space-y-4">
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Prefijo</label>
-              <Input placeholder="Ej: FAC-" value={docForm.prefix} onChange={(e) => setDocForm({ ...docForm, prefix: e.target.value })} variant="bordered" />
+              <label className={labelClass}>Prefijo</label>
+              <input
+                placeholder="Ej: FAC-"
+                value={docForm.prefix}
+                onChange={(e) => setDocForm({ ...docForm, prefix: e.target.value })}
+                className={inputClass}
+              />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Longitud de Relleno (dígitos)</label>
-              <Input placeholder="5" type="number" value={docForm.paddingLength} onChange={(e) => setDocForm({ ...docForm, paddingLength: e.target.value })} variant="bordered" />
+              <label className={labelClass}>Longitud de Relleno (dígitos)</label>
+              <input
+                placeholder="5"
+                type="number"
+                value={docForm.paddingLength}
+                onChange={(e) => setDocForm({ ...docForm, paddingLength: e.target.value })}
+                className={inputClass}
+              />
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] p-3">
               <p className="text-xs text-gray-500 dark:text-[#888888]">Vista previa:</p>
@@ -453,10 +495,12 @@ export default function ParametrosPage() {
           </div>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
-          <Button color="primary" onPress={handleSaveDoc} className="bg-brand-600">
+          <button onClick={() => setIsOpen(false)} className={buttonSecondaryClass}>
+            Cancelar
+          </button>
+          <button onClick={handleSaveDoc} className={buttonPrimaryClass}>
             Guardar
-          </Button>
+          </button>
         </CustomModalFooter>
       </CustomModal>
     </div>

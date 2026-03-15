@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { api } from '@/lib/services/api';
-import { Divider, Progress, Avatar, Button as HeroButton, Chip, Skeleton } from '@heroui/react';
+import { Divider, Progress, Avatar, Button as HeroButton, Chip } from '@heroui/react';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {

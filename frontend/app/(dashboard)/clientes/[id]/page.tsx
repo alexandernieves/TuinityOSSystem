@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Button, Input, Select, SelectItem, Textarea } from '@heroui/react';
-import { ArrowLeft, Save, Trash2, Building2, User, CreditCard } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Building2, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
 import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
+import { cn } from '@/lib/utils/cn';
+import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
 
 export default function EditClientPage() {
   const router = useRouter();
@@ -15,6 +18,7 @@ export default function EditClientPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [client, setClient] = useState<any>(null);
 
   useEffect(() => {
@@ -67,8 +71,7 @@ export default function EditClientPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este cliente?')) return;
-
+    setIsDeleteModalOpen(false);
     setIsSaving(true);
     try {
       await api.deleteClient(clientId);
@@ -80,6 +83,11 @@ export default function EditClientPage() {
     }
   };
 
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+  const labelClass = "block text-[13px] font-semibold text-[#1a1a1a] mb-1.5";
+  const buttonPrimaryClass = "flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#253D6B] text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#1e3156] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+  const buttonSecondaryClass = "px-4 py-2 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors disabled:opacity-50";
+
   if (isLoading) {
     return <SkeletonDashboard />;
   }
@@ -90,176 +98,275 @@ export default function EditClientPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Button
-            isIconOnly
-            variant="light"
-            onPress={() => router.back()}
-            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          <button
+            onClick={() => router.back()}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 border border-transparent hover:border-gray-200 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Button>
+          </button>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Editar Cliente</h1>
             <p className="text-sm text-gray-500">Cód: {client.reference} | Saldo: ${client.currentBalance.toFixed(2)}</p>
           </div>
         </div>
-        <Button
-          color="danger"
-          variant="flat"
-          onPress={handleDelete}
-          isDisabled={client.currentBalance > 0}
-          startContent={<Trash2 className="h-4 w-4" />}
+        <button
+          onClick={() => setIsDeleteModalOpen(true)}
+          disabled={client.currentBalance > 0 || isSaving}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
+          <Trash2 className="h-4 w-4" />
           Eliminar
-        </Button>
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] shadow-sm p-6 space-y-8">
+        <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6 space-y-8">
           {/* Información Principal */}
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#222] pb-2">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-                  {client.type === 'b2b' ? <Building2 className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                  {client.type === 'b2b' ? <Building2 className="h-4 w-4 text-[#008060]" /> : <User className="h-4 w-4 text-[#008060]" />}
                 </div>
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white">Información Principal</h2>
               </div>
 
               <div className="w-32">
-                <Select
+                <label className={labelClass}>Estado</label>
+                <select
                   name="status"
-                  defaultSelectedKeys={[client.status]}
-                  className="w-full"
-                  size="sm"
+                  defaultValue={client.status}
+                  className={inputClass}
                 >
-                  <SelectItem key="active" className="text-emerald-600">Activo</SelectItem>
-                  <SelectItem key="inactive" className="text-red-600">Inactivo</SelectItem>
-                </Select>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Tipo de Cliente"
-                name="type"
-                defaultSelectedKeys={[client.type]}
-                isRequired
-                className="w-full"
-              >
-                <SelectItem key="b2b">B2B (Empresa / Mayorista)</SelectItem>
-                <SelectItem key="b2c">B2C (Consumidor Final)</SelectItem>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClass}>Tipo de Cliente</label>
+                <select
+                  name="type"
+                  defaultValue={client.type}
+                  className={inputClass}
+                  required
+                >
+                  <option value="b2b">B2B (Empresa / Mayorista)</option>
+                  <option value="b2c">B2C (Consumidor Final)</option>
+                </select>
+              </div>
 
-              <Input
-                label="Código / Referencia"
-                name="reference"
-                defaultValue={client.reference}
-                isRequired
-                className="w-full"
-                isReadOnly
-              />
+              <div>
+                <label className={labelClass}>Código / Referencia</label>
+                <input
+                  type="text"
+                  name="reference"
+                  defaultValue={client.reference}
+                  required
+                  readOnly
+                  className={cn(inputClass, "bg-gray-50 cursor-not-allowed")}
+                />
+              </div>
 
-              <Input
-                label={client.type === 'b2b' ? 'Razón Social' : 'Nombre Completo'}
-                name="name"
-                defaultValue={client.name}
-                isRequired
-                className="w-full md:col-span-2"
-              />
+              <div className="md:col-span-2">
+                <label className={labelClass}>
+                  {client.type === 'b2b' ? 'Razón Social' : 'Nombre Completo'}
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={client.name}
+                  required
+                  className={inputClass}
+                />
+              </div>
 
-              <Input
-                label="NIT / RUC / Doc. Identidad"
-                name="documentId"
-                defaultValue={client.documentId}
-                isRequired
-                className="w-full"
-              />
+              <div>
+                <label className={labelClass}>NIT / RUC / Doc. Identidad</label>
+                <input
+                  type="text"
+                  name="documentId"
+                  defaultValue={client.documentId}
+                  required
+                  className={inputClass}
+                />
+              </div>
 
-              <Input
-                label="Nombre del Contacto"
-                name="contactName"
-                defaultValue={client.contactName}
-                className="w-full"
-              />
+              <div>
+                <label className={labelClass}>Nombre del Contacto</label>
+                <input
+                  type="text"
+                  name="contactName"
+                  defaultValue={client.contactName}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
 
           {/* Contacto & Ubicación */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-[#222] pb-2">
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-[#222] pb-2 mt-8">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">Contacto y Ubicación</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Correo Electrónico" name="email" type="email" defaultValue={client.email} className="w-full" />
-              <Input label="Teléfono" name="phone" defaultValue={client.phone} className="w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClass}>Correo Electrónico</label>
+                <input
+                  type="email"
+                  name="email"
+                  defaultValue={client.email}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Teléfono</label>
+                <input
+                  type="text"
+                  name="phone"
+                  defaultValue={client.phone}
+                  className={inputClass}
+                />
+              </div>
 
-              <Input label="País" name="country" defaultValue={client.country} className="w-full" />
-              <Input label="Ciudad" name="city" defaultValue={client.city} className="w-full" />
+              <div>
+                <label className={labelClass}>País</label>
+                <input
+                  type="text"
+                  name="country"
+                  defaultValue={client.country}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Ciudad</label>
+                <input
+                  type="text"
+                  name="city"
+                  defaultValue={client.city}
+                  className={inputClass}
+                />
+              </div>
 
-              <Textarea
-                label="Dirección Completa"
-                name="address"
-                defaultValue={client.address}
-                className="w-full md:col-span-2"
-              />
+              <div className="md:col-span-2">
+                <label className={labelClass}>Dirección Completa</label>
+                <textarea
+                  name="address"
+                  defaultValue={client.address}
+                  rows={3}
+                  className={cn(inputClass, "h-24 py-2 resize-none")}
+                />
+              </div>
             </div>
           </div>
 
           {/* Finanzas */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-[#222] pb-2">
+            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-[#222] pb-2 mt-8">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">Crédito y Finanzas</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Días de Crédito"
-                name="paymentTerms"
-                type="number"
-                defaultValue={client.paymentTerms?.toString() || "0"}
-                min="0"
-                className="w-full"
-                description="0 = Pago de Contado"
-              />
-              <Input
-                label="Límite de Crédito ($)"
-                name="creditLimit"
-                type="number"
-                step="0.01"
-                defaultValue={client.creditLimit?.toString() || "0.00"}
-                min="0"
-                className="w-full"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClass}>Días de Crédito</label>
+                <input
+                  type="number"
+                  name="paymentTerms"
+                  defaultValue={client.paymentTerms?.toString() || "0"}
+                  min="0"
+                  className={inputClass}
+                />
+                <p className="mt-1 text-xs text-gray-500">0 = Pago de Contado</p>
+              </div>
+              <div>
+                <label className={labelClass}>Límite de Crédito ($)</label>
+                <input
+                  type="number"
+                  name="creditLimit"
+                  step="0.01"
+                  defaultValue={client.creditLimit?.toString() || "0.00"}
+                  min="0"
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
 
           {/* Notas */}
-          <div className="space-y-4">
-            <Textarea
-              label="Notas Internas"
+          <div className="space-y-4 mt-8">
+            <label className={labelClass}>Notas Internas</label>
+            <textarea
               name="notes"
               defaultValue={client.notes}
               placeholder="Información adicional sobre el cliente..."
-              className="w-full"
+              rows={3}
+              className={cn(inputClass, "h-24 py-2 resize-none")}
             />
           </div>
         </div>
 
         <div className="flex justify-end gap-3 pb-8">
-          <Button variant="light" onPress={() => router.back()} type="button">Cancelar</Button>
-          <Button
-            color="success"
-            type="submit"
-            className="font-medium shadow-sm shadow-emerald-600/20"
-            isLoading={isSaving}
-            startContent={!isSaving && <Save className="h-4 w-4" />}
+          <button
+            type="button"
+            onClick={() => router.back()}
+            disabled={isSaving}
+            className={buttonSecondaryClass}
           >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className={buttonPrimaryClass}
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             Guardar Cambios
-          </Button>
+          </button>
         </div>
       </form>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <CustomModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
+        <CustomModalHeader onClose={() => setIsDeleteModalOpen(false)}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Eliminar Cliente</h3>
+              <p className="text-sm text-gray-500">Esta acción no se puede deshacer.</p>
+            </div>
+          </div>
+        </CustomModalHeader>
+        <CustomModalBody>
+          <p className="text-sm text-gray-600 py-2">
+            ¿Estás seguro de que deseas eliminar a <span className="font-semibold text-gray-900">{client.name}</span>?
+            Se perderá toda la información de contacto asociada a este registro.
+          </p>
+        </CustomModalBody>
+        <CustomModalFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setIsDeleteModalOpen(false)}
+            className="h-10 px-6 font-semibold"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleDelete}
+            className="h-10 px-6 font-semibold bg-red-600 hover:bg-red-700 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
+          >
+            Sí, eliminar cliente
+          </Button>
+        </CustomModalFooter>
+      </CustomModal>
     </div>
   );
 }
