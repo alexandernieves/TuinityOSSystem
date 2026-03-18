@@ -1,15 +1,13 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { SuppliersController } from './suppliers.controller';
 import { SuppliersService } from './suppliers.service';
-import { Supplier, SupplierSchema } from './schemas/supplier.schema';
+import { AccountsPayableService } from '../services/accounts-payable/accounts-payable.service';
+import { PrismaService } from '../services/shared/prisma.service';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: Supplier.name, schema: SupplierSchema }])
-  ],
+  imports: [],
   controllers: [SuppliersController],
-  providers: [SuppliersService],
-  exports: [SuppliersService],
+  providers: [SuppliersService, AccountsPayableService, PrismaService],
+  exports: [SuppliersService, AccountsPayableService],
 })
 export class SuppliersModule { }

@@ -769,6 +769,17 @@ export function getClientStats(): ClientStats {
 }
 
 export function getCreditStatus(client: Client): CreditStatus {
+  if (!client || typeof client !== 'object') {
+    return {
+      available: 0,
+      used: 0,
+      limit: 0,
+      percentUsed: 0,
+      status: 'ok',
+      message: 'No disponible',
+    };
+  }
+  const creditAvailable = client.creditAvailable ?? 0;
   const percentUsed =
     client.creditLimit > 0
       ? (client.creditUsed / client.creditLimit) * 100
@@ -783,19 +794,19 @@ export function getCreditStatus(client: Client): CreditStatus {
   } else if (client.creditLimit === 0) {
     status = 'ok';
     message = 'Solo contado';
-  } else if (client.creditAvailable < 0) {
+  } else if (creditAvailable < 0) {
     status = 'exceeded';
-    message = `Excede por $${Math.abs(client.creditAvailable).toLocaleString()}`;
+    message = `Excede por $${Math.abs(creditAvailable).toLocaleString()}`;
   } else if (percentUsed >= 80) {
     status = 'warning';
     message = `${percentUsed.toFixed(0)}% utilizado`;
   } else {
     status = 'ok';
-    message = `$${client.creditAvailable.toLocaleString()} disponible`;
+    message = `$${creditAvailable.toLocaleString()} disponible`;
   }
 
   return {
-    available: client.creditAvailable,
+    available: creditAvailable,
     used: client.creditUsed,
     limit: client.creditLimit,
     percentUsed,

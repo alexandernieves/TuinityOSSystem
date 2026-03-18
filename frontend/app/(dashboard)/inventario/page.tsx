@@ -4,17 +4,41 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Input,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
+  SelectContent,
   SelectItem,
-} from '@heroui/react';
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Switch } from '@/components/ui/switch';
 import {
   Search,
@@ -41,6 +65,10 @@ import {
   Check,
   XCircle,
   Pencil,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -53,19 +81,10 @@ import { EXPIRY_ALERT_CONFIG } from '@/lib/types/expiry';
 import type { InventoryItem, InventoryStockFilter } from '@/lib/types/inventory';
 import { api } from '@/lib/services/api';
 import { SkeletonTable } from '@/components/ui/skeleton-table';
+import { Pagination } from '@/components/ui/pagination';
 
-// Product images mapping
-const PRODUCT_IMAGES: Record<string, string> = {
-  'WHISKY': 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=300&h=300&fit=crop',
-  'RON': 'https://images.unsplash.com/photo-1598018553943-93a44e4e7af8?w=300&h=300&fit=crop',
-  'VODKA': 'https://images.unsplash.com/photo-1607622750671-6cd9a99eabd1?w=300&h=300&fit=crop',
-  'TEQUILA': 'https://images.unsplash.com/photo-1516535794938-6063878f08cc?w=300&h=300&fit=crop',
-  'GINEBRA': 'https://images.unsplash.com/photo-1608885898957-a559228e8749?w=300&h=300&fit=crop',
-  'VINO': 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&h=300&fit=crop',
-  'LICOR': 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=300&h=300&fit=crop',
-  'SNACKS': 'https://images.unsplash.com/photo-1621447504864-d8686e12698c?w=300&h=300&fit=crop',
-  'CERVEZA': 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=300&h=300&fit=crop',
-};
+// Inventory Items per page constant
+const ITEMS_PER_PAGE_OPTIONS = [5, 10, 20, 50, 100];
 
 export default function InventarioPage() {
   const router = useRouter();
@@ -90,6 +109,8 @@ export default function InventarioPage() {
   const [realItems, setRealItems] = useState<any[]>([]);
   const [realAdjustments, setRealAdjustments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     Promise.all([
@@ -110,13 +131,13 @@ export default function InventarioPage() {
       const stockValue = item.existence * (p.costAvgWeighted || 0);
 
       const alerts = [];
-      if (item.available === 0) alerts.push({ type: 'out_of_stock' as const, severity: 'danger' as const, message: 'Sin stock disponible', productId: p._id });
-      else if (item.available <= (p.minimumQty || 5)) alerts.push({ type: 'low_stock' as const, severity: 'warning' as const, message: 'Stock bajo el mínimo', productId: p._id });
+      if (item.available === 0) alerts.push({ type: 'out_of_stock' as const, severity: 'danger' as const, message: 'Sin stock disponible', productId: p.id });
+      else if (item.available <= (p.minimumQty || 5)) alerts.push({ type: 'low_stock' as const, severity: 'warning' as const, message: 'Stock bajo el mínimo', productId: p.id });
 
       return {
-        productId: p._id,
-        productReference: p.reference,
-        productDescription: p.description,
+        productId: p.id,
+        productReference: p.sku || p.reference,
+        productDescription: p.description || p.name,
         group: p.category,
         subGroup: p.subCategory || 'General',
         brand: p.brand || 'General',
@@ -134,6 +155,7 @@ export default function InventarioPage() {
         lastSaleDate: p.lastSaleDate,
         costCIF: p.costAvgWeighted || 0,
         stockValue: stockValue,
+        productImage: p.image,
         alerts
       } as InventoryItem;
     });
@@ -252,6 +274,15 @@ export default function InventarioPage() {
     });
   }, [normalizedItems, searchQuery, stockFilter, selectedGroup, selectedBrand, selectedSupplier, stockRange, showOnlyWithAlerts]);
 
+  // Paginación
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return inventoryItems.slice(startIndex, endIndex);
+  }, [inventoryItems, currentPage, rowsPerPage]);
+
+  const totalPages = Math.ceil(inventoryItems.length / rowsPerPage);
+
   // Get unique brands from inventory
   const uniqueBrands = useMemo(() => {
     return [...new Set(normalizedItems.map((i) => i.brand))].sort();
@@ -349,8 +380,8 @@ export default function InventarioPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-            <Warehouse className="h-5 w-5 text-brand-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+            <Warehouse className="h-5 w-5 text-blue-600" />
           </div>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Inventario</h1>
@@ -358,17 +389,6 @@ export default function InventarioPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canAcceptReorderRecommendations && (
-            <Button
-              variant="secondary"
-              onClick={handleOpenRecommendations}
-              className="border-purple-200 dark:border-purple-900 bg-purple-50/50 hover:bg-purple-100 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Recomendaciones IA</span>
-              <span className="sm:hidden">IA</span>
-            </Button>
-          )}
           {canCreateCountSessions && (
             <Button
               variant="secondary"
@@ -423,7 +443,7 @@ export default function InventarioPage() {
             }}
             className={cn(
               'rounded-[12px] border-none bg-white p-3 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
-              !stat.isValue && stockFilter === stat.filter && 'ring-2 ring-brand-500 ring-offset-2'
+              !stat.isValue && stockFilter === stat.filter && 'ring-2 ring-blue-500 ring-offset-2'
             )}
           >
             <div className="flex items-center gap-3">
@@ -467,14 +487,14 @@ export default function InventarioPage() {
             placeholder="Buscar en inventario..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Group Filter */}
-          <Dropdown>
-            <DropdownTrigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant={stockFilter !== 'all' ? 'default' : 'secondary'}
                 size="sm"
@@ -485,76 +505,66 @@ export default function InventarioPage() {
                     stockFilter === 'low_stock' ? 'Bajo Stock' : 'Disponible'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedGroup ? [selectedGroup] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedGroup(selected === selectedGroup ? null : selected);
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               {PRODUCT_GROUPS.map((group) => (
-                <DropdownItem key={group.id}>{group.label}</DropdownItem>
+                <DropdownMenuItem 
+                  key={group.id}
+                  onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
+                >
+                  {group.label}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Brand Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button className={cn(
-                'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                selectedBrand ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300' : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-              )}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedBrand ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
+              >
                 {selectedBrand || 'Marca'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedBrand ? [selectedBrand] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedBrand(selected === selectedBrand ? null : selected);
-              }}
-              className="max-h-64 overflow-auto"
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-64 overflow-auto">
               {uniqueBrands.map((brand) => (
-                <DropdownItem key={brand}>{brand}</DropdownItem>
+                <DropdownMenuItem 
+                  key={brand}
+                  onClick={() => setSelectedBrand(selectedBrand === brand ? null : brand)}
+                >
+                  {brand}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Warehouse Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button className={cn(
-                'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                selectedWarehouse ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300' : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-              )}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedWarehouse ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
+              >
                 {selectedWarehouse ? MOCK_WAREHOUSES.find((w) => w.id === selectedWarehouse)?.name : 'Bodega'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedWarehouse ? [selectedWarehouse] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedWarehouse(selected === selectedWarehouse ? null : selected);
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               {MOCK_WAREHOUSES.map((warehouse) => (
-                <DropdownItem key={warehouse.id}>
+                <DropdownMenuItem 
+                  key={warehouse.id}
+                  onClick={() => setSelectedWarehouse(selectedWarehouse === warehouse.id ? null : warehouse.id)}
+                >
                   {warehouse.name} ({warehouse.type})
-                </DropdownItem>
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Clear filters */}
           {hasActiveFilters && (
@@ -575,7 +585,7 @@ export default function InventarioPage() {
             className={cn(
               'flex h-9 w-9 items-center justify-center rounded-lg border bg-white dark:bg-[#141414] transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]',
               (stockRange.min || stockRange.max || showOnlyWithAlerts || selectedSupplier)
-                ? 'border-brand-500 text-brand-600'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-gray-200 dark:border-[#2a2a2a] text-gray-500 dark:text-gray-400'
             )}
           >
@@ -609,13 +619,12 @@ export default function InventarioPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {inventoryItems.map((item, index) => {
+              {paginatedItems.map((item, index) => {
                 const stockStatus = getStockStatus(item);
-                const imageUrl = PRODUCT_IMAGES[item.group] || PRODUCT_IMAGES['WHISKY'];
 
                 return (
                   <motion.tr
-                    key={item.productId}
+                    key={`${item.productId}-${index}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.02 }}
@@ -623,23 +632,35 @@ export default function InventarioPage() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="hidden h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-[#1a1a1a] sm:block">
-                          <img src={imageUrl} alt={item.productDescription} className="h-full w-full object-cover" />
+                        <div className="hidden h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-[#222222] sm:block">
+                          {item.productImage ? (
+                            <img src={item.productImage} alt={item.productDescription} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-[#111111]">
+                              <Package className="h-5 w-5 text-gray-400 opacity-40" />
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <Button
                             variant="link"
-                            className="p-0 h-auto font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                            className="p-0 h-auto font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
                             onClick={() => router.push(`/productos/${item.productId}`)}
                           >
                             {item.productDescription}
                           </Button>
-                          <p className="truncate text-xs text-brand-600 font-medium">{item.productReference}</p>
+                          <p className="truncate text-xs text-blue-600 font-medium">{item.productReference}</p>
                         </div>
                       </div>
                     </td>
                     <td className="hidden md:table-cell px-4 py-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{item.group}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {typeof item.group === "object" && item.group !== null && (item.group as { name?: string }).name
+                          ? (item.group as { name?: string }).name
+                          : typeof item.group === "string"
+                            ? item.group
+                            : "Sin categoría"}
+                      </span>
                     </td>
                     <td className="hidden sm:table-cell px-4 py-3 text-right font-mono text-sm">
                       {item.existence}
@@ -699,17 +720,23 @@ export default function InventarioPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
-                        </DropdownTrigger>
-                        <DropdownMenu aria-label="Acciones">
-                          <DropdownItem key="view" startContent={<Eye className="h-4 w-4" />} onPress={() => handleViewProduct(item)}>Ver detalle</DropdownItem>
-                          <DropdownItem key="adjust" startContent={<Edit className="h-4 w-4" />} onPress={() => handleCreateAdjustment(item)}>Crear ajuste</DropdownItem>
-                        </DropdownMenu>
-                      </Dropdown>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewProduct(item)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            <span>Ver detalle</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCreateAdjustment(item)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Crear ajuste</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </motion.tr>
                 );
@@ -718,6 +745,22 @@ export default function InventarioPage() {
           </table>
         </div>
       </Card>
+
+      {/* Paginación */}
+      {inventoryItems.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={inventoryItems.length}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={(newRowsPerPage) => {
+            setRowsPerPage(newRowsPerPage);
+            setCurrentPage(1);
+          }}
+          itemName="productos"
+        />
+      )}
 
       {/* Empty State */}
       {
@@ -736,37 +779,38 @@ export default function InventarioPage() {
       </div>
 
       {/* Advanced Filters Modal */}
-      <CustomModal isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsFilterOpen(false)}>
-          <SlidersHorizontal className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-          Filtros Avanzados
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-6">
+      <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              Filtros Avanzados
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 pt-4">
             {/* Stock Range */}
-            <div>
-              <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Rango de Stock Disponible</h3>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Rango de Stock Disponible</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Mínimo</label>
+                  <Label htmlFor="min-stock" className="text-xs text-gray-500">Mínimo</Label>
                   <Input
+                    id="min-stock"
                     type="number"
                     placeholder="0"
                     value={stockRange.min}
                     onChange={(e) => setStockRange((prev) => ({ ...prev, min: e.target.value }))}
-                    variant="bordered"
-                    classNames={{ inputWrapper: 'bg-white' }}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Máximo</label>
+                  <Label htmlFor="max-stock" className="text-xs text-gray-500">Máximo</Label>
                   <Input
+                    id="max-stock"
                     type="number"
                     placeholder="1000"
                     value={stockRange.max}
                     onChange={(e) => setStockRange((prev) => ({ ...prev, max: e.target.value }))}
-                    variant="bordered"
-                    classNames={{ inputWrapper: 'bg-white' }}
                   />
                 </div>
               </div>
@@ -774,18 +818,20 @@ export default function InventarioPage() {
 
             {/* Supplier - Role restricted */}
             {canViewSuppliers && (
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Proveedor</h3>
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Proveedor</Label>
                 <Select
-                  placeholder="Todos los proveedores"
-                  selectedKeys={selectedSupplier ? [selectedSupplier] : []}
-                  onChange={(e) => setSelectedSupplier(e.target.value || null)}
-                  variant="bordered"
-                  classNames={{ trigger: 'bg-white' }}
+                  value={selectedSupplier || ""}
+                  onValueChange={(val) => setSelectedSupplier(val || null)}
                 >
-                  {uniqueSuppliers.map((supplier) => (
-                    <SelectItem key={supplier}>{supplier}</SelectItem>
-                  ))}
+                  <SelectTrigger className="bg-white dark:bg-[#1a1a1a]">
+                    <SelectValue placeholder="Todos los proveedores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueSuppliers.map((supplier) => (
+                      <SelectItem key={supplier} value={supplier}>{supplier}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             )}
@@ -802,197 +848,215 @@ export default function InventarioPage() {
               />
             </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setStockRange({ min: '', max: '' });
-              setSelectedSupplier(null);
-              setShowOnlyWithAlerts(false);
-            }}
-          >
-            Limpiar filtros
-          </Button>
-          <Button
-            onClick={() => {
-              toast.success('Filtros aplicados');
-              setIsFilterOpen(false);
-            }}
-          >
-            Aplicar filtros
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setStockRange({ min: '', max: '' });
+                setSelectedSupplier(null);
+                setShowOnlyWithAlerts(false);
+              }}
+            >
+              Limpiar filtros
+            </Button>
+            <Button
+              onClick={() => {
+                toast.success('Filtros aplicados');
+                setIsFilterOpen(false);
+              }}
+            >
+              Aplicar filtros
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* F2: Reorder Recommendations Modal */}
-      <CustomModal isOpen={isReorderModalOpen} onClose={() => setIsReorderModalOpen(false)} size="3xl" scrollable>
-        <CustomModalHeader onClose={() => setIsReorderModalOpen(false)}>
-          <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-          Recomendaciones de Punto de Reorden
-        </CustomModalHeader>
-        <CustomModalBody>
-          {/* Stats Summary */}
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-3">
-              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{recommendationStats.needsIncrease}</p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-500">Necesitan aumento</p>
+      <Dialog open={isReorderModalOpen} onOpenChange={setIsReorderModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              Recomendaciones de Punto de Reorden
+            </DialogTitle>
+            <DialogDescription>
+              Optimiza tus puntos de reorden basados en el historial de ventas y tendencias actuales.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Stats Summary */}
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{recommendationStats.needsIncrease}</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500">Necesitan aumento</p>
+              </div>
+              <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-3">
+                <p className="text-xl font-bold text-red-700 dark:text-red-400">{recommendationStats.needsDecrease}</p>
+                <p className="text-xs text-red-600 dark:text-red-500">Necesitan reducción</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-3">
+                <p className="text-xl font-bold text-gray-700 dark:text-gray-300">{recommendationStats.noChange}</p>
+                <p className="text-xs text-gray-500 dark:text-[#888888]">Sin cambio</p>
+              </div>
+              <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 p-3">
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-400">{recommendationStats.notSet}</p>
+                <p className="text-xs text-amber-600 dark:text-amber-500">Sin configurar</p>
+              </div>
             </div>
-            <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-3">
-              <p className="text-xl font-bold text-red-700 dark:text-red-400">{recommendationStats.needsDecrease}</p>
-              <p className="text-xs text-red-600 dark:text-red-500">Necesitan reducción</p>
-            </div>
-            <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-3">
-              <p className="text-xl font-bold text-gray-700 dark:text-gray-300">{recommendationStats.noChange}</p>
-              <p className="text-xs text-gray-500 dark:text-[#888888]">Sin cambio</p>
-            </div>
-            <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 p-3">
-              <p className="text-xl font-bold text-amber-700 dark:text-amber-400">{recommendationStats.notSet}</p>
-              <p className="text-xs text-amber-600 dark:text-amber-500">Sin configurar</p>
-            </div>
-          </div>
 
-          {/* Recommendations Table */}
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#2a2a2a]">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                  <th className="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Producto</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Grupo</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Mínimo Actual</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Recomendado</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Diferencia</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Confianza</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                {recommendations.map((rec) => (
-                  <tr
-                    key={rec.productId}
-                    className={cn(
-                      'transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]',
-                      rec.status === 'rejected' && 'opacity-50'
-                    )}
-                  >
-                    <td className="px-3 py-2.5">
-                      <div className={cn(rec.status === 'rejected' && 'line-through')}>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{rec.productDescription}</p>
-                        <p className="text-xs text-gray-500 dark:text-[#888888]">{rec.productReference}</p>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className={cn('text-sm text-gray-600 dark:text-gray-400', rec.status === 'rejected' && 'line-through')}>{rec.group}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span className={cn('text-sm font-medium', rec.currentReorderPoint != null ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-[#444444]')}>
-                        {rec.currentReorderPoint ?? '-'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">{rec.recommendedReorderPoint}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span className={cn(
-                        'text-sm font-semibold',
-                        rec.difference > 0 && 'text-emerald-600 dark:text-emerald-400',
-                        rec.difference < 0 && 'text-red-600 dark:text-red-400',
-                        rec.difference === 0 && 'text-gray-400 dark:text-[#666666]'
-                      )}>
-                        {rec.difference > 0 ? `+${rec.difference}` : rec.difference === 0 ? '0' : rec.difference}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={cn(
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                        rec.confidence === 'alta' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-                        rec.confidence === 'media' && 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-                        rec.confidence === 'baja' && 'bg-gray-100 text-gray-600 dark:bg-[#1a1a1a] dark:text-[#888888]'
-                      )}>
-                        {rec.confidence}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      {rec.status === 'pending' ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleAcceptRecommendation(rec)}
-                            className="flex h-7 items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 transition-colors hover:bg-emerald-200 dark:hover:bg-emerald-900"
-                            title="Aceptar"
-                          >
-                            <Check className="h-3 w-3" />
-                            Aceptar
-                          </button>
-                          {adjustingId === rec.productId ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={adjustValue}
-                                onChange={(e) => setAdjustValue(e.target.value)}
-                                className="h-7 w-16 rounded-md border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-xs text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none"
-                                autoFocus
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleAdjustRecommendation(rec); if (e.key === 'Escape') { setAdjustingId(null); setAdjustValue(''); } }}
-                              />
+            {/* Recommendations Table */}
+            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-[#2a2a2a]">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
+                      <th className="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Producto</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Grupo</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Mínimo Actual</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Recomendado</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Diferencia</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Confianza</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+                    {recommendations.map((rec) => (
+                      <tr
+                        key={rec.productId}
+                        className={cn(
+                          'transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]',
+                          rec.status === 'rejected' && 'opacity-50'
+                        )}
+                      >
+                        <td className="px-3 py-2.5">
+                          <div className={cn(rec.status === 'rejected' && 'line-through')}>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{rec.productDescription}</p>
+                            <p className="text-xs text-gray-500 dark:text-[#888888]">{rec.productReference}</p>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className={cn('text-sm text-gray-600 dark:text-gray-400', rec.status === 'rejected' && 'line-through')}>
+                            {typeof rec.group === "object" && rec.group !== null && (rec.group as { name?: string }).name
+                              ? (rec.group as { name?: string }).name
+                              : typeof rec.group === "string"
+                                ? rec.group
+                                : "Sin categoría"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className={cn('text-sm font-medium', rec.currentReorderPoint != null ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-[#444444]')}>
+                            {rec.currentReorderPoint ?? '-'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">{rec.recommendedReorderPoint}</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className={cn(
+                            'text-sm font-semibold',
+                            rec.difference > 0 && 'text-emerald-600 dark:text-emerald-400',
+                            rec.difference < 0 && 'text-red-600 dark:text-red-400',
+                            rec.difference === 0 && 'text-gray-400 dark:text-[#666666]'
+                          )}>
+                            {rec.difference > 0 ? `+${rec.difference}` : rec.difference === 0 ? '0' : rec.difference}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={cn(
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                            rec.confidence === 'alta' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+                            rec.confidence === 'media' && 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+                            rec.confidence === 'baja' && 'bg-gray-100 text-gray-600 dark:bg-[#1a1a1a] dark:text-[#888888]'
+                          )}>
+                            {rec.confidence}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {rec.status === 'pending' ? (
+                            <div className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => handleAdjustRecommendation(rec)}
-                                className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 transition-colors hover:bg-brand-200 dark:hover:bg-brand-900"
+                                onClick={() => handleAcceptRecommendation(rec)}
+                                className="flex h-7 items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 transition-colors hover:bg-emerald-200 dark:hover:bg-emerald-900"
+                                title="Aceptar"
                               >
                                 <Check className="h-3 w-3" />
+                                Aceptar
+                              </button>
+                              {adjustingId === rec.productId ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    value={adjustValue}
+                                    onChange={(e) => setAdjustValue(e.target.value)}
+                                    className="h-7 w-16 px-2 text-xs"
+                                    autoFocus
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleAdjustRecommendation(rec); if (e.key === 'Escape') { setAdjustingId(null); setAdjustValue(''); } }}
+                                  />
+                                  <button
+                                    onClick={() => handleAdjustRecommendation(rec)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 transition-colors hover:bg-blue-200 dark:hover:bg-blue-900"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleAdjustRecommendation(rec)}
+                                  className="flex h-7 items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950 px-2 text-xs font-medium text-amber-700 dark:text-amber-400 transition-colors hover:bg-amber-200 dark:hover:bg-amber-900"
+                                  title="Ajustar"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Ajustar
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleRejectRecommendation(rec)}
+                                className="flex h-7 items-center gap-1 rounded-md bg-red-100 dark:bg-red-950 px-2 text-xs font-medium text-red-700 dark:text-red-400 transition-colors hover:bg-red-200 dark:hover:bg-red-900"
+                                title="Rechazar"
+                              >
+                                <XCircle className="h-3 w-3" />
+                                Rechazar
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => handleAdjustRecommendation(rec)}
-                              className="flex h-7 items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950 px-2 text-xs font-medium text-amber-700 dark:text-amber-400 transition-colors hover:bg-amber-200 dark:hover:bg-amber-900"
-                              title="Ajustar"
-                            >
-                              <Pencil className="h-3 w-3" />
-                              Ajustar
-                            </button>
+                            <span className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                              rec.status === 'accepted' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+                              rec.status === 'adjusted' && 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
+                              rec.status === 'rejected' && 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                            )}>
+                              {rec.status === 'accepted' && 'Aceptado'}
+                              {rec.status === 'adjusted' && 'Ajustado'}
+                              {rec.status === 'rejected' && 'Rechazado'}
+                            </span>
                           )}
-                          <button
-                            onClick={() => handleRejectRecommendation(rec)}
-                            className="flex h-7 items-center gap-1 rounded-md bg-red-100 dark:bg-red-950 px-2 text-xs font-medium text-red-700 dark:text-red-400 transition-colors hover:bg-red-200 dark:hover:bg-red-900"
-                            title="Rechazar"
-                          >
-                            <XCircle className="h-3 w-3" />
-                            Rechazar
-                          </button>
-                        </div>
-                      ) : (
-                        <span className={cn(
-                          'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                          rec.status === 'accepted' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-                          rec.status === 'adjusted' && 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-400',
-                          rec.status === 'rejected' && 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
-                        )}>
-                          {rec.status === 'accepted' && 'Aceptado'}
-                          {rec.status === 'adjusted' && 'Ajustado'}
-                          {rec.status === 'rejected' && 'Rechazado'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            variant="ghost"
-            onClick={() => setIsReorderModalOpen(false)}
-          >
-            Cerrar
-          </Button>
-          <Button
-            onClick={handleAcceptAll}
-            disabled={recommendations.filter((r) => r.status === 'pending').length === 0}
-          >
-            Aceptar Todas ({recommendations.filter((r) => r.status === 'pending').length})
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+
+          <DialogFooter className="p-6 pt-2 gap-2 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setIsReorderModalOpen(false)}
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={handleAcceptAll}
+              disabled={recommendations.filter((r) => r.status === 'pending').length === 0}
+            >
+              Aceptar Todas ({recommendations.filter((r) => r.status === 'pending').length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div >
   );
 }

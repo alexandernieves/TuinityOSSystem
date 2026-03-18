@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from "@/components/ui/button";
 import {
   Lock,
   ChevronRight,
@@ -325,11 +325,11 @@ export default function CierresPage() {
 
                     {canCloseMonthlyPeriod && (
                       <div className="mt-4 flex justify-end">
-                        <button
+                        <Button
                           onClick={handleMonthlyClose}
                           disabled={!isChecklistComplete}
                           className={cn(
-                            'flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium text-white transition-colors',
+                            'flex items-center gap-2 h-11 px-8 font-medium text-white transition-colors',
                             isChecklistComplete
                               ? 'bg-emerald-600 hover:bg-emerald-700'
                               : 'bg-gray-400 dark:bg-[#444444] cursor-not-allowed'
@@ -337,7 +337,7 @@ export default function CierresPage() {
                         >
                           <Lock className="h-4 w-4" />
                           Ejecutar Cierre
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -450,11 +450,11 @@ export default function CierresPage() {
 
             {canCloseAnnualPeriod && (
               <div className="mt-4 flex justify-end">
-                <button
+                <Button
                   onClick={handleAnnualClose}
                   disabled={closedMonthsCount < 12}
                   className={cn(
-                    'flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium text-white transition-colors',
+                    'flex items-center gap-2 h-11 px-8 font-medium text-white transition-colors',
                     closedMonthsCount >= 12
                       ? 'bg-purple-600 hover:bg-purple-700'
                       : 'bg-gray-400 dark:bg-[#444444] cursor-not-allowed'
@@ -462,7 +462,7 @@ export default function CierresPage() {
                 >
                   <Lock className="h-4 w-4" />
                   Ejecutar Cierre Anual
-                </button>
+                </Button>
               </div>
             )}
           </div>

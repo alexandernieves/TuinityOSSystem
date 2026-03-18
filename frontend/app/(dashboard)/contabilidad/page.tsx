@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
-import { Tooltip } from '@heroui/react';
+
 import {
   Calculator,
   DollarSign,

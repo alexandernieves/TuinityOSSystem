@@ -17,12 +17,22 @@ import {
   formatCurrencyAccounting,
 } from '@/lib/mock-data/accounting';
 import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
 import {
-  Button,
   Select,
+  SelectContent,
   SelectItem,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ACCOUNT_TYPE_LABELS,
   ACCOUNT_TYPE_COLORS,
@@ -292,20 +302,20 @@ export default function PlanCuentasPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="flat"
-            onPress={handleSeed}
+            variant="outline"
+            onClick={handleSeed}
             className="h-9 px-4 text-sm font-medium"
           >
             Generar catálogo base
           </Button>
           {canCreateManualEntries && (
-            <button
+            <Button
               onClick={() => setIsOpen(true)}
               className="flex h-9 items-center gap-2 rounded-lg bg-purple-600 px-4 text-sm font-medium text-white transition-colors hover:bg-purple-700"
             >
               <Plus className="h-4 w-4" />
               Nueva Cuenta
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -384,16 +394,20 @@ export default function PlanCuentasPage() {
       </div>
 
       {/* New Account Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg">
-        <CustomModalHeader onClose={() => setIsOpen(false)}>
-          <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-          Nueva Cuenta
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                Nueva Cuenta
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Código (XXXX-YYY)
                 </label>
                 <input
@@ -404,8 +418,8 @@ export default function PlanCuentasPage() {
                   className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 font-mono text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label>
                 <input
                   type="text"
                   value={newName}
@@ -416,57 +430,69 @@ export default function PlanCuentasPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
-                <select
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
+                <Select
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
+                  onValueChange={setNewType}
                 >
-                  {Object.entries(ACCOUNT_TYPE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 w-full bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-[#2a2a2a]">
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ACCOUNT_TYPE_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Naturaleza</label>
-                <select
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Naturaleza</label>
+                <Select
                   value={newNature}
-                  onChange={(e) => setNewNature(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
+                  onValueChange={setNewNature}
                 >
-                  {Object.entries(ACCOUNT_NATURE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 w-full bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-[#2a2a2a]">
+                    <SelectValue placeholder="Seleccionar naturaleza" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ACCOUNT_NATURE_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Cuenta Padre</label>
-              <select
-                value={newParent}
-                onChange={(e) => setNewParent(e.target.value)}
-                className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cuenta Padre</label>
+              <Select
+                value={newParent || "root"}
+                onValueChange={(val) => setNewParent(val === "root" ? "" : val)}
               >
-                <option value="">Sin cuenta padre (nivel 1)</option>
-                {parentAccounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.code} - {acc.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 w-full bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-[#2a2a2a]">
+                  <SelectValue placeholder="Sin cuenta padre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="root">Sin cuenta padre (nivel 1)</SelectItem>
+                  {parentAccounts.map((acc) => (
+                    <SelectItem key={acc._id} value={acc._id}>
+                      {acc.code} - {acc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsOpen(false)}>
-            Cancelar
-          </Button>
-          <Button onPress={handleSaveAccount} className="bg-purple-600 text-white">
-            Crear Cuenta
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveAccount} className="bg-purple-600 text-white hover:bg-purple-700">
+              Crear Cuenta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

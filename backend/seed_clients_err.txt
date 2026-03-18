@@ -1,0 +1,29 @@
+/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+prisma/seed-clients.ts(35,22): error TS2345: Argument of type '{ code: string; legalName: string; tradeName: string; taxId: string; email: string; phone: string; country: string; isActive: boolean; createdAt: Date; creditProfile: { creditLimit: number; ... 4 more ...; requiresApprovalOnOverlimit: boolean; }; contacts: { ...; }[]; addresses: { ...; }[]; }' is not assignable to parameter of type 'never'.
+prisma/seed-clients.ts(40,22): error TS2345: Argument of type '{ code: string; legalName: string; tradeName: string; taxId: string; email: string; phone: string; country: string; isActive: boolean; createdAt: Date; creditProfile: { creditLimit: number; ... 4 more ...; requiresApprovalOnOverlimit: boolean; }; contacts: { ...; }[]; addresses: { ...; }[]; }' is not assignable to parameter of type 'never'.
+prisma/seed-clients.ts(45,22): error TS2345: Argument of type '{ code: string; legalName: string; tradeName: string; taxId: string; email: string; phone: string; country: string; isActive: boolean; createdAt: Date; creditProfile: { creditLimit: number; ... 4 more ...; requiresApprovalOnOverlimit: boolean; }; contacts: { ...; }[]; addresses: { ...; }[]; }' is not assignable to parameter of type 'never'.
+prisma/seed-clients.ts(50,22): error TS2345: Argument of type '{ code: string; legalName: string; tradeName: string; taxId: string; email: string; phone: string; country: string; isActive: boolean; createdAt: Date; creditProfile: { creditLimit: number; ... 4 more ...; requiresApprovalOnOverlimit: boolean; }; contacts: { ...; }[]; addresses: { ...; }[]; }' is not assignable to parameter of type 'never'.
+prisma/seed-clients.ts(55,22): error TS2345: Argument of type '{ code: string; legalName: string; tradeName: string; taxId: string; email: string; phone: string; country: string; isActive: boolean; createdAt: Date; creditProfile: { creditLimit: number; ... 4 more ...; requiresApprovalOnOverlimit: boolean; }; contacts: { ...; }[]; addresses: { ...; }[]; }' is not assignable to parameter of type 'never'.
+prisma/seed-clients.ts(60,22): error TS2345: Argument of type '{ code: string; legalName: string; tradeName: string; taxId: string; email: string; phone: string; country: string; isActive: boolean; createdAt: Date; creditProfile: { creditLimit: number; ... 4 more ...; requiresApprovalOnOverlimit: boolean; }; contacts: { ...; }[]; addresses: { ...; }[]; }' is not assignable to parameter of type 'never'.
+prisma/seed-clients.ts(65,52): error TS2700: Rest types may only be created from object types.
+
+    at createTSError (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  diagnosticCodes: [
+    2345, 2345,
+    2345, 2345,
+    2345, 2345,
+    2700
+  ]
+}

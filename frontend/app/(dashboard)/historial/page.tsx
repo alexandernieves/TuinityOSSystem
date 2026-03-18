@@ -296,8 +296,8 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
                 'relative flex h-9 w-full flex-col items-center justify-center rounded-lg text-sm transition-all',
                 isFuture && 'cursor-default text-gray-300 dark:text-[#333]',
                 !isFuture && !isSelected && !isToday && 'text-gray-700 hover:bg-gray-100 dark:text-[#ccc] dark:hover:bg-[#1a1a1a]',
-                !isFuture && isToday && !isSelected && 'font-bold text-brand-600 dark:text-brand-400',
-                isSelected && 'bg-brand-600 font-bold text-white',
+                !isFuture && isToday && !isSelected && 'font-bold text-blue-600 dark:text-blue-400',
+                isSelected && 'bg-blue-600 font-bold text-white',
               )}
             >
               <span className="leading-none">{day}</span>
@@ -306,7 +306,7 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
                 <span
                   className={cn(
                     'absolute bottom-0.5 h-1 w-1 rounded-full',
-                    isSelected ? 'bg-white' : activityCount >= 5 ? 'bg-brand-500' : activityCount >= 3 ? 'bg-brand-400' : 'bg-brand-300 dark:bg-brand-600',
+                    isSelected ? 'bg-white' : activityCount >= 5 ? 'bg-blue-500' : activityCount >= 3 ? 'bg-blue-400' : 'bg-blue-300 dark:bg-blue-600',
                   )}
                 />
               )}
@@ -318,14 +318,14 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
       {/* Legend */}
       <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-[#2a2a2a]">
         <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-[#666]">
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-brand-300 dark:bg-brand-600" />1-2</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-brand-400" />3-4</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-brand-500" />5+</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-300 dark:bg-blue-600" />1-2</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-400" />3-4</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />5+</span>
         </div>
         {selectedDate && (
           <button
             onClick={() => onSelectDate(null)}
-            className="flex items-center gap-1 text-[10px] font-medium text-brand-500 hover:text-brand-600"
+            className="flex items-center gap-1 text-[10px] font-medium text-blue-500 hover:text-blue-600"
           >
             <X className="h-3 w-3" />
             Limpiar
@@ -448,8 +448,8 @@ export default function HistorialPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-          <History className="h-5 w-5 text-brand-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+          <History className="h-5 w-5 text-blue-600" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Historial de Actividad</h1>
@@ -468,13 +468,13 @@ export default function HistorialPage() {
             placeholder="Buscar actividad..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-[#666]"
+            className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-[#666]"
           />
         </div>
         <select
           value={userFilter}
           onChange={(e) => setUserFilter(e.target.value)}
-          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
         >
           <option value="all">Todos los usuarios</option>
           {uniqueUsers.map(([id, name]) => (
@@ -484,7 +484,7 @@ export default function HistorialPage() {
         <select
           value={moduleFilter}
           onChange={(e) => setModuleFilter(e.target.value)}
-          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
         >
           <option value="all">Todos los módulos</option>
           {Object.entries(MODULE_CONFIG).map(([key, cfg]) => (
@@ -494,7 +494,7 @@ export default function HistorialPage() {
         <select
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
-          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
         >
           <option value="all">Todas las acciones</option>
           {uniqueActions.map((action) => (
@@ -504,7 +504,7 @@ export default function HistorialPage() {
         {selectedDate && (
           <button
             onClick={() => setSelectedDate(null)}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-400"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
           >
             {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
             <X className="h-3.5 w-3.5" />
@@ -515,7 +515,7 @@ export default function HistorialPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Acciones Hoy', value: stats.todayActions, icon: Activity, color: 'text-brand-500', bgColor: 'bg-brand-100' },
+          { label: 'Acciones Hoy', value: stats.todayActions, icon: Activity, color: 'text-blue-500', bgColor: 'bg-blue-100' },
           { label: 'Usuarios Activos', value: stats.activeUsers, icon: Users, color: 'text-emerald-500', bgColor: 'bg-emerald-50 dark:bg-emerald-950' },
           { label: 'Módulo Más Activo', value: stats.topModule, icon: TrendingUp, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' },
           { label: 'Última Acción', value: stats.lastActionTime, icon: Clock, color: 'text-amber-500', bgColor: 'bg-amber-50 dark:bg-amber-950' },

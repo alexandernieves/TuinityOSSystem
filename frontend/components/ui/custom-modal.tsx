@@ -1,108 +1,92 @@
-'use client';
+import * as React from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from "./dialog"
+import { cn } from "@/lib/utils"
 
-import { ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
-import { cn } from '@/lib/utils/cn';
-
-const SIZE_MAP = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  '2xl': 'max-w-2xl',
-  '3xl': 'max-w-3xl',
-  '4xl': 'max-w-4xl',
-} as const;
-
-type ModalSize = keyof typeof SIZE_MAP;
-
-interface CustomModalProps {
+export interface CustomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  children: ReactNode;
-  size?: ModalSize;
-  /** Allow scrolling inside modal body when content is tall */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   scrollable?: boolean;
+  children: React.ReactNode;
 }
 
-export function CustomModal({ isOpen, onClose, children, size = 'md', scrollable = false }: CustomModalProps) {
+const sizeClasses = {
+  sm: "sm:max-w-[425px]",
+  md: "sm:max-w-[600px]",
+  lg: "sm:max-w-[800px]",
+  xl: "sm:max-w-[1000px]",
+  full: "w-full h-full max-w-full m-0 rounded-none",
+};
+
+export function CustomModal({
+  isOpen,
+  onClose,
+  size = "md",
+  scrollable = false,
+  children,
+}: CustomModalProps) {
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-100 flex items-center justify-center p-4"
-        >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.15 }}
-            className={cn(
-              'relative w-full rounded-2xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] shadow-2xl',
-              SIZE_MAP[size],
-              scrollable && 'flex max-h-[85vh] flex-col',
-            )}
-          >
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent 
+        className={cn(
+          sizeClasses[size],
+          scrollable && "max-h-[90vh] flex flex-col overflow-hidden"
+        )}
+      >
+        {children}
+      </DialogContent>
+    </Dialog>
+  )
 }
 
-interface CustomModalHeaderProps {
-  children: ReactNode;
+export function CustomModalHeader({
+  children,
+  onClose, // Deprecated: Dialog handles close natively, keeping for compatibility
+  className,
+}: {
+  children: React.ReactNode;
   onClose?: () => void;
   className?: string;
-}
-
-export function CustomModalHeader({ children, onClose, className }: CustomModalHeaderProps) {
+}) {
   return (
-    <div className={cn('flex items-center justify-between border-b border-gray-200 dark:border-[#2a2a2a] px-5 py-4', className)}>
-      <div className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
-        {children}
-      </div>
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#2a2a2a] dark:hover:text-gray-300 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  );
+    <DialogHeader className={cn("text-lg font-semibold", className)}>
+      <DialogTitle asChild>
+        <div>{children}</div>
+      </DialogTitle>
+    </DialogHeader>
+  )
 }
 
-interface CustomModalBodyProps {
-  children: ReactNode;
+export function CustomModalBody({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
   className?: string;
-}
-
-export function CustomModalBody({ children, className }: CustomModalBodyProps) {
+}) {
   return (
-    <div className={cn('px-5 py-4 overflow-y-auto', className)}>
+    <div className={cn("flex-1 overflow-y-auto py-2 pr-1", className)}>
       {children}
     </div>
-  );
+  )
 }
 
-interface CustomModalFooterProps {
-  children: ReactNode;
+export function CustomModalFooter({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
   className?: string;
-}
-
-export function CustomModalFooter({ children, className }: CustomModalFooterProps) {
+}) {
   return (
-    <div className={cn('flex justify-end gap-2 border-t border-gray-200 dark:border-[#2a2a2a] px-5 py-3', className)}>
+    <DialogFooter className={cn("pt-4 items-center sm:justify-end gap-2", className)}>
       {children}
-    </div>
-  );
+    </DialogFooter>
+  )
 }

@@ -1,7 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Divider, Select, SelectItem, Input } from '@heroui/react';
+import { Separator as Divider } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileDown, FileText, Table, BarChart3, Calendar, Download } from 'lucide-react';
@@ -18,8 +27,8 @@ export default function ReportsPage() {
       id: 'sales',
       title: 'Reporte de Ventas',
       description: 'Detalle de todas las ventas facturadas, confirmadas y pendientes.',
-      icon: <FileText className="h-6 w-6 text-brand-600" />,
-      bgColor: 'bg-brand-50 dark:bg-brand-900/20',
+      icon: <FileText className="h-6 w-6 text-blue-600" />,
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       endpoint: '/reports/sales/excel',
       filename: 'reporte-ventas.xlsx'
     },
@@ -28,7 +37,7 @@ export default function ReportsPage() {
       title: 'Reporte de Inventario',
       description: 'Estado actual del stock, costos y valorización de mercancía.',
       icon: <Table className="h-6 w-6 text-success" />,
-      bgColor: 'bg-success-bg',
+      bgColor: 'bg-green-50',
       endpoint: '/reports/inventory/excel',
       filename: 'reporte-inventario.xlsx'
     },
@@ -37,7 +46,7 @@ export default function ReportsPage() {
       title: 'Reporte de Cartera (CxC)',
       description: 'Saldos pendientes por cobrar agrupados por cliente.',
       icon: <BarChart3 className="h-6 w-6 text-warning" />,
-      bgColor: 'bg-warning-bg',
+      bgColor: 'bg-amber-50',
       endpoint: '/reports/sales/excel?status=confirmada', // Placeholder logic for now
       filename: 'reporte-cxc.xlsx'
     }
@@ -76,8 +85,8 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6 pb-8">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-text-primary">Centro de Reportes</h1>
-        <p className="text-sm text-text-secondary">Genera reportes dinámicos en formato Excel para análisis contable y comercial.</p>
+        <h1 className="text-2xl font-semibold text-foreground">Centro de Reportes</h1>
+        <p className="text-sm text-muted-foreground">Genera reportes dinámicos en formato Excel para análisis contable y comercial.</p>
       </header>
 
       <Divider />
@@ -96,12 +105,12 @@ export default function ReportsPage() {
                   {report.icon}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary">{report.title}</h3>
-                  <p className="text-xs text-text-muted">Formato: Excel (.xlsx)</p>
+                  <h3 className="text-lg font-bold text-foreground">{report.title}</h3>
+                  <p className="text-xs text-muted">Formato: Excel (.xlsx)</p>
                 </div>
               </CardHeader>
               <CardContent className="p-4 flex flex-col justify-between">
-                <p className="text-sm text-text-secondary mb-6">
+                <p className="text-sm text-muted-foreground mb-6">
                   {report.description}
                 </p>
 
@@ -121,34 +130,42 @@ export default function ReportsPage() {
       {/* Custom Report Builder Section (Placeholder for future) */}
       <Card className="mt-8">
         <CardHeader className="p-4">
-          <h3 className="text-base font-semibold text-text-primary">Filtros Avanzados</h3>
+          <h3 className="text-base font-semibold text-foreground">Filtros Avanzados</h3>
         </CardHeader>
         <Divider />
         <CardContent className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <Input
-              label="Desde"
-              type="date"
-              labelPlacement="outside"
-              placeholder="Fecha de inicio"
-              className="max-w-xs"
-            />
-            <Input
-              label="Hasta"
-              type="date"
-              labelPlacement="outside"
-              placeholder="Fecha de fin"
-              className="max-w-xs"
-            />
-            <Select
-              label="Categoría"
-              labelPlacement="outside"
-              placeholder="Seleccionar..."
-            >
-              <SelectItem key="all">Todas</SelectItem>
-              <SelectItem key="liquors">Licores</SelectItem>
-              <SelectItem key="wines">Vinos</SelectItem>
-            </Select>
+            <div className="space-y-1.5 flex flex-col">
+              <Label htmlFor="date-from">Desde</Label>
+              <Input
+                id="date-from"
+                type="date"
+                placeholder="Fecha de inicio"
+                className="max-w-xs"
+              />
+            </div>
+            <div className="space-y-1.5 flex flex-col">
+              <Label htmlFor="date-to">Hasta</Label>
+              <Input
+                id="date-to"
+                type="date"
+                placeholder="Fecha de fin"
+                className="max-w-xs"
+              />
+            </div>
+            <div className="space-y-1.5 flex flex-col">
+              <Label htmlFor="category">Categoría</Label>
+              <Select>
+                <SelectTrigger id="category" className="max-w-xs">
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="liquors">Licores</SelectItem>
+                  <SelectItem value="wines">Vinos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button variant="outline" className="font-medium">
               Filtrar Reporte
             </Button>

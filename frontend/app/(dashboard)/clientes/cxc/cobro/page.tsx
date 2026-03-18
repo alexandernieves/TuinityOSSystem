@@ -3,12 +3,15 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Button,
-  Input,
   Select,
+  SelectContent,
   SelectItem,
-} from '@heroui/react';
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   DollarSign,
@@ -220,7 +223,7 @@ export default function RegistrarCobroPage() {
         <Ban className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
         <h2 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Acceso restringido</h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-[#888888]">No tienes permisos para registrar cobros.</p>
-        <Button color="primary" onPress={() => router.push('/clientes/cxc')} className="bg-brand-700">
+        <Button onClick={() => router.push('/clientes/cxc')} className="bg-blue-700 hover:bg-blue-800 text-white">
           Volver a CxC
         </Button>
       </div>
@@ -235,12 +238,14 @@ export default function RegistrarCobroPage() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => router.push('/clientes/cxc')}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
+          className="h-9 w-9"
         >
           <ArrowLeft className="h-4 w-4" />
-        </button>
+        </Button>
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Registrar Cobro</h1>
           <p className="text-sm text-gray-500 dark:text-[#888888]">Paso {currentStep} de 3</p>
@@ -260,7 +265,7 @@ export default function RegistrarCobroPage() {
               currentStep > step.num
                 ? 'bg-emerald-500 text-white'
                 : currentStep === step.num
-                ? 'bg-brand-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-400 dark:text-[#666666]'
             )}>
               {currentStep > step.num ? <Check className="h-4 w-4" /> : step.num}
@@ -291,7 +296,7 @@ export default function RegistrarCobroPage() {
               placeholder="Buscar cliente por nombre o codigo..."
               value={clientSearch}
               onChange={(e) => setClientSearch(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-10 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-10 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
@@ -302,7 +307,7 @@ export default function RegistrarCobroPage() {
                 <button
                   key={client.id}
                   onClick={() => handleSelectClient(client.id)}
-                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-4 text-left transition-colors hover:border-brand-500 hover:bg-brand-500/5"
+                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-4 text-left transition-colors hover:border-blue-500 hover:bg-blue-500/5"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-[#2a2a2a]">
@@ -345,7 +350,7 @@ export default function RegistrarCobroPage() {
             </div>
             <button
               onClick={() => { setCurrentStep(1); setSelectedClientId(null); }}
-              className="text-xs font-medium text-brand-600 hover:text-brand-700"
+              className="text-xs font-medium text-blue-600 hover:text-blue-700"
             >
               Cambiar cliente
             </button>
@@ -358,7 +363,7 @@ export default function RegistrarCobroPage() {
               </h3>
               <button
                 onClick={selectAllInvoices}
-                className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                className="text-xs font-medium text-blue-600 hover:text-blue-700"
               >
                 {selectedInvoiceIds.size === pendingInvoices.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
               </button>
@@ -385,14 +390,14 @@ export default function RegistrarCobroPage() {
                         onClick={() => toggleInvoice(inv.id)}
                         className={cn(
                           'cursor-pointer transition-colors',
-                          isSelected ? 'bg-brand-500/5' : 'hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                          isSelected ? 'bg-blue-500/5' : 'hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
                         )}
                       >
                         <td className="px-4 py-2.5">
                           <div className={cn(
                             'flex h-5 w-5 items-center justify-center rounded border transition-colors',
                             isSelected
-                              ? 'border-brand-500 bg-brand-500 text-white'
+                              ? 'border-blue-500 bg-blue-500 text-white'
                               : 'border-gray-300 dark:border-[#2a2a2a]'
                           )}>
                             {isSelected && <Check className="h-3 w-3" />}
@@ -441,14 +446,13 @@ export default function RegistrarCobroPage() {
               </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="flat" onPress={() => setCurrentStep(1)}>
+              <Button variant="ghost" onClick={() => setCurrentStep(1)}>
                 Atras
               </Button>
               <Button
-                color="primary"
-                onPress={handleProceedToPayment}
-                isDisabled={selectedInvoiceIds.size === 0}
-                className="bg-brand-700"
+                onClick={handleProceedToPayment}
+                disabled={selectedInvoiceIds.size === 0}
+                className="bg-blue-700 text-white hover:bg-blue-800"
               >
                 Continuar
               </Button>
@@ -477,7 +481,7 @@ export default function RegistrarCobroPage() {
           {/* Payment Form */}
           <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6">
             <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
-              <CreditCard className="h-5 w-5 text-brand-500" />
+              <CreditCard className="h-5 w-5 text-blue-500" />
               Detalles del Cobro
             </h3>
             <div className="space-y-4">
@@ -486,15 +490,16 @@ export default function RegistrarCobroPage() {
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Monto del Cobro <span className="text-red-500">*</span>
                   </label>
-                  <Input
-                    placeholder="0.00"
-                    type="number"
-                    variant="bordered"
-                    startContent={<span className="text-gray-400">$</span>}
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    color={amountExceeds ? 'danger' : 'default'}
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                    <Input
+                      placeholder="0.00"
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      className={cn("pl-7", amountExceeds && "border-red-500 focus-visible:ring-red-500")}
+                    />
+                  </div>
                   {amountExceeds && (
                     <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
                       <AlertCircle className="h-3 w-3" />
@@ -506,15 +511,15 @@ export default function RegistrarCobroPage() {
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Metodo de Pago <span className="text-red-500">*</span>
                   </label>
-                  <Select
-                    placeholder="Seleccionar metodo..."
-                    variant="bordered"
-                    selectedKeys={[paymentMethod]}
-                    onSelectionChange={(keys) => setPaymentMethod(Array.from(keys)[0] as PaymentMethod)}
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <SelectItem key={m}>{PAYMENT_METHOD_LABELS[m]}</SelectItem>
-                    ))}
+                  <Select value={paymentMethod} onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar metodo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((m) => (
+                        <SelectItem key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
               </div>
@@ -523,15 +528,15 @@ export default function RegistrarCobroPage() {
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Banco
                   </label>
-                  <Select
-                    placeholder="Seleccionar banco..."
-                    variant="bordered"
-                    selectedKeys={bankId ? [bankId] : []}
-                    onSelectionChange={(keys) => setBankId(Array.from(keys)[0] as string)}
-                  >
-                    {MOCK_BANKS.map((b) => (
-                      <SelectItem key={b.id}>{b.name}</SelectItem>
-                    ))}
+                  <Select value={bankId} onValueChange={setBankId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar banco..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOCK_BANKS.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div>
@@ -540,7 +545,6 @@ export default function RegistrarCobroPage() {
                   </label>
                   <Input
                     placeholder="Numero de referencia, cheque, etc."
-                    variant="bordered"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                   />
@@ -553,7 +557,6 @@ export default function RegistrarCobroPage() {
                   </label>
                   <Input
                     type="date"
-                    variant="bordered"
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
                   />
@@ -568,7 +571,7 @@ export default function RegistrarCobroPage() {
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   rows={2}
-                  className="w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -611,18 +614,20 @@ export default function RegistrarCobroPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-between">
-            <Button variant="flat" onPress={() => setCurrentStep(2)}>
+            <Button variant="ghost" onClick={() => setCurrentStep(2)}>
               Atras
             </Button>
             <Button
-              color="primary"
               size="lg"
-              startContent={<DollarSign className="h-5 w-5" />}
-              onPress={handleSubmit}
-              isLoading={isSaving}
-              isDisabled={amountExceeds || parsedAmount <= 0}
-              className="bg-brand-700"
+              onClick={handleSubmit}
+              disabled={amountExceeds || parsedAmount <= 0 || isSaving}
+              className="bg-blue-700 text-white hover:bg-blue-800 font-medium px-8"
             >
+              {isSaving ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+              ) : (
+                <DollarSign className="h-5 w-5 mr-2" />
+              )}
               Registrar Cobro - {formatCurrencyCxC(parsedAmount)}
             </Button>
           </div>

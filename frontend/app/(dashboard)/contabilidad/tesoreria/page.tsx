@@ -4,10 +4,24 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
 import {
-  Button,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Wallet,
   ChevronRight,
@@ -114,13 +128,13 @@ export default function TesoreriaPage() {
           </div>
         </div>
         {canAccessTreasury && (
-          <button
+          <Button
             onClick={() => setIsOpen(true)}
             className="flex h-9 items-center gap-2 rounded-lg bg-purple-600 px-4 text-sm font-medium text-white transition-colors hover:bg-purple-700"
           >
             <Plus className="h-4 w-4" />
             Emitir Pago
-          </button>
+          </Button>
         )}
       </div>
 
@@ -299,81 +313,89 @@ export default function TesoreriaPage() {
       </div>
 
       {/* Payment Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg">
-          <CustomModalHeader onClose={() => setIsOpen(false)}>
-              <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              Emitir Pago
-          </CustomModalHeader>
-          <CustomModalBody className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Banco</label>
-                <select
-                  value={paymentBank}
-                  onChange={(e) => setPaymentBank(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="">Seleccionar banco...</option>
-                  {activeBanks.map((bank) => (
-                    <option key={bank.id} value={bank.id}>
-                      {bank.bankName} ({bank.accountNumber}) - {formatCurrencyAccounting(bank.availableBalance)}
-                    </option>
-                  ))}
-                </select>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                Emitir Pago
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Monto</label>
-                  <input
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bank">Banco</Label>
+              <Select value={paymentBank} onValueChange={setPaymentBank}>
+                <SelectTrigger id="bank">
+                  <SelectValue placeholder="Seleccionar banco..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeBanks.map((bank) => (
+                    <SelectItem key={bank.id} value={bank.id}>
+                      {bank.bankName} ({bank.accountNumber}) - {formatCurrencyAccounting(bank.availableBalance)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount">Monto</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <Input
+                    id="amount"
                     type="number"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                     placeholder="0.00"
-                    className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 font-mono text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Referencia</label>
-                  <input
-                    type="text"
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    placeholder="Referencia del pago"
-                    className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    className="pl-7 font-mono"
                   />
                 </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Beneficiario</label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="reference">Referencia</Label>
+                <Input
+                  id="reference"
                   type="text"
-                  value={paymentBeneficiary}
-                  onChange={(e) => setPaymentBeneficiary(e.target.value)}
-                  placeholder="Nombre del beneficiario"
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Concepto</label>
-                <input
-                  type="text"
-                  value={paymentConcept}
-                  onChange={(e) => setPaymentConcept(e.target.value)}
-                  placeholder="Concepto del pago"
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder="Referencia del pago"
                 />
               </div>
             </div>
-          </CustomModalBody>
-          <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>
+            <div className="space-y-2">
+              <Label htmlFor="beneficiary">Beneficiario</Label>
+              <Input
+                id="beneficiary"
+                type="text"
+                value={paymentBeneficiary}
+                onChange={(e) => setPaymentBeneficiary(e.target.value)}
+                placeholder="Nombre del beneficiario"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="concept">Concepto</Label>
+              <Input
+                id="concept"
+                type="text"
+                value={paymentConcept}
+                onChange={(e) => setPaymentConcept(e.target.value)}
+                placeholder="Concepto del pago"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancelar
             </Button>
-            <Button onPress={handleEmitPayment} className="bg-purple-600 text-white">
+            <Button onClick={handleEmitPayment} className="bg-purple-600 text-white hover:bg-purple-700">
               Emitir Pago
             </Button>
-          </CustomModalFooter>
-      </CustomModal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,23 +3,36 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Avatar,
-} from '@heroui/react';
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import {
   Search,
   Bell,
   LogOut,
   User,
-  Settings,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { NotificationsPanel } from '@/components/ui/notifications-panel';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -55,52 +68,43 @@ export function Header() {
     setIsLogoutModalOpen(true);
   };
 
-  const confirmLogout = async () => {
+  const confirmLogout = () => {
     setIsLogoutModalOpen(false);
-    const toastId = toast.loading('Cerrando sesión...', {
-      description: 'Por favor, espera un momento.'
-    });
-
-    try {
-      await logout();
-      toast.success('Sesión cerrada exitosamente', { id: toastId });
-      router.push('/login');
-    } catch {
-      toast.error('Error al cerrar sesión', { id: toastId });
-    }
+    // State change will trigger redirect in layout immediately
+    logout();
+    toast.success('Sesión cerrada exitosamente');
+    router.replace('/login');
   };
 
   return (
     <>
       <header
-        className="bg-[#1a1a1a] h-[48px] flex items-center justify-between px-4 shrink-0 transition-all duration-200"
+        className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6"
       >
-        {/* Left - Logo */}
-        <div className="flex items-center gap-3 flex-1">
+        {/* Left - Sidebar Toggle & Logo */}
+        <div className="flex items-center gap-3">
+          <SidebarTrigger />
           <img
             src="https://res.cloudinary.com/db3espoei/image/upload/v1771993730/Logo_Evolution_ZL__1_-cropped_onzamv.svg"
             alt="Evolution ZL"
-            className="h-7 w-auto"
-            style={{ filter: 'brightness(0) invert(1)' }}
+            className="h-8 w-auto dark:invert-0"
+            style={{ filter: 'none' }}
           />
         </div>
 
         {/* Center - Search Bar */}
-        <div className="hidden md:flex flex-[2] justify-center px-4">
-          <div className="w-full max-w-[500px] relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#888] group-focus-within:text-[#ccc]" />
+        <div className="w-full flex-1">
+          <div className="relative group max-w-md mx-auto hidden md:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               onClick={() => setIsCommandPaletteOpen(true)}
               readOnly
-              placeholder="Buscar..."
-              className="w-full pl-9 pr-20 py-[6px] rounded-lg bg-[#303030] border border-[#444] text-[13px] text-white placeholder:text-[#888] focus:outline-none focus:border-[#666] transition-colors cursor-pointer"
+              placeholder="Buscar comandos o datos..."
+              className="w-full pl-9 pr-12 py-2 rounded-md bg-muted/50 border border-input text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              <kbd className="rounded bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-[#888] border border-[#444]">
-                ⌘
-              </kbd>
-              <kbd className="rounded bg-[#333] px-1.5 py-0.5 text-[10px] font-medium text-[#888] border border-[#444]">
-                K
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1">
+              <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground border border-border">
+                ⌘ K
               </kbd>
             </div>
           </div>
@@ -118,58 +122,43 @@ export function Header() {
           <button
             ref={bellRef}
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-            className="relative flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-[#2a2a2a] hover:text-white"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
           >
-            <Bell className="h-4 w-4" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-500" />
+            <Bell className="h-[18px] w-[18px]" />
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-600 border-2 border-background" />
           </button>
 
           {/* User Avatar */}
           {user && (
-            <Dropdown placement="bottom-end">
-              <DropdownTrigger>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[#2a2a2a]">
-                  <Avatar
-                    name={user.name}
-                    src={user.avatar}
-                    size="sm"
-                    classNames={{
-                      base: 'h-7 w-7 bg-emerald-600 text-white text-xs',
-                    }}
-                  />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-muted outline-none ml-1">
+                  <Avatar className="h-7 w-7">
+                    <AvatarImage src={user.avatar} />
+                    <AvatarFallback className="bg-emerald-600 text-white text-xs">
+                      {user.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
                 </button>
-              </DropdownTrigger>
-              <DropdownMenu
-                aria-label="User menu"
-                classNames={{
-                  base: 'bg-white border border-gray-200 shadow-lg',
-                }}
-              >
-                <DropdownItem
-                  key="profile"
-                  startContent={<User className="h-4 w-4" />}
-                  onPress={() => router.push('/perfil')}
-                >
-                  Mi Perfil
-                </DropdownItem>
-                <DropdownItem
-                  key="settings"
-                  startContent={<Settings className="h-4 w-4" />}
-                  onPress={() => router.push('/configuracion')}
-                >
-                  Configuración
-                </DropdownItem>
-                <DropdownItem
-                  key="logout"
-                  startContent={<LogOut className="h-4 w-4" />}
-                  className="text-danger"
-                  color="danger"
-                  onPress={handleLogoutClick}
-                >
-                  Cerrar Sesión
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/perfil')}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Mi Perfil</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleLogoutClick}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                 >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Cerrar Sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </header>
@@ -187,39 +176,37 @@ export function Header() {
       />
 
       {/* Logout Confirmation Modal */}
-      <CustomModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)}>
-        <CustomModalHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
-              <LogOut className="h-5 w-5" />
+      <Dialog open={isLogoutModalOpen} onOpenChange={setIsLogoutModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                <LogOut className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>Cerrar Sesión</DialogTitle>
+                <DialogDescription>
+                  ¿Estás seguro que deseas salir? No recibirás más notificaciones hasta que vuelvas a entrar.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-text-primary">Cerrar Sesión</h3>
-              <p className="text-sm text-text-muted">¿Estás seguro que deseas salir?</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody>
-          <p className="text-sm text-text-secondary py-2">
-            No recibirás más notificaciones en el sistema hasta que vuelvas a iniciar sesión.
-          </p>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            variant="ghost"
-            onClick={() => setIsLogoutModalOpen(false)}
-            className="h-10 px-6 font-semibold"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={confirmLogout}
-            className="h-10 px-6 font-semibold bg-danger hover:bg-danger/90 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
-          >
-            Sí, cerrar sesión
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setIsLogoutModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmLogout}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+             >
+              Sí, cerrar sesión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

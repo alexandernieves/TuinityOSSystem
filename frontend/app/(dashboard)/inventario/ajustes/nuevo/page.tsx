@@ -55,6 +55,7 @@ export default function NuevoAjustePage() {
   const [lines, setLines] = useState<FormLine[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
 
   // Product search modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -150,6 +151,18 @@ export default function NuevoAjustePage() {
     setLines(newLines);
   };
 
+  // Evidence files
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setEvidenceFiles([...evidenceFiles, ...newFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setEvidenceFiles(evidenceFiles.filter((_, i) => i !== index));
+  };
+
   // Calculate totals
   const totalItems = lines.reduce(
     (sum, l) => sum + Math.abs(l.adjustmentQty),
@@ -205,12 +218,23 @@ export default function NuevoAjustePage() {
 
     setIsSaving(true);
     try {
+      // 1. Upload evidence if exists
+      let evidenceUrls: string[] = [];
+      if (evidenceFiles.length > 0) {
+        const uploadRes = await api.uploadAdjustmentEvidence(evidenceFiles);
+        if (uploadRes.success) {
+          evidenceUrls = uploadRes.urls;
+        }
+      }
+
+      // 2. Create adjustment
       await api.createAdjustment({
         createdBy: user?.id,
         warehouseId,
         type: adjustmentType,
         reason: reason as string,
         observation,
+        evidenceUrls,
         lines: lines.map((l) => ({
           productId: l.productId,
           currentStock: l.currentStock,
@@ -365,14 +389,49 @@ export default function NuevoAjustePage() {
             <label className={labelClass} style={labelStyle}>
               Evidencia (opcional)
             </label>
-            <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer">
+            <div 
+              onClick={() => document.getElementById('evidence-upload')?.click()}
+              className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
+            >
+              <input 
+                id="evidence-upload"
+                type="file" 
+                multiple 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleFileChange}
+              />
               <div className="flex flex-col items-center text-gray-500 dark:text-[#888888]">
                 <ImagePlus className="mb-1 h-6 w-6" />
                 <span className="text-xs">
-                  Click o arrastra para subir fotos
+                  Click para subir fotos de evidencia
                 </span>
               </div>
             </div>
+
+            {/* Evidence Previews */}
+            {evidenceFiles.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {evidenceFiles.map((file, idx) => (
+                  <div key={idx} className="relative h-16 w-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2a2a2a]">
+                    <img 
+                      src={URL.createObjectURL(file)} 
+                      alt="Preview" 
+                      className="h-full w-full object-cover" 
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFile(idx);
+                      }}
+                      className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { api } from '@/lib/services/api';
-import { Divider, Progress, Avatar, Button as HeroButton, Chip } from '@heroui/react';
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +52,14 @@ import { SEED_PRODUCTS } from '@/lib/mock-data/products';
 import { getUpcomingExpiryAlerts, getExpiryStats } from '@/lib/mock-data/expiry-batches';
 import { EXPIRY_ALERT_CONFIG } from '@/lib/types/expiry';
 import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
@@ -415,10 +425,10 @@ export default function DashboardPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">
+          <h1 className="text-2xl font-semibold text-foreground">
             Bienvenido, {user?.name}
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
+          <p className="mt-1 text-sm text-muted-foreground">
             Aquí está el resumen de tu actividad comercial • {new Date().toLocaleDateString('es-PA', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
@@ -442,118 +452,93 @@ export default function DashboardPage() {
       {/* Section: Resumen */}
       {isVisible('summary') && (
         <>
-          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Resumen General</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Resumen General</p>
 
           {/* Stats Grid - Main 4, unified */}
-          <Card className="p-0 overflow-hidden divide-y divide-border-default h-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
-              {realStats.map((stat, index) => {
-                const Icon = stat.icon;
-                const colorClasses = {
-                  brand: 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400',
-                  success: 'bg-success-bg text-success',
-                  warning: 'bg-warning-bg text-warning',
-                  danger: 'bg-danger-bg text-danger',
-                };
-
-                return (
-                  <motion.div
-                    key={stat.label}
-                    variants={itemVariants}
-                    onClick={() => router.push(stat.href)}
-                    className={cn(
-                      'cursor-pointer p-4 transition-colors hover:bg-surface-secondary',
-                      index < 2 && 'sm:border-b sm:border-border-default lg:border-b-0'
-                    )}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-text-secondary">{stat.label}</p>
-                        <p className="mt-2 text-2xl font-semibold text-text-primary">{stat.value}</p>
-                        <div className="mt-2 flex items-center gap-1">
-                          {stat.changeType === 'positive' && <ArrowUpRight className="h-4 w-4 text-success" />}
-                          {stat.changeType === 'negative' && <ArrowDownRight className="h-4 w-4 text-danger" />}
-                          <span className={cn('text-xs font-medium', stat.changeType === 'positive' ? 'text-success' : stat.changeType === 'negative' ? 'text-danger' : 'text-warning')}>
-                            {stat.change}
-                          </span>
-                        </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {realStats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={stat.label}
+                  variants={itemVariants}
+                  onClick={() => router.push(stat.href)}
+                >
+                  <Card className="cursor-pointer transition-all hover:border-blue-400 hover:shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {stat.label}
+                      </CardTitle>
+                      <div className={cn(
+                        "p-2 rounded-md",
+                        stat.color === 'brand' ? "bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" :
+                        stat.color === 'bg-green-50' ? "bg-green-50 text-green-600 dark:bg-green-900/40 dark:text-green-400" :
+                        stat.color === 'warning' ? "bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400" :
+                        "bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-400"
+                      )}>
+                        <Icon className="h-4 w-4" />
                       </div>
-                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[stat.color as keyof typeof colorClasses])}>
-                        <Icon className="h-5 w-5" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stat.value}</div>
+                      <div className="flex items-center mt-1 space-x-1">
+                        <span className={cn(
+                          "text-xs font-medium px-1.5 py-0.5 rounded-full flex items-center",
+                          stat.changeType === 'positive' ? "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400" :
+                          stat.changeType === 'negative' ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400" :
+                          "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                        )}>
+                          {stat.changeType === 'positive' && <ArrowUpRight className="h-3 w-3 mr-0.5" />}
+                          {stat.changeType === 'negative' && <ArrowDownRight className="h-3 w-3 mr-0.5" />}
+                          {stat.change}
+                        </span>
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </Card>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
         </>
       )}
 
       {/* Section: KPIs */}
       {isVisible('kpis') && (
         <>
-          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Indicadores Clave</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Indicadores Clave</p>
 
           {/* KPIs Row - All together, touching */}
-          <Card className="p-0 overflow-hidden divide-y divide-border-default h-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
-              {KPIS.map((kpi, index) => {
-                const Icon = kpi.icon;
-                const progress = (kpi.current / kpi.target) * 100;
-                const isOnTrack = progress >= 80;
-
-                const colorClasses = {
-                  brand: 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400',
-                  info: 'bg-info-bg text-info',
-                  success: 'bg-success-bg text-success',
-                  warning: 'bg-warning-bg text-warning',
-                };
-
-                return (
-                  <motion.div
-                    key={kpi.label}
-                    variants={itemVariants}
-                    className={cn(
-                      'p-4',
-                      index < 2 && 'sm:border-b sm:border-border-default lg:border-b-0'
-                    )}
-                  >
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', colorClasses[kpi.color as keyof typeof colorClasses])}>
-                        <Icon className="h-5 w-5" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {KPIS.map((kpi) => {
+              const Icon = kpi.icon;
+              const progress = (kpi.current / kpi.target) * 100;
+              return (
+                <motion.div key={kpi.label} variants={itemVariants}>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-xl font-bold">
+                        {kpi.unit === '$' ? formatCurrency(kpi.current) : `${kpi.current}${kpi.unit}`}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-text-secondary">{kpi.label}</p>
-                        <p className={cn('text-xl font-bold', isOnTrack ? 'text-success' : 'text-warning')}>
-                          {kpi.unit === '$' ? formatCurrency(kpi.current) : `${kpi.current}${kpi.unit}`}
-                        </p>
+                      <Progress value={Math.min(progress, 100)} className="h-1.5 mt-3" />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-muted-foreground">Meta: {kpi.unit === '$' ? formatCurrency(kpi.target) : `${kpi.target}${kpi.unit}`}</span>
+                        <span className="text-[10px] font-medium">{progress.toFixed(0)}%</span>
                       </div>
-                    </div>
-                    <Progress
-                      value={Math.min(progress, 100)}
-                      color={isOnTrack ? 'success' : 'warning'}
-                      size="sm"
-                      className="h-2"
-                    />
-                    <div className="mt-3 flex items-center justify-between text-xs">
-                      <span className="text-text-muted">
-                        Meta: {kpi.unit === '$' ? formatCurrency(kpi.target) : `${kpi.target}${kpi.unit}`}
-                      </span>
-                      <span className={cn('font-semibold', isOnTrack ? 'text-success' : 'text-warning')}>
-                        {progress.toFixed(0)}%
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </Card>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
         </>
       )}
 
       {/* Section: Análisis */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Análisis de Datos</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted">Análisis de Datos</p>
 
       {/* Charts Row - Sales + Monthly */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -568,35 +553,35 @@ export default function DashboardPage() {
             <Card className="p-0">
               <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
-                    <BarChart3 className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-text-primary">Ventas de la Semana</h3>
-                    <p className="text-xs text-text-muted">Comparativa con meta diaria</p>
+                    <h3 className="text-base font-semibold text-foreground">Ventas de la Semana</h3>
+                    <p className="text-xs text-muted">Comparativa con meta diaria</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="h-2.5 w-2.5 rounded-full bg-brand-500" />
-                    <span className="text-text-secondary">Ventas</span>
+                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    <span className="text-muted-foreground">Ventas</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="h-2.5 w-2.5 rounded-full bg-text-muted/30" />
-                    <span className="text-text-secondary">Meta</span>
+                    <div className="h-2.5 w-2.5 rounded-full bg-muted/30" />
+                    <span className="text-muted-foreground">Meta</span>
                   </div>
                 </div>
               </CardHeader>
-              <Divider />
+              <Separator className="bg-border" />
               <CardContent className="p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
-                    <p className="text-2xl font-bold text-text-primary">{formatCurrency(totalWeeklySales)}</p>
-                    <p className="text-sm text-text-secondary">
+                    <p className="text-2xl font-bold text-foreground">{formatCurrency(totalWeeklySales)}</p>
+                    <p className="text-sm text-muted-foreground">
                       {totalWeeklySales >= weeklyTarget ? (
-                        <span className="text-success">+{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% sobre meta</span>
+                        <span className="text-green-600">+{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% sobre meta</span>
                       ) : (
-                        <span className="text-danger">{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% bajo meta</span>
+                        <span className="text-red-600">{((totalWeeklySales / weeklyTarget - 1) * 100).toFixed(1)}% bajo meta</span>
                       )}
                     </p>
                   </div>
@@ -623,16 +608,16 @@ export default function DashboardPage() {
                             className={cn(
                               'w-full rounded-t-md transition-colors',
                               isAboveTarget
-                                ? 'bg-brand-500 group-hover:bg-brand-600 dark:bg-brand-600 dark:group-hover:bg-brand-500'
-                                : 'bg-warning group-hover:bg-warning/80'
+                                ? 'bg-blue-500 group-hover:bg-muted dark:bg-blue-600 dark:group-hover:bg-blue-500'
+                                : 'bg-amber-500 group-hover:bg-amber-500/80'
                             )}
                           />
                         </div>
-                        <p className="mt-2 text-xs font-medium text-text-secondary">{day.day}</p>
+                        <p className="mt-2 text-xs font-medium text-muted-foreground">{day.day}</p>
                         {/* Tooltip */}
-                        <div className="pointer-events-none absolute -top-12 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-surface-secondary px-3 py-2 text-xs text-text-primary opacity-0 shadow-lg ring-1 ring-border-default transition-opacity group-hover:opacity-100 dark:bg-surface-tertiary">
+                        <div className="pointer-events-none absolute -top-12 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-muted px-3 py-2 text-xs text-foreground opacity-0 shadow-lg ring-1 ring-border transition-opacity group-hover:opacity-100 dark:bg-accent">
                           <p className="font-semibold">{formatCurrency(day.value)}</p>
-                          <p className="text-text-muted">Meta: {formatCurrency(day.target)}</p>
+                          <p className="text-muted">Meta: {formatCurrency(day.target)}</p>
                         </div>
                       </div>
                     );
@@ -653,15 +638,15 @@ export default function DashboardPage() {
           >
             <Card className="p-0">
               <CardHeader className="flex flex-row items-center gap-3 p-4 mb-0">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success-bg">
-                  <TrendingUp className="h-5 w-5 text-success" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-text-primary">Tendencia Mensual</h3>
-                  <p className="text-xs text-text-muted">Últimos 6 meses</p>
+                  <h3 className="text-base font-semibold text-foreground">Tendencia Mensual</h3>
+                  <p className="text-xs text-muted">Últimos 6 meses</p>
                 </div>
               </CardHeader>
-              <Divider />
+              <Separator className="bg-border" />
               <CardContent className="p-4">
                 <div className="space-y-3">
                   {displayMonthlyRevenue.map((month: any, index: number) => {
@@ -671,10 +656,10 @@ export default function DashboardPage() {
 
                     return (
                       <div key={month.month} className="flex items-center gap-3">
-                        <span className={cn('w-8 text-xs font-medium', isCurrentMonth ? 'text-brand-600 dark:text-brand-400' : 'text-text-muted')}>
+                        <span className={cn('w-8 text-xs font-medium', isCurrentMonth ? 'text-blue-600 dark:text-blue-400' : 'text-muted')}>
                           {month.month}
                         </span>
-                        <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-surface-secondary">
+                        <div className="relative flex h-6 flex-1 overflow-hidden rounded-md bg-muted">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${widthPercent}%` }}
@@ -682,13 +667,13 @@ export default function DashboardPage() {
                             className={cn(
                               'absolute inset-y-0 left-0 rounded-md',
                               isCurrentMonth
-                                ? 'bg-brand-500 dark:bg-brand-600'
-                                : 'bg-brand-200 dark:bg-brand-800'
+                                ? 'bg-blue-500 dark:bg-blue-600'
+                                : 'bg-blue-200 dark:bg-blue-800'
                             )}
                           />
                         </div>
                         {canViewCosts && (
-                          <span className={cn('w-20 text-right text-xs font-semibold', isCurrentMonth ? 'text-text-primary' : 'text-text-secondary')}>
+                          <span className={cn('w-20 text-right text-xs font-semibold', isCurrentMonth ? 'text-foreground' : 'text-muted-foreground')}>
                             {formatCurrency(month.revenue)}
                           </span>
                         )}
@@ -705,7 +690,7 @@ export default function DashboardPage() {
       {/* Pending Approvals + Inventory Alerts */}
       {canApproveAdjustments && (
         <>
-          <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Gestión Operativa</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">Gestión Operativa</p>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Pending Approvals */}
             <motion.div
@@ -716,45 +701,45 @@ export default function DashboardPage() {
               <Card className="p-0">
                 <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning-bg">
-                      <ClipboardList className="h-5 w-5 text-warning" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50">
+                      <ClipboardList className="h-5 w-5 text-amber-600" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-text-primary">Pendientes de Aprobación</h3>
-                      <p className="text-xs text-text-muted">{PENDING_APPROVALS.length} items requieren acción</p>
+                      <h3 className="text-base font-semibold text-foreground">Pendientes de Aprobación</h3>
+                      <p className="text-xs text-muted">{PENDING_APPROVALS.length} items requieren acción</p>
                     </div>
                   </div>
-                  <Chip color="warning" variant="flat" size="sm">
+                  <Badge variant="warning">
                     {PENDING_APPROVALS.length}
-                  </Chip>
+                  </Badge>
                 </CardHeader>
-                <Divider />
+                <Separator className="bg-border" />
                 <CardContent className="p-0">
-                  <ul className="divide-y divide-border-default">
+                  <ul className="divide-y divide-border">
                     {PENDING_APPROVALS.map((item) => (
                       <li
                         key={item.id}
-                        className="cursor-pointer px-4 py-4 transition-colors hover:bg-surface-secondary"
+                        className="cursor-pointer px-4 py-4 transition-colors hover:bg-muted"
                         onClick={() => router.push(item.type === 'adjustment' ? `/inventario/ajustes/${item.id}` : `/inventario/transferencias/${item.id}`)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               'flex h-8 w-8 items-center justify-center rounded-full',
-                              item.type === 'adjustment' ? 'bg-info-bg text-info' : 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
+                              item.type === 'adjustment' ? 'bg-blue-50 text-blue-600' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                             )}>
                               {item.type === 'adjustment' ? <FileText className="h-4 w-4" /> : <ArrowRightLeft className="h-4 w-4" />}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-text-primary">{item.id}</p>
-                              <p className="text-xs text-text-secondary">{item.description}</p>
+                              <p className="text-sm font-medium text-foreground">{item.id}</p>
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
                             </div>
                           </div>
                           <div className="text-right">
                             {canViewCosts && (
-                              <p className="text-sm font-semibold text-text-primary">{formatCurrency(item.value)}</p>
+                              <p className="text-sm font-semibold text-foreground">{formatCurrency(item.value)}</p>
                             )}
-                            <p className="text-xs text-text-muted">{item.createdBy}</p>
+                            <p className="text-xs text-muted">{item.createdBy}</p>
                           </div>
                         </div>
                       </li>
@@ -773,12 +758,12 @@ export default function DashboardPage() {
               <Card className="p-0">
                 <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-danger-bg">
-                      <AlertCircle className="h-5 w-5 text-danger" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-text-primary">Alertas de Inventario</h3>
-                      <p className="text-xs text-text-muted">Productos que requieren atención</p>
+                      <h3 className="text-base font-semibold text-foreground">Alertas de Inventario</h3>
+                      <p className="text-xs text-muted">Productos que requieren atención</p>
                     </div>
                   </div>
                   <Button
@@ -788,7 +773,7 @@ export default function DashboardPage() {
                     Ver todos
                   </Button>
                 </CardHeader>
-                <Divider />
+                <Separator className="bg-border" />
                 {/* F1: Reorder Point Summary */}
                 {canViewInventoryAlerts && REORDER_POINT_COUNT > 0 && (
                   <div className="mx-4 mt-4 mb-2 flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5">
@@ -807,63 +792,61 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <CardContent className="p-0">
-                  <ul className="divide-y divide-border-default">
+                  <ul className="divide-y divide-border">
                     {INVENTORY_ALERTS.map((alert) => (
-                      <li key={alert.id} className="px-4 py-3">
+                      <li key={alert.id} className="px-5 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               'flex h-8 w-8 items-center justify-center rounded-full',
-                              alert.severity === 'critical' ? 'bg-danger-bg text-danger' :
-                                alert.severity === 'warning' ? 'bg-warning-bg text-warning' :
-                                  'bg-warning-bg/50 text-warning'
+                              alert.severity === 'critical' ? 'bg-red-50 text-red-600' :
+                                alert.severity === 'warning' ? 'bg-amber-50 text-amber-600' :
+                                  'bg-amber-50/50 text-amber-600'
                             )}>
                               <AlertTriangle className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-text-primary line-clamp-1">{alert.product}</p>
-                              <p className="text-xs text-text-muted">{alert.reference}</p>
+                              <p className="text-sm font-medium text-foreground line-clamp-1">{alert.product}</p>
+                              <p className="text-xs text-muted">{alert.reference}</p>
                             </div>
                           </div>
                           <div className="text-right">
                             {alert.type === 'out_of_stock' && (
-                              <Chip color="danger" variant="flat" size="sm">Sin Stock</Chip>
+                               <Badge variant="destructive">Sin Stock</Badge>
                             )}
                             {alert.type === 'low_stock' && (
-                              <Chip color="warning" variant="flat" size="sm">{alert.current}/{alert.minimum}</Chip>
+                               <Badge variant="warning">{alert.current}/{alert.minimum}</Badge>
                             )}
                             {alert.type === 'stagnant' && (
-                              <Chip color="secondary" variant="flat" size="sm">{alert.monthsWithoutSale} meses</Chip>
+                               <Badge variant="secondary">{alert.monthsWithoutSale} meses</Badge>
                             )}
                           </div>
                         </div>
                       </li>
                     ))}
                     {canViewInventoryAlerts && REORDER_POINT_ALERTS.slice(0, 5).map((alert) => (
-                      <li key={`rp-${alert.id}`} className="px-4 py-3">
+                      <li key={`rp-${alert.id}`} className="px-5 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               'flex h-8 w-8 items-center justify-center rounded-full',
-                              alert.severity === 'critical' ? 'bg-danger-bg text-danger' :
-                                alert.severity === 'warning' ? 'bg-warning-bg text-warning' :
+                              alert.severity === 'critical' ? 'bg-red-50 text-red-600' :
+                                alert.severity === 'warning' ? 'bg-amber-50 text-amber-600' :
                                   'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
                             )}>
                               <Package className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-text-primary line-clamp-1">{alert.product}</p>
-                              <p className="text-xs text-text-muted">{alert.reference}</p>
+                              <p className="text-sm font-medium text-foreground line-clamp-1">{alert.product}</p>
+                              <p className="text-xs text-muted">{alert.reference}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <Chip
-                              color={alert.severity === 'critical' ? 'danger' : 'warning'}
-                              variant="flat"
-                              size="sm"
-                            >
-                              {alert.current}/{alert.reorderPoint}
-                            </Chip>
+                             <Badge
+                               variant={alert.severity === 'critical' ? 'destructive' : 'warning'}
+                             >
+                               {alert.current}/{alert.reorderPoint}
+                             </Badge>
                           </div>
                         </div>
                       </li>
@@ -892,8 +875,8 @@ export default function DashboardPage() {
                     <Clock className="h-5 w-5 text-red-500" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-text-primary">Próximos a Vencer</h3>
-                    <p className="text-xs text-text-muted">Lotes con fecha de vencimiento cercana</p>
+                    <h3 className="text-base font-semibold text-foreground">Próximos a Vencer</h3>
+                    <p className="text-xs text-muted">Lotes con fecha de vencimiento cercana</p>
                   </div>
                 </div>
                 <Button
@@ -903,24 +886,24 @@ export default function DashboardPage() {
                   Ver inventario
                 </Button>
               </CardHeader>
-              <Divider />
+              <Separator className="bg-border" />
               {/* Stats row */}
-              <div className="grid grid-cols-3 divide-x divide-border-default border-b border-border-default">
+              <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
                 <div className="px-5 py-3 text-center">
                   <p className="text-xl font-bold text-red-600 dark:text-red-400">{expiryStats.expired}</p>
-                  <p className="text-xs text-text-muted">Vencidos</p>
+                  <p className="text-xs text-muted">Vencidos</p>
                 </div>
                 <div className="px-5 py-3 text-center">
                   <p className="text-xl font-bold text-red-500">{expiryStats.critical}</p>
-                  <p className="text-xs text-text-muted">Críticos (&lt;30d)</p>
+                  <p className="text-xs text-muted">Críticos (&lt;30d)</p>
                 </div>
                 <div className="px-5 py-3 text-center">
                   <p className="text-xl font-bold text-amber-500">{expiryStats.warning}</p>
-                  <p className="text-xs text-text-muted">Advertencia (30-60d)</p>
+                  <p className="text-xs text-muted">Advertencia (30-60d)</p>
                 </div>
               </div>
               <CardContent className="p-4">
-                <ul className="divide-y divide-border-default">
+                <ul className="divide-y divide-border">
                   {upcomingExpiryAlerts.map((alert) => {
                     const config = EXPIRY_ALERT_CONFIG[alert.alertLevel];
                     return (
@@ -931,8 +914,8 @@ export default function DashboardPage() {
                               <Clock className={cn('h-4 w-4', config.text)} />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-text-primary line-clamp-1">{alert.batch.productDescription}</p>
-                              <p className="text-xs text-text-muted">Lote: {alert.batch.batchNumber} &middot; {alert.batch.quantity} uds</p>
+                              <p className="text-sm font-medium text-foreground line-clamp-1">{alert.batch.productDescription}</p>
+                              <p className="text-xs text-muted">Lote: {alert.batch.batchNumber} &middot; {alert.batch.quantity} uds</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -955,7 +938,7 @@ export default function DashboardPage() {
       {
         checkPermission('canAccessCxC') && (
           <>
-            <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Finanzas y Cobranzas</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted">Finanzas y Cobranzas</p>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* CxC Overview */}
               <motion.div
@@ -967,12 +950,12 @@ export default function DashboardPage() {
                 <Card className="p-0">
                   <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning-bg">
-                        <Receipt className="h-5 w-5 text-warning" />
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50">
+                        <Receipt className="h-5 w-5 text-amber-600" />
                       </div>
                       <div>
-                        <h3 className="text-base font-semibold text-text-primary">Cuentas por Cobrar</h3>
-                        <p className="text-xs text-text-muted">Resumen de cartera</p>
+                        <h3 className="text-base font-semibold text-foreground">Cuentas por Cobrar</h3>
+                        <p className="text-xs text-muted">Resumen de cartera</p>
                       </div>
                     </div>
                     <Button
@@ -982,50 +965,48 @@ export default function DashboardPage() {
                       Ver CxC
                     </Button>
                   </CardHeader>
-                  <Divider />
+                  <Separator className="bg-border" />
                   <CardContent className="p-5">
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>
-                        <p className="text-xs text-text-muted">Total Pendiente</p>
-                        <p className="mt-1 text-xl font-bold text-text-primary">{formatCurrency(CXC_SUMMARY.totalPending)}</p>
+                        <p className="text-xs text-muted">Total Pendiente</p>
+                        <p className="mt-1 text-xl font-bold text-foreground">{formatCurrency(CXC_SUMMARY.totalPending)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-text-muted">Corriente</p>
-                        <p className="mt-1 text-xl font-bold text-success">{formatCurrency(CXC_SUMMARY.current)}</p>
+                        <p className="text-xs text-muted">Corriente</p>
+                        <p className="mt-1 text-xl font-bold text-green-600">{formatCurrency(CXC_SUMMARY.current)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-text-muted">Vencido 30-60</p>
-                        <p className="mt-1 text-xl font-bold text-warning">{formatCurrency(CXC_SUMMARY.overdue30)}</p>
+                        <p className="text-xs text-muted">Vencido 30-60</p>
+                        <p className="mt-1 text-xl font-bold text-amber-600">{formatCurrency(CXC_SUMMARY.overdue30)}</p>
                       </div>
                       <div>
-                        <p className="mt-1 text-xl font-bold text-danger">{formatCurrency(CXC_SUMMARY.overdue60 + CXC_SUMMARY.overdue90)}</p>
+                        <p className="mt-1 text-xl font-bold text-red-600">{formatCurrency(CXC_SUMMARY.overdue60 + CXC_SUMMARY.overdue90)}</p>
                       </div>
                     </div>
                     {/* Aging bar */}
                     <div className="mt-4 flex h-3 overflow-hidden rounded-full">
-                      <div className="bg-success" style={{ width: `${(CXC_SUMMARY.current / CXC_SUMMARY.totalPending) * 100}%` }} />
-                      <div className="bg-warning" style={{ width: `${(CXC_SUMMARY.overdue30 / CXC_SUMMARY.totalPending) * 100}%` }} />
+                      <div className="bg-green-600" style={{ width: `${(CXC_SUMMARY.current / CXC_SUMMARY.totalPending) * 100}%` }} />
+                      <div className="bg-amber-500" style={{ width: `${(CXC_SUMMARY.overdue30 / CXC_SUMMARY.totalPending) * 100}%` }} />
                       <div className="bg-orange-500" style={{ width: `${(CXC_SUMMARY.overdue60 / CXC_SUMMARY.totalPending) * 100}%` }} />
-                      <div className="bg-danger" style={{ width: `${(CXC_SUMMARY.overdue90 / CXC_SUMMARY.totalPending) * 100}%` }} />
+                      <div className="bg-red-600" style={{ width: `${(CXC_SUMMARY.overdue90 / CXC_SUMMARY.totalPending) * 100}%` }} />
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
+                    <div className="mt-2 flex items-center justify-between text-xs text-muted">
                       <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />Corriente</span>
-                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />30d</span>
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-600" />Corriente</span>
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" />30d</span>
                         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" />60d</span>
-                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-danger" />90+d</span>
+                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-600" />90+d</span>
                       </div>
                     </div>
                     {/* Cobros del mes progress */}
-                    <div className="mt-4 rounded-lg bg-surface-secondary p-3">
+                    <div className="mt-4 rounded-lg bg-muted p-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-text-secondary">Cobros del mes</span>
-                        <span className="font-semibold text-text-primary">{formatCurrency(CXC_SUMMARY.collectedThisMonth)} / {formatCurrency(CXC_SUMMARY.collectionTarget)}</span>
+                        <span className="text-muted-foreground">Cobros del mes</span>
+                        <span className="font-semibold text-foreground">{formatCurrency(CXC_SUMMARY.collectedThisMonth)} / {formatCurrency(CXC_SUMMARY.collectionTarget)}</span>
                       </div>
                       <Progress
                         value={(CXC_SUMMARY.collectedThisMonth / CXC_SUMMARY.collectionTarget) * 100}
-                        color="success"
-                        size="sm"
                         className="mt-2"
                       />
                     </div>
@@ -1045,11 +1026,11 @@ export default function DashboardPage() {
                   <Card className="p-0">
                     <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
-                          <Landmark className="h-5 w-5 text-info" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                          <Landmark className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-text-primary">Saldos Bancarios</h3>
+                          <h3 className="text-sm font-semibold text-foreground">Saldos Bancarios</h3>
                         </div>
                       </div>
                       <Button
@@ -1059,23 +1040,23 @@ export default function DashboardPage() {
                         Ver
                       </Button>
                     </CardHeader>
-                    <Divider />
+                    <Separator className="bg-border" />
                     <CardContent className="p-0">
-                      <ul className="divide-y divide-border-default">
+                      <ul className="divide-y divide-border">
                         {BANK_BALANCES.map((bank) => (
                           <li key={bank.name} className="flex items-center justify-between px-5 py-2.5">
                             <div className="flex items-center gap-2">
                               <span className={cn('h-2.5 w-2.5 rounded-full', bank.color)} />
-                              <span className="text-sm text-text-secondary">{bank.name}</span>
+                              <span className="text-sm text-muted-foreground">{bank.name}</span>
                             </div>
-                            <span className="text-sm font-semibold text-text-primary">{formatCurrency(bank.balance)}</span>
+                            <span className="text-sm font-semibold text-foreground">{formatCurrency(bank.balance)}</span>
                           </li>
                         ))}
                       </ul>
-                      <div className="border-t border-border-default bg-surface-secondary px-5 py-2.5">
+                      <div className="border-t border-border bg-muted px-5 py-2.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-text-secondary">Total</span>
-                          <span className="text-sm font-bold text-text-primary">{formatCurrency(BANK_BALANCES.reduce((s, b) => s + b.balance, 0))}</span>
+                          <span className="text-sm font-medium text-muted-foreground">Total</span>
+                          <span className="text-sm font-bold text-foreground">{formatCurrency(BANK_BALANCES.reduce((s, b) => s + b.balance, 0))}</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1086,21 +1067,21 @@ export default function DashboardPage() {
                 <Card className="p-0">
                   <CardHeader className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-danger" />
-                      <h3 className="text-sm font-semibold text-text-primary">Alertas de Morosidad</h3>
+                      <CreditCard className="h-4 w-4 text-red-600" />
+                      <h3 className="text-sm font-semibold text-foreground">Alertas de Morosidad</h3>
                     </div>
                   </CardHeader>
-                  <Divider />
+                  <Separator className="bg-border" />
                   <CardContent className="p-0">
-                    <ul className="divide-y divide-border-default">
+                    <ul className="divide-y divide-border">
                       {OVERDUE_CLIENTS.map((client) => (
                         <li key={client.name} className="px-5 py-2.5">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-text-primary line-clamp-1">{client.name}</p>
-                              <p className="text-xs text-danger">{client.days} días vencido</p>
+                              <p className="text-sm font-medium text-foreground line-clamp-1">{client.name}</p>
+                              <p className="text-xs text-red-600">{client.days} días vencido</p>
                             </div>
-                            <span className="text-sm font-semibold text-danger">{formatCurrency(client.amount)}</span>
+                            <span className="text-sm font-semibold text-red-600">{formatCurrency(client.amount)}</span>
                           </div>
                         </li>
                       ))}
@@ -1114,7 +1095,7 @@ export default function DashboardPage() {
       }
 
       {/* Section: Logística */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Logística y Productos</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted">Logística y Productos</p>
 
       {/* Upcoming Shipments + Top Products */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -1127,12 +1108,12 @@ export default function DashboardPage() {
           <Card className="p-0">
             <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
-                  <Ship className="h-5 w-5 text-info" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                  <Ship className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-text-primary">Próximos Embarques</h3>
-                  <p className="text-xs text-text-muted">Mercancía en tránsito</p>
+                  <h3 className="text-base font-semibold text-foreground">Próximos Embarques</h3>
+                  <p className="text-xs text-muted">Mercancía en tránsito</p>
                 </div>
               </div>
               <Button
@@ -1142,37 +1123,37 @@ export default function DashboardPage() {
                 Ver todos
               </Button>
             </CardHeader>
-            <Divider />
+            <Separator />
             <CardContent className="p-0">
-              <ul className="divide-y divide-border-default">
+              <ul className="divide-y divide-border">
                 {UPCOMING_SHIPMENTS.map((shipment) => (
                   <li key={shipment.id} className="px-5 py-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={cn(
-                          'flex h-10 w-10 items-center justify-center rounded-lg',
-                          shipment.status === 'in_transit' ? 'bg-success-bg' :
-                            shipment.status === 'confirmed' ? 'bg-info-bg' : 'bg-surface-secondary'
+                          'flex h-10 w-10 flex-col items-center justify-center rounded-lg',
+                          shipment.status === 'in_transit' ? 'bg-green-50' :
+                            shipment.status === 'confirmed' ? 'bg-blue-50' : 'bg-muted'
                         )}>
                           <Truck className={cn(
                             'h-5 w-5',
-                            shipment.status === 'in_transit' ? 'text-success' :
-                              shipment.status === 'confirmed' ? 'text-info' : 'text-text-muted'
+                            shipment.status === 'in_transit' ? 'text-green-600' :
+                              shipment.status === 'confirmed' ? 'text-blue-600' : 'text-muted'
                           )} />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-text-primary">{shipment.id}</p>
+                            <p className="text-sm font-medium text-foreground">{shipment.id}</p>
                             {shipment.status === 'in_transit' && (
-                              <Chip color="success" variant="dot" size="sm">En tránsito</Chip>
+                               <Badge variant="success">En tránsito</Badge>
                             )}
                           </div>
-                          <p className="text-xs text-text-secondary">{shipment.supplier}</p>
+                          <p className="text-xs text-muted-foreground">{shipment.supplier}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-text-primary">{shipment.items} cajas</p>
-                        <p className="text-xs text-text-muted">ETA: {new Date(shipment.eta).toLocaleDateString('es-PA', { day: '2-digit', month: 'short' })}</p>
+                        <p className="text-sm font-medium text-foreground">{shipment.items} cajas</p>
+                        <p className="text-xs text-muted">ETA: {new Date(shipment.eta).toLocaleDateString('es-PA', { day: '2-digit', month: 'short' })}</p>
                       </div>
                     </div>
                   </li>
@@ -1191,48 +1172,42 @@ export default function DashboardPage() {
           <Card className="p-0">
             <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
-                  <Award className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Award className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-text-primary">Top Productos</h3>
-                  <p className="text-xs text-text-muted">Más vendidos este mes</p>
+                  <h3 className="text-base font-semibold text-foreground">Top Productos</h3>
+                  <p className="text-xs text-muted">Más vendidos este mes</p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                onClick={() => router.push('/reportes')}
-              >
-                Ver reporte
-              </Button>
             </CardHeader>
-            <Divider />
+            <Separator />
             <CardContent className="p-0">
-              <ul className="divide-y divide-border-default">
+              <ul className="divide-y divide-border">
                 {TOP_PRODUCTS.slice(0, 4).map((product, index) => (
                   <li key={product.id} className="px-5 py-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={cn(
-                          'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold',
-                          index === 0 ? 'bg-warning-bg text-warning' :
-                            index === 1 ? 'bg-surface-tertiary text-text-secondary' :
-                              index === 2 ? 'bg-warning-bg/50 text-warning' : 'bg-surface-secondary text-text-muted'
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                          index === 0 ? 'bg-amber-50 text-amber-600' :
+                            index === 1 ? 'bg-accent text-muted-foreground' :
+                              index === 2 ? 'bg-amber-50/50 text-amber-600' : 'bg-muted text-muted'
                         )}>
                           {index + 1}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-text-primary line-clamp-1">{product.name}</p>
-                          <p className="text-xs text-text-muted">{product.sold} unidades</p>
+                          <p className="text-sm font-medium text-foreground line-clamp-1">{product.name}</p>
+                          <p className="text-xs text-muted">{product.sold} unidades</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {canViewCosts && (
-                          <p className="text-sm font-semibold text-text-primary">{formatCurrency(product.revenue)}</p>
+                          <p className="text-sm font-semibold text-foreground">{formatCurrency(product.revenue)}</p>
                         )}
                         <span className={cn(
                           'flex items-center text-xs font-medium',
-                          product.trend === 'up' ? 'text-success' : 'text-danger'
+                          product.trend === 'up' ? 'text-green-600' : 'text-red-600'
                         )}>
                           {product.trend === 'up' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                           {Math.abs(product.percentChange)}%
@@ -1248,7 +1223,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Section: Clientes y Agenda */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted"> Clientes y Agenda</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted"> Clientes y Agenda</p>
 
       {/* Top Customers + Calendar */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1262,12 +1237,12 @@ export default function DashboardPage() {
           <Card className="p-0">
             <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-bg">
-                  <Users className="h-5 w-5 text-info" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
+                  <Users className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-text-primary">Principales Clientes</h3>
-                  <p className="text-xs text-text-muted">Por volumen de compras este mes</p>
+                  <h3 className="text-base font-semibold text-foreground">Principales Clientes</h3>
+                  <p className="text-xs text-muted">Por volumen de compras este mes</p>
                 </div>
               </div>
               <Button
@@ -1277,43 +1252,43 @@ export default function DashboardPage() {
                 Ver todos
               </Button>
             </CardHeader>
-            <Divider />
+            <Separator />
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border-default bg-surface-secondary">
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-muted">Cliente</th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-muted">País</th>
-                      <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-muted">Órdenes</th>
+                    <tr className="border-b border-border bg-muted">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Cliente</th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">País</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted">Órdenes</th>
                       {canViewCosts && (
-                        <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-muted">Compras</th>
+                        <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted">Compras</th>
                       )}
-                      <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-muted"></th>
+                      <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-default">
+                  <tbody className="divide-y divide-border">
                     {realTopCustomers.map((customer: any) => (
-                      <tr key={customer.id} className="hover:bg-surface-secondary">
+                      <tr key={customer.id} className="hover:bg-muted">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <Avatar
-                              name={customer.avatar}
-                              size="sm"
-                              classNames={{ base: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' }}
-                            />
-                            <span className="text-sm font-medium text-text-primary">{customer.name}</span>
+                             <Avatar className="h-8 w-8">
+                               <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
+                                 {customer.avatar}
+                               </AvatarFallback>
+                             </Avatar>
+                            <span className="text-sm font-medium text-foreground">{customer.name}</span>
                           </div>
                         </td>
                         <td className="px-5 py-3">
-                          <span className="text-sm text-text-secondary">{customer.country}</span>
+                          <span className="text-sm text-muted-foreground">{customer.country}</span>
                         </td>
                         <td className="px-5 py-3 text-right">
-                          <span className="text-sm text-text-primary">{customer.orders}</span>
+                          <span className="text-sm text-foreground">{customer.orders}</span>
                         </td>
                         {canViewCosts && (
                           <td className="px-5 py-3 text-right">
-                            <span className="text-sm font-semibold text-text-primary">{formatCurrency(customer.purchases)}</span>
+                            <span className="text-sm font-semibold text-foreground">{formatCurrency(customer.purchases)}</span>
                           </td>
                         )}
                         <td className="px-5 py-3 text-right">
@@ -1343,17 +1318,17 @@ export default function DashboardPage() {
         >
           <Card className="p-0">
             <CardHeader className="flex flex-row items-center gap-3 p-4 mb-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-danger-bg">
-                <Calendar className="h-5 w-5 text-danger" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50">
+                <Calendar className="h-5 w-5 text-red-600" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-text-primary">Próximos Eventos</h3>
-                <p className="text-xs text-text-muted">Actividades programadas</p>
+                <h3 className="text-base font-semibold text-foreground">Próximos Eventos</h3>
+                <p className="text-xs text-muted">Actividades programadas</p>
               </div>
             </CardHeader>
-            <Divider />
+            <Separator />
             <CardContent className="p-0">
-              <ul className="divide-y divide-border-default">
+              <ul className="divide-y divide-border">
                 {CALENDAR_EVENTS.map((event) => {
                   const eventDate = new Date(event.date);
                   const isToday = eventDate.toDateString() === new Date().toDateString();
@@ -1364,23 +1339,23 @@ export default function DashboardPage() {
                       <div className="flex items-start gap-3">
                         <div className={cn(
                           'flex h-10 w-10 flex-col items-center justify-center rounded-lg',
-                          isToday ? 'bg-brand-500 text-white' : isSoon ? 'bg-brand-100 dark:bg-brand-900/30' : 'bg-surface-secondary'
+                          isToday ? 'bg-blue-500 text-white' : isSoon ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-muted'
                         )}>
-                          <span className={cn('text-xs font-medium', isToday ? 'text-white' : 'text-text-muted')}>
+                          <span className={cn('text-xs font-medium', isToday ? 'text-white' : 'text-muted')}>
                             {eventDate.toLocaleDateString('es-PA', { month: 'short' }).toUpperCase()}
                           </span>
-                          <span className={cn('text-sm font-bold', isToday ? 'text-white' : 'text-text-primary')}>
+                          <span className={cn('text-sm font-bold', isToday ? 'text-white' : 'text-foreground')}>
                             {eventDate.getDate()}
                           </span>
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-text-primary">{event.title}</p>
+                          <p className="text-sm font-medium text-foreground">{event.title}</p>
                           <div className="mt-1 flex items-center gap-2">
-                            {event.type === 'shipment' && <Chip color="success" variant="flat" size="sm">Embarque</Chip>}
-                            {event.type === 'meeting' && <Chip color="primary" variant="flat" size="sm">Reunión</Chip>}
-                            {event.type === 'inventory' && <Chip color="secondary" variant="flat" size="sm">Inventario</Chip>}
-                            {event.type === 'payment' && <Chip color="warning" variant="flat" size="sm">Pago</Chip>}
-                            {event.type === 'audit' && <Chip color="danger" variant="flat" size="sm">Auditoría</Chip>}
+                                                {event.type === 'shipment' && <Badge variant="success">Embarque</Badge>}
+                             {event.type === 'meeting' && <Badge variant="default">Reunión</Badge>}
+                             {event.type === 'inventory' && <Badge variant="secondary">Inventario</Badge>}
+                             {event.type === 'payment' && <Badge variant="warning">Pago</Badge>}
+                             {event.type === 'audit' && <Badge variant="destructive">Auditoría</Badge>}
                           </div>
                         </div>
                       </div>
@@ -1394,7 +1369,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Section: Actividad */}
-      <p className="text-xs font-medium uppercase tracking-wider text-text-muted"> Actividad y Acciones</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted"> Actividad y Acciones</p>
 
       {/* Recent Activity + Quick Actions */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1407,7 +1382,7 @@ export default function DashboardPage() {
         >
           <Card className="p-0">
             <CardHeader className="flex flex-row items-center justify-between p-4 mb-0">
-              <h3 className="text-base font-semibold text-text-primary">Actividad Reciente</h3>
+              <h3 className="text-base font-semibold text-foreground">Actividad Reciente</h3>
               <Button
                 size="sm"
                 onClick={() => router.push('/historial')}
@@ -1415,20 +1390,20 @@ export default function DashboardPage() {
                 Ver todo
               </Button>
             </CardHeader>
-            <Divider />
+            <Separator />
             <CardContent className="p-0">
-              <ul className="divide-y divide-border-default">
-                {realActivity.map((activity: any) => (
-                  <li key={activity.id} className="px-5 py-4">
+              <ul className="divide-y divide-border">
+                {realActivity.map((activity: any, idx: number) => (
+                  <li key={`${activity.id}-${idx}`} className="px-5 py-4">
                     <div className="flex items-start gap-4">
                       <div className={cn(
                         'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                        activity.type === 'purchase' ? 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400' :
-                          activity.type === 'inventory' ? 'bg-success-bg text-success' :
-                            activity.type === 'sale' ? 'bg-info-bg text-info' :
-                              activity.type === 'transfer' ? 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400' :
-                                activity.type === 'adjustment' ? 'bg-info-bg text-info' :
-                                  'bg-warning-bg text-warning'
+                        activity.type === 'purchase' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                          activity.type === 'inventory' ? 'bg-green-50 text-green-600' :
+                            activity.type === 'sale' ? 'bg-blue-50 text-blue-600' :
+                              activity.type === 'transfer' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                                activity.type === 'adjustment' ? 'bg-blue-50 text-blue-600' :
+                                  'bg-amber-50 text-amber-600'
                       )}>
                         {activity.type === 'purchase' && <ShoppingCart className="h-4 w-4" />}
                         {activity.type === 'inventory' && <Package className="h-4 w-4" />}
@@ -1438,10 +1413,10 @@ export default function DashboardPage() {
                         {activity.type === 'alert' && <AlertTriangle className="h-4 w-4" />}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-text-primary">{activity.action}</p>
-                        <p className="mt-0.5 text-sm text-text-secondary">{activity.description}</p>
+                        <p className="text-sm font-medium text-foreground">{activity.action}</p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{activity.description}</p>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-text-muted">
+                      <div className="flex items-center gap-1 text-xs text-muted">
                         <Clock className="h-3 w-3" />
                         {activity.time}
                       </div>
@@ -1461,9 +1436,9 @@ export default function DashboardPage() {
         >
           <Card className="p-0">
             <CardHeader className="px-5 py-4">
-              <h3 className="text-base font-semibold text-text-primary">Acciones Rápidas</h3>
+              <h3 className="text-base font-semibold text-foreground">Acciones Rápidas</h3>
             </CardHeader>
-            <Divider />
+            <Separator />
             <CardContent className="space-y-3 p-4">
               <Button
                 onClick={() => router.push('/compras?action=new')}
@@ -1525,30 +1500,31 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      <CustomModal isOpen={isWidgetsModalOpen} onClose={() => !isSavingPrefs && setIsWidgetsModalOpen(false)}>
-        <CustomModalHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
-              <LayoutGrid className="h-5 w-5" />
+      <Dialog open={isWidgetsModalOpen} onOpenChange={(open) => !isSavingPrefs && setIsWidgetsModalOpen(open)}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                <LayoutGrid className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-foreground">Configurar Widgets</DialogTitle>
+                <DialogDescription className="text-sm text-muted">Personaliza la información de tu dashboard</DialogDescription>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-text-primary">Configurar Widgets</h3>
-              <p className="text-sm text-text-muted">Personaliza la información de tu dashboard</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="p-0">
-          <div className="max-h-[60vh] overflow-y-auto w-full">
-            <div className="divide-y divide-border-default">
+          </DialogHeader>
+          
+          <div className="max-h-[60vh] overflow-y-auto w-full border-y border-border mt-4">
+            <div className="divide-y divide-border">
               {WIDGETS_CONFIG.map((widget) => (
-                <div key={widget.id} className="flex items-center justify-between p-5 hover:bg-surface-secondary transition-colors">
+                <div key={widget.id} className="flex items-center justify-between p-5 hover:bg-muted transition-colors">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-tertiary">
-                      <widget.icon className="h-4 w-4 text-text-secondary" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
+                      <widget.icon className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-text-primary">{widget.name}</p>
-                      <p className="text-xs text-text-muted mt-0.5 max-w-[200px]">{widget.description}</p>
+                      <p className="text-sm font-medium text-foreground">{widget.name}</p>
+                      <p className="text-xs text-muted mt-0.5 max-w-[200px]">{widget.description}</p>
                     </div>
                   </div>
                   <Switch
@@ -1560,25 +1536,26 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            variant="ghost"
-            onClick={() => setIsWidgetsModalOpen(false)}
-            disabled={isSavingPrefs}
-            className="h-10 px-6 font-semibold"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSavePreferences}
-            isLoading={isSavingPrefs}
-            className="h-10 px-6 font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)] bg-[#1a1a1a] text-white hover:bg-[#333333]"
-          >
-            Guardar Cambios
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+
+          <DialogFooter className="p-6 pt-4">
+            <Button
+              variant="ghost"
+              onClick={() => setIsWidgetsModalOpen(false)}
+              disabled={isSavingPrefs}
+              className="px-6 font-semibold"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSavePreferences}
+              isLoading={isSavingPrefs}
+              className="px-6 font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)] bg-[#1a1a1a] text-white hover:bg-[#333333]"
+            >
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

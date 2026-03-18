@@ -2,12 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tooltip } from '@heroui/react';
-import { ArrowLeft, ClipboardList, Plus, Trash2, Package, AlertTriangle, CheckCircle2, XCircle, Truck, Loader2 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, ClipboardList, Plus, Trash2, Package, AlertTriangle, CheckCircle2, XCircle, Truck, Loader2, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 import { Switch } from '@/components/ui/switch';
+import { DatePicker } from '@/components/ui/date-picker';
+import { ProductBrowser } from './product-browser';
+import { ClientBrowser } from './client-browser';
+import { format, parseISO, isValid } from 'date-fns';
 import {
   formatCurrency,
 } from '@/lib/mock-data/sales-orders';
@@ -23,7 +44,7 @@ const initialQuoteForm = {
 
 export default function NuevaCotizacionPage() {
   const router = useRouter();
-  const { checkPermission } = useAuth();
+  const { checkPermission, user } = useAuth();
   const canViewMargins = checkPermission('canViewMargins');
   const canApproveOrders = checkPermission('canApproveOrders');
   const canSellIncoming = checkPermission('canSellIncoming');
@@ -40,25 +61,32 @@ export default function NuevaCotizacionPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState<any>(null);
   const [numbering, setNumbering] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
 
   // New line state
   const [newLineProduct, setNewLineProduct] = useState('');
   const [newLineQty, setNewLineQty] = useState('');
   const [newLinePrice, setNewLinePrice] = useState('');
+  const [productHistory, setProductHistory] = useState<any>(null);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [newExpenseDesc, setNewExpenseDesc] = useState('');
+  const [newExpenseAmount, setNewExpenseAmount] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientsData, productsData, settingsData, numberingData] = await Promise.all([
+        const [clientsData, productsData, settingsData, numberingData, warehousesData] = await Promise.all([
           api.getClients(),
           api.getProducts(),
           api.getCommercialParams(),
-          api.getDocumentNumbering()
+          api.getDocumentNumbering(),
+          api.getWarehouses()
         ]);
         setClients(clientsData);
         setProducts(productsData);
         setSettings(settingsData);
         setNumbering(numberingData);
+        setWarehouses(warehousesData);
       } catch (error) {
         toast.error('Error al cargar datos iniciales');
       } finally {
@@ -78,14 +106,23 @@ export default function NuevaCotizacionPage() {
     }
   };
 
-  const handleProductSelect = (productId: string) => {
+  const handleProductSelect = async (productId: string) => {
     setNewLineProduct(productId);
+    setProductHistory(null);
     if (selectedClient && productId) {
       const product = products.find(p => p.id === productId);
-      // Lógica de precio basada en nivel
       const defaultLevel = settings?.defaultPriceLevel || 'C';
       const price = product?.prices?.[selectedClient.priceLevel || defaultLevel] || product?.price || 0;
       setNewLinePrice(price.toString());
+
+      try {
+        const history = await api.getProductHistory(productId, selectedClient.id);
+        if (history) {
+          setProductHistory(history);
+        }
+      } catch (err) {
+        console.warn('No se pudo obtener el historial de precios');
+      }
     }
   };
 
@@ -100,33 +137,62 @@ export default function NuevaCotizacionPage() {
     const product = products.find((p) => p.id === newLineProduct);
     if (!product) return;
 
-    const qty = parseFloat(newLineQty);
+    const qty = parseFloat(newLineQty) || 0;
     const defaultLevel = settings?.defaultPriceLevel || 'C';
     const price = parseFloat(newLinePrice) || product.prices?.[selectedClient.priceLevel || defaultLevel] || product.price || 0;
     const subtotal = qty * price;
-    const cost = product.costAvgWeighted || product.costCIF || 0;
+    const cost = Number(product.standardCost || 0);
     const marginPercent = price > 0 ? ((price - cost) / price) * 100 : 0;
     const threshold = settings?.commissionThreshold ?? 10;
 
     const newLine: any = {
       id: `LINE-NEW-${Date.now()}`,
       productId: product.id,
-      productReference: product.reference,
-      productDescription: product.description,
+      productReference: product.sku || product.reference,
+      productDescription: product.name || product.description,
+      productCategory: product.group?.name || 'Varios',
       quantity: qty,
       unitPrice: price,
       subtotal,
       unitCost: cost,
       totalCost: cost * qty,
       marginPercent,
+      requiresApproval: marginPercent < threshold,
       commissionEligible: marginPercent >= threshold,
     };
 
-    setQuoteLines((prev) => [...prev, newLine]);
+    setQuoteLines((prev) => {
+        const newLines = [...prev, newLine];
+        // Sort by Category then Description
+        return newLines.sort((a, b) => {
+            const catA = (a.productCategory || '').toLowerCase();
+            const catB = (b.productCategory || '').toLowerCase();
+            if (catA < catB) return -1;
+            if (catA > catB) return 1;
+            return a.productDescription.localeCompare(b.productDescription);
+        });
+    });
     setNewLineProduct('');
     setNewLineQty('');
     setNewLinePrice('');
+    setProductHistory(null);
     toast.success('Producto agregado');
+  };
+
+  const handleAddExpense = () => {
+    if (!newExpenseDesc || !newExpenseAmount) return;
+    const amount = parseFloat(newExpenseAmount) || 0;
+    setExpenses(prev => [...prev, {
+      id: `EXP-${Date.now()}`,
+      description: newExpenseDesc,
+      amount
+    }]);
+    setNewExpenseDesc('');
+    setNewExpenseAmount('');
+  };
+
+  const handleRemoveExpense = (id: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
   const handleRemoveLine = (lineId: string) => {
@@ -141,31 +207,32 @@ export default function NuevaCotizacionPage() {
 
     setIsSaving(true);
     try {
-      const quoteConfig = numbering.find(n => n.code === 'quote');
-      const prefix = quoteConfig?.prefix || 'QT-';
+      const quoteConfig = numbering.find(n => n.code === 'quote' || n.code === 'cotizacion');
+      const prefix = quoteConfig?.prefix || 'COT-';
       const orderNumber = `${prefix}${Date.now().toString().slice(-6)}`;
 
       const payload = {
-        orderNumber,
+        number: orderNumber,
         clientId: selectedClient.id,
-        clientName: selectedClient.name,
-        bodegaId: 'BOD-001', // General por defecto por ahora
-        bodegaName: 'Bodega Principal',
-        status: 'borrador',
+        warehouseId: warehouses.find(w => w.code === 'ZL')?.id || warehouses[0]?.id,
         lines: quoteLines.map(l => ({
           productId: l.productId,
-          productReference: l.productReference,
-          productDescription: l.productDescription,
           quantity: l.quantity,
-          unitPrice: l.unitPrice,
+          price: l.unitPrice,
           total: l.subtotal
         })),
+        expenses: expenses.map(e => ({
+            description: e.description,
+            amount: e.amount
+        })),
+        expensesTotal,
         subtotal: quoteSubtotal,
-        total: quoteSubtotal,
-        notes: quoteFormData.notes
+        total: quoteTotal,
+        notes: quoteFormData.notes,
+        createdBy: user?.id || 'unknown'
       };
 
-      await api.createSale(payload);
+      await api.createQuotation(payload);
 
       toast.success('Cotización creada exitosamente');
       router.push('/ventas');
@@ -179,12 +246,13 @@ export default function NuevaCotizacionPage() {
 
   // Calculate totals
   const quoteSubtotal = quoteLines.reduce((sum, l) => sum + (l.subtotal || 0), 0);
+  const expensesTotal = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const taxRate = settings?.taxRate ?? 7;
-  const quoteTax = quoteSubtotal * (taxRate / 100);
-  const quoteTotal = quoteSubtotal + quoteTax;
+  const quoteTax = (quoteSubtotal + expensesTotal) * (taxRate / 100);
+  const quoteTotal = quoteSubtotal + expensesTotal + quoteTax;
   const quoteTotalCost = quoteLines.reduce((sum, l) => sum + (l.totalCost || 0), 0);
   const quoteMarginPercent = quoteSubtotal > 0 ? ((quoteSubtotal - quoteTotalCost) / quoteSubtotal) * 100 : 0;
-  const hasLowMarginLines = quoteLines.some((l) => (l.marginPercent || 0) < (settings?.commissionThreshold ?? 10));
+  const hasLowMarginLines = quoteLines.some((l) => l.requiresApproval);
 
   const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
   const labelStyle = { fontWeight: 600 };
@@ -221,80 +289,114 @@ export default function NuevaCotizacionPage() {
           <div className="space-y-6">
             {/* Cliente Section */}
             <div>
-              <label className={labelClass} style={labelStyle}>
-                Cliente <span className="text-red-500">*</span>
-              </label>
-              <select
+              <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2 block ml-1">Seleccionar Cliente</Label>
+              <ClientBrowser 
+                clients={clients}
                 value={quoteFormData.customerId}
-                onChange={(e) => handleFormChange('customerId', e.target.value)}
-                className={inputClass}
-                required
-              >
-                <option value="">Seleccionar cliente...</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name} - {client.email}
-                  </option>
-                ))}
-              </select>
+                onSelect={(val) => {
+                  console.log(`[SALES] Client selected: ${val}`);
+                  handleFormChange('customerId', val);
+                }}
+                placeholder="Busca por nombre, RUC o código de cliente..."
+              />
             </div>
 
             {/* Selected client info */}
             {selectedClient && (
-              <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-4 shadow-inner">
-                <div className="grid grid-cols-3 gap-6">
-                  <div>
-                    <span className="text-sm text-gray-500">Nivel de precios: </span>
-                    <span className={cn(
-                      'font-semibold',
-                      selectedClient.priceLevel === 'A' && 'text-emerald-500',
-                      selectedClient.priceLevel === 'B' && 'text-blue-500',
-                      selectedClient.priceLevel === 'C' && 'text-purple-500'
-                    )}>
-                      {selectedClient.priceLevel}
-                    </span>
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-gradient-to-br from-gray-50 to-white dark:from-[#1a1a1a] dark:to-[#141414] overflow-hidden"
+              >
+                <div className="border-b border-gray-100 dark:border-[#2a2a2a] bg-gray-50/50 dark:bg-[#1a1a1a]/50 p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-[#253D6B]/10 flex items-center justify-center text-[#253D6B] font-bold text-lg uppercase">
+                      {selectedClient.legalName?.charAt(0) || selectedClient.name?.charAt(0) || 'C'}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-white leading-none mb-1">{selectedClient.legalName || selectedClient.name}</h3>
+                      <p className="text-xs text-gray-500">{selectedClient.taxId || 'Sin RUC'} • {selectedClient.country}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Crédito disponible: </span>
-                    <span className={cn('font-mono font-semibold', selectedClient.creditAvailable > 0 ? 'text-emerald-500' : 'text-red-500')}>
-                      {formatCurrency(selectedClient.creditAvailable)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Términos: </span>
-                    <span className="font-semibold text-gray-900 dark:text-white text-sm">
-                      {selectedClient.paymentTerms === 'contado' ? 'Contado' :
-                        (typeof selectedClient.paymentTerms === 'string'
-                          ? (selectedClient.paymentTerms.replace('credito_', '') + ' días')
-                          : 'No especificado')}
-                    </span>
-                  </div>
+                  <Badge variant={selectedClient.creditProfile?.isCreditBlocked ? "destructive" : "default"} className={cn(
+                    "uppercase tracking-wider text-[10px] font-bold",
+                    !selectedClient.creditProfile?.isCreditBlocked ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20" : ""
+                  )}>
+                    {selectedClient.creditProfile?.isCreditBlocked ? 'Crédito Bloqueado' : 'Crédito Activo'}
+                  </Badge>
                 </div>
-              </div>
+                
+                <div className="p-4 grid grid-cols-4 gap-4">
+                   <div className="space-y-1">
+                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nivel Precio</p>
+                     <p className={cn(
+                        'text-lg font-black',
+                        selectedClient.creditProfile?.priceLevel === 'A' ? 'text-emerald-600' :
+                        selectedClient.creditProfile?.priceLevel === 'B' ? 'text-blue-600' : 'text-purple-600'
+                      )}>
+                        {selectedClient.creditProfile?.priceLevel || selectedClient.priceLevel || 'C'}
+                     </p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Términos</p>
+                     <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        {selectedClient.creditProfile?.creditDays ? `${selectedClient.creditProfile.creditDays} días` : 'Contado'}
+                     </p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Límite Aprobado</p>
+                     <p className="text-sm font-mono font-medium text-gray-600 dark:text-gray-400">
+                        {formatCurrency(selectedClient.creditProfile?.creditLimit || 0)}
+                     </p>
+                   </div>
+                   <div className="space-y-1">
+                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Disponible</p>
+                     <p className={cn(
+                        'text-lg font-mono font-black',
+                        ((selectedClient.creditProfile?.creditLimit || 0) - (selectedClient.creditProfile?.currentBalance || 0)) > 0 
+                          ? 'text-emerald-500' : 'text-red-500'
+                     )}>
+                        {formatCurrency((selectedClient.creditProfile?.creditLimit || 0) - (selectedClient.creditProfile?.currentBalance || 0))}
+                     </p>
+                   </div>
+                </div>
+                
+                {/* Visual Credit Bar */}
+                {(selectedClient.creditProfile?.creditLimit || 0) > 0 && (
+                  <div className="px-4 pb-4">
+                    <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1.5 font-bold uppercase tracking-wider">
+                      <span>Uso de crédito</span>
+                      <span>{Math.round(((selectedClient.creditProfile?.currentBalance || 0) / selectedClient.creditProfile.creditLimit) * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div 
+                        className={cn("h-full rounded-full transition-all duration-500", 
+                          ((selectedClient.creditProfile?.currentBalance || 0) / selectedClient.creditProfile.creditLimit) > 0.9 ? "bg-red-500" :
+                          ((selectedClient.creditProfile?.currentBalance || 0) / selectedClient.creditProfile.creditLimit) > 0.75 ? "bg-amber-500" : "bg-emerald-500"
+                        )}
+                        style={{ width: `${Math.min(100, Math.max(0, ((selectedClient.creditProfile?.currentBalance || 0) / selectedClient.creditProfile.creditLimit) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )}
 
-            {/* Dates */}
             <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className={labelClass} style={labelStyle}>
-                  Válido hasta
-                </label>
-                <input
-                  type="date"
-                  value={quoteFormData.validUntil}
-                  onChange={(e) => handleFormChange('validUntil', e.target.value)}
-                  className={inputClass}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Válido hasta</Label>
+                <DatePicker 
+                  date={quoteFormData.validUntil ? parseISO(quoteFormData.validUntil) : undefined}
+                  setDate={(date) => handleFormChange('validUntil', date && isValid(date) ? format(date, 'yyyy-MM-dd') : '')}
+                  placeholder="Válido hasta..."
                 />
               </div>
-              <div>
-                <label className={labelClass} style={labelStyle}>
-                  Entrega solicitada
-                </label>
-                <input
-                  type="date"
-                  value={quoteFormData.requestedDeliveryDate}
-                  onChange={(e) => handleFormChange('requestedDeliveryDate', e.target.value)}
-                  className={inputClass}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Entrega solicitada</Label>
+                <DatePicker 
+                  date={quoteFormData.requestedDeliveryDate ? parseISO(quoteFormData.requestedDeliveryDate) : undefined}
+                  setDate={(date) => handleFormChange('requestedDeliveryDate', date && isValid(date) ? format(date, 'yyyy-MM-dd') : '')}
+                  placeholder="Fecha de entrega..."
                 />
               </div>
             </div>
@@ -333,74 +435,183 @@ export default function NuevaCotizacionPage() {
 
             {/* Products Section */}
             <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Productos</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <Package className="h-4 w-4 text-[#253D6B]" />
+                  Productos en Cotización
+                </h3>
+              </div>
 
-              {/* Add Product Row */}
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
-                  <label className={labelClass} style={labelStyle}>
-                    Producto
-                  </label>
-                  <select
+              {/* Quick Add Row */}
+              <div className="flex items-end gap-3 bg-gray-50/50 dark:bg-[#1a1a1a]/50 p-4 rounded-xl border border-dashed border-gray-200 dark:border-[#2a2a2a] mb-6">
+                <div className="flex-1 min-w-0">
+                  <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Búsqueda Rápida</Label>
+                  <ProductBrowser
+                    products={products}
+                    selectedClient={selectedClient}
+                    includeIncomingStock={includeIncomingStock}
+                    onSelect={(p) => handleProductSelect(p.id)}
                     value={newLineProduct}
-                    onChange={(e) => handleProductSelect(e.target.value)}
-                    className={inputClass}
-                    disabled={!selectedClient}
-                  >
-                    <option value="">Seleccionar producto...</option>
-                    {products.map((product) => {
-                      const stock = product.stock || { existence: 0, reserved: 0, arriving: 0 };
-                      const physicalAvailable = stock.existence - stock.reserved;
-                      const effectiveAvailable = includeIncomingStock
-                        ? physicalAvailable + stock.arriving
-                        : physicalAvailable;
-
-                      return (
-                        <option key={product.id} value={product.id}>
-                          {product.description} - {product.reference} (Disp: {effectiveAvailable})
-                        </option>
-                      );
-                    })}
-                  </select>
+                  />
                 </div>
-                <div className="w-20">
-                  <label className={labelClass} style={labelStyle}>
-                    Cant.
-                  </label>
-                  <input
+                <div className="w-24">
+                  <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Cantidad</Label>
+                  <Input
                     type="number"
                     placeholder="0"
                     value={newLineQty}
                     onChange={(e) => setNewLineQty(e.target.value)}
-                    className={inputClass}
                     disabled={!selectedClient}
+                    className="h-10 bg-white dark:bg-[#141414]"
                   />
                 </div>
-                <div className="w-28">
-                  <label className={labelClass} style={labelStyle}>
-                    Precio
-                  </label>
+                <div className="w-32">
+                  <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Precio Unit.</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#8c9196]">$</span>
-                    <input
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-gray-400 font-bold">$</span>
+                    <Input
                       type="number"
                       placeholder="0.00"
                       value={newLinePrice}
                       onChange={(e) => setNewLinePrice(e.target.value)}
-                      className={inputClass + " pl-6"}
+                      className="pl-7 h-10 bg-white dark:bg-[#141414]"
                       disabled={!selectedClient}
                       readOnly={!canViewMargins}
                     />
                   </div>
                 </div>
-                <button
+                <Button
                   onClick={handleAddLine}
-                  disabled={!selectedClient}
-                  className={cn(buttonPrimaryClass, "h-9 w-9 px-0")}
+                  disabled={!selectedClient || !newLineQty || !newLineProduct}
+                  className="h-10 bg-[#253D6B] hover:bg-[#1e3156] px-6 rounded-xl font-bold"
                 >
-                  <Plus className="h-4 w-4" />
-                </button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar
+                </Button>
               </div>
+
+              {/* Selected Product Context Block */}
+              {(() => {
+                const selected = products.find(p => p.id === newLineProduct);
+                if (!selected && !productHistory) return null;
+
+                const stock = selected?.stock || { existence: 0, reserved: 0, arriving: 0 };
+                const available = (stock.existence || 0) - (stock.reserved || 0) + (includeIncomingStock ? (stock.arriving || 0) : 0);
+                const price = parseFloat(newLinePrice) || 0;
+                const cost = Number(selected?.standardCost || 0);
+                const marginPct = price > 0 ? ((price - cost) / price) * 100 : 0;
+                const threshold = settings?.commissionThreshold ?? 10;
+                const commissions = marginPct >= threshold;
+                const requiresApproval = price > 0 && marginPct < threshold;
+
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="mb-4"
+                  >
+                    <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] shadow-sm overflow-hidden">
+                      
+                      {/* Product Name Header */}
+                      {selected && (
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-[#1a1a1a] border-b border-gray-100 dark:border-[#2a2a2a]">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-[#253D6B]" />
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[300px]">{selected.name || selected.description}</span>
+                            <span className="text-xs text-gray-400 font-mono">{selected.sku || selected.reference}</span>
+                          </div>
+                          {/* Commission/Approval indicator — visible only when price is set */}
+                          {price > 0 && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className={cn(
+                                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-help select-none',
+                                    commissions
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                  )}>
+                                    {commissions
+                                      ? <><CheckCircle2 className="h-3 w-3" /> Comisiona</>
+                                      : <><AlertTriangle className="h-3 w-3" /> Requiere Aprobación</>
+                                    }
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{commissions
+                                    ? `Margen sobre el umbral de comisión (${threshold}%)`
+                                    : `Precio por debajo del umbral. Requiere aprobación de supervisor.`}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row sm:items-stretch divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-[#2a2a2a]">
+
+                        {/* --- Inventory Block --- */}
+                        {selected && (
+                          <div className="flex-1 p-4">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Disponibilidad en Bodega</p>
+                            <div className="flex items-baseline gap-2 mb-2">
+                              <span className={cn(
+                                "text-2xl font-black font-mono",
+                                available > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
+                              )}>
+                                {available}
+                              </span>
+                              <span className="text-sm text-gray-500">{selected.unit || 'uds'} disponibles</span>
+                            </div>
+                            <div className="flex gap-3 text-[11px] text-gray-400 font-mono">
+                              <span>{stock.existence || 0} físico</span>
+                              <span>·</span>
+                              <span>{stock.reserved || 0} reservado</span>
+                              {includeIncomingStock && <><span>·</span><span className="text-amber-500">{stock.arriving || 0} en tránsito</span></>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* --- History Block --- */}
+                        {productHistory ? (
+                          <div className="flex-1 p-4 bg-blue-50/30 dark:bg-blue-900/5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Última Venta a este Cliente</p>
+                            <div className="space-y-2">
+                              <div className="flex items-baseline gap-3">
+                                <span className="text-2xl font-black font-mono text-gray-900 dark:text-white">
+                                  {formatCurrency(productHistory.price)}
+                                </span>
+                                <span className="text-xs font-semibold text-gray-400">por unidad</span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 mt-2">
+                                <div className="rounded-lg bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#2a2a2a] p-2 text-center">
+                                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Cantidad</p>
+                                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 font-mono">{productHistory.quantity ?? '—'}</p>
+                                </div>
+                                <div className="rounded-lg bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#2a2a2a] p-2 text-center">
+                                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Fecha</p>
+                                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{new Date(productHistory.date).toLocaleDateString('es-PA', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
+                                </div>
+                                <div className="rounded-lg bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#2a2a2a] p-2 text-center">
+                                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Vendedor</p>
+                                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{productHistory.vendor}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : selected ? (
+                          <div className="flex-1 p-4 flex flex-col items-center justify-center gap-1.5 bg-gray-50/60 dark:bg-[#1a1a1a]/60">
+                            <Info className="h-5 w-5 text-gray-300" />
+                            <p className="text-xs text-gray-400 font-medium">Este cliente nunca ha comprado este producto</p>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })()}
 
               {/* Lines List */}
               {quoteLines.length > 0 ? (
@@ -416,7 +627,7 @@ export default function NuevaCotizacionPage() {
                           <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Margen</th>
                         )}
                         {isVendedor && (
-                          <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Comisión</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Aprobación</th>
                         )}
                         <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Acción</th>
                       </tr>
@@ -450,23 +661,27 @@ export default function NuevaCotizacionPage() {
                             </td>
                           )}
                           {isVendedor && (
-                            <td className="px-4 py-3 text-center">
-                              <Tooltip
-                                content={line.commissionEligible ? "Por encima del 10%" : "Por debajo del 10%"}
-                                placement="top"
-                              >
-                                <span className={cn(
-                                  'inline-flex items-center justify-center h-6 w-6 rounded-full cursor-help',
-                                  line.commissionEligible
-                                    ? 'bg-emerald-500/10 text-emerald-500'
-                                    : 'bg-red-500/10 text-red-500'
-                                )}>
-                                  {line.commissionEligible
-                                    ? <CheckCircle2 className="h-4 w-4" />
-                                    : <XCircle className="h-4 w-4" />
-                                  }
-                                </span>
-                              </Tooltip>
+                           <td className="px-4 py-3 text-center">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className={cn(
+                                      'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight',
+                                      !line.requiresApproval
+                                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                        : 'bg-red-500/10 text-red-600 border border-red-500/20 shadow-sm animate-pulse'
+                                    )}>
+                                      {!line.requiresApproval
+                                        ? <>OK</>
+                                        : <>Requiere Aprobación</>
+                                      }
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{!line.requiresApproval ? "Margen correcto" : "Margen insuficiente"}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </td>
                           )}
                           <td className="px-4 py-3 text-center">
@@ -491,6 +706,63 @@ export default function NuevaCotizacionPage() {
                   </p>
                 </div>
               )}
+
+              {/* Additional Expenses Section */}
+              <div className="mt-8 border-t border-gray-100 dark:border-[#2a2a2a] pt-6">
+                 <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Gastos Adicionales (Flete, etc.)</h3>
+                 
+                 <div className="flex items-end gap-3 mb-4">
+                    <div className="flex-1">
+                        <Label className="text-sm font-semibold mb-1.5 block">Descripción</Label>
+                        <Input 
+                            placeholder="Ej: Flete, Embalaje..." 
+                            value={newExpenseDesc}
+                            onChange={e => setNewExpenseDesc(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-32">
+                        <Label className="text-sm font-semibold mb-1.5 block">Monto</Label>
+                        <Input 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={newExpenseAmount}
+                            onChange={e => setNewExpenseAmount(e.target.value)}
+                        />
+                    </div>
+                    <Button 
+                        onClick={handleAddExpense}
+                        disabled={!newExpenseDesc || !newExpenseAmount}
+                        variant="outline"
+                        className="h-[38px]"
+                    >
+                        <Plus className="h-4 w-4 mr-2" /> Agregar Gasto
+                    </Button>
+                 </div>
+
+                 {expenses.length > 0 && (
+                    <div className="space-y-2">
+                        {expenses.map(exp => (
+                            <div key={exp.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#2a2a2a]">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                        <Truck className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <span className="text-sm font-medium">{exp.description}</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="font-mono text-sm font-semibold">{formatCurrency(exp.amount)}</span>
+                                    <button 
+                                        onClick={() => handleRemoveExpense(exp.id)}
+                                        className="text-gray-400 hover:text-red-500 transition-colors"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                 )}
+              </div>
 
               {/* Totals */}
               {quoteLines.length > 0 && (
@@ -519,18 +791,25 @@ export default function NuevaCotizacionPage() {
                         ({quoteMarginPercent.toFixed(0)}% margen)
                       </span>
                     )}
-                    {isVendedor && (
-                      <Tooltip content={!hasLowMarginLines ? `Por encima del ${settings?.commissionThreshold ?? 10}%` : `Hay productos por debajo del ${settings?.commissionThreshold ?? 10}%`}>
-                        <span className={cn(
-                          'ml-3 inline-flex items-center gap-1.5 text-sm cursor-help',
-                          !hasLowMarginLines ? 'text-emerald-500' : 'text-amber-500'
-                        )}>
-                          {!hasLowMarginLines
-                            ? <><CheckCircle2 className="h-4 w-4" /> Comisiona</>
-                            : <><AlertTriangle className="h-4 w-4" /> Revisar</>
-                          }
-                        </span>
-                      </Tooltip>
+                     {isVendedor && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className={cn(
+                              'ml-3 inline-flex items-center gap-1.5 text-sm cursor-help',
+                              !hasLowMarginLines ? 'text-emerald-500' : 'text-amber-500'
+                            )}>
+                              {!hasLowMarginLines
+                                ? <><CheckCircle2 className="h-4 w-4" /> Comisiona</>
+                                : <><AlertTriangle className="h-4 w-4" /> Revisar</>
+                              }
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{!hasLowMarginLines ? `Por encima del ${settings?.commissionThreshold ?? 10}%` : `Hay productos por debajo del ${settings?.commissionThreshold ?? 10}%`}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </div>
                 </div>
@@ -566,26 +845,25 @@ export default function NuevaCotizacionPage() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-gray-200 dark:border-[#2a2a2a] px-6 py-4">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => router.back()}
             disabled={isSaving}
-            className={buttonSecondaryClass}
           >
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleCreateQuote}
             disabled={!selectedClient || quoteLines.length === 0 || isSaving}
-            className={buttonPrimaryClass}
+            className="bg-[#253D6B] hover:bg-[#1e3156]"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               'Crear Cotización'
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -1,150 +1,204 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Adjustment, AdjustmentDocument } from './schemas/adjustment.schema';
+import { PrismaService } from '../services/shared/prisma.service';
 import { StockService } from '../stock/stock.service';
 import { AccountingService } from '../accounting/accounting.service';
 
 @Injectable()
 export class AdjustmentsService {
     constructor(
-        @InjectModel(Adjustment.name) private adjustmentModel: Model<AdjustmentDocument>,
+        private prisma: PrismaService,
         private stockService: StockService,
         private accountingService: AccountingService,
     ) { }
 
-    async findAll(): Promise<AdjustmentDocument[]> {
-        return this.adjustmentModel.find()
-            .populate('warehouseId', 'name code')
-            .populate('createdBy', 'name email')
-            .populate('lines.productId', 'reference description unit')
-            .sort({ createdAt: -1 })
-            .exec();
+    async findAll(): Promise<any[]> {
+        return this.prisma.inventoryAdjustment.findMany({
+            include: {
+                warehouse: true,
+                createdByUser: true,
+                lines: {
+                    include: { product: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
     }
 
-    async findOne(id: string): Promise<AdjustmentDocument> {
-        const adjustment = await this.adjustmentModel.findById(id)
-            .populate('warehouseId', 'name code')
-            .populate('createdBy', 'name email')
-            .populate('lines.productId', 'reference description unit')
-            .exec();
+    async findOne(id: string): Promise<any> {
+        const adjustment = await this.prisma.inventoryAdjustment.findUnique({
+            where: { id },
+            include: {
+                warehouse: true,
+                createdByUser: true,
+                lines: {
+                    include: { product: true }
+                }
+            }
+        });
         if (!adjustment) throw new NotFoundException('Adjustment not found');
         return adjustment;
     }
 
-    async create(createDto: any): Promise<AdjustmentDocument> {
-        // Generar una secuencia
-        const count = await this.adjustmentModel.countDocuments();
+    async create(createDto: any): Promise<any> {
+        const count = await this.prisma.inventoryAdjustment.count();
         const reference = `AJ-${String(count + 1).padStart(5, '0')}`;
 
-        const createdAdjustment = new this.adjustmentModel({
-            ...createDto,
-            reference,
-            createdBy: new Types.ObjectId(createDto.createdBy),
-            warehouseId: new Types.ObjectId(createDto.warehouseId),
-            status: createDto.status || 'pendiente',
+        return this.prisma.inventoryAdjustment.create({
+            data: {
+                reference,
+                type: createDto.type.toUpperCase(),
+                warehouseId: createDto.warehouseId,
+                notes: createDto.observation || createDto.notes,
+                evidenceUrls: createDto.evidenceUrls || [],
+                status: createDto.status || 'PENDING',
+                createdByUserId: createDto.createdBy,
+                lines: {
+                    create: createDto.lines.map((l: any) => ({
+                        productId: l.productId,
+                        adjustmentQty: l.adjustmentQty,
+                        unitCost: l.unitCost,
+                        notes: l.notes
+                    }))
+                }
+            },
+            include: { lines: true }
         });
-
-        return createdAdjustment.save();
     }
 
-    async updateStatus(id: string, updateDto: any): Promise<AdjustmentDocument> {
+    async updateStatus(id: string, updateDto: any): Promise<any> {
         const adjustment = await this.findOne(id);
         const { status, userId } = updateDto;
 
-        if (adjustment.status !== 'pendiente' && adjustment.status !== 'aprobado' && status !== 'rechazado') {
+        if (adjustment.status !== 'PENDING' && adjustment.status !== 'APPROVED' && status !== 'REJECTED') {
             throw new BadRequestException('Solo se pueden actualizar ajustes en estado pendiente o aprobado');
         }
 
-        if (status === 'aplicado') {
-            if (adjustment.status === 'aplicado') {
+        if (status === 'APPLIED') {
+            if (adjustment.status === 'APPLIED') {
                 throw new BadRequestException('El ajuste ya fue aplicado');
             }
 
-            // Aplicar cambios al stock
-            for (const line of adjustment.lines) {
-                const stock = await this.stockService.findOne(
-                    line.productId.toString(),
-                    adjustment.warehouseId.toString()
-                );
+            return this.prisma.$transaction(async (tx) => {
+                // Aplicar cambios al stock
+                for (const line of adjustment.lines) {
+                    const stock = await tx.inventoryExistence.findUnique({
+                        where: {
+                            productId_warehouseId: {
+                                productId: line.productId,
+                                warehouseId: adjustment.warehouseId
+                            }
+                        }
+                    });
 
-                const currentExistence = stock ? stock.existence : 0;
+                    const currentExistence = stock ? Number(stock.existence) : 0;
+                    let newExistence = currentExistence;
+                    
+                    if (adjustment.type === 'POSITIVE') {
+                        newExistence += Number(line.adjustmentQty);
+                    } else if (adjustment.type === 'NEGATIVE') {
+                        newExistence -= Number(line.adjustmentQty);
+                    }
 
-                let newExistence = currentExistence;
-                if (adjustment.type === 'positivo') {
-                    newExistence += line.adjustmentQty;
-                } else if (adjustment.type === 'negativo') {
-                    newExistence -= line.adjustmentQty;
-                    // Prevenir stock negativo si es requerido, omitido por simplicidad y error humano
+                    await tx.inventoryExistence.upsert({
+                        where: {
+                            productId_warehouseId: {
+                                productId: line.productId,
+                                warehouseId: adjustment.warehouseId
+                            }
+                        },
+                        create: {
+                            productId: line.productId,
+                            warehouseId: adjustment.warehouseId,
+                            existence: newExistence,
+                            available: newExistence // Simplified
+                        },
+                        update: {
+                            existence: newExistence,
+                            available: newExistence // Simplified
+                        }
+                    });
+
+                    // Create Movement
+                    await tx.inventoryMovement.create({
+                        data: {
+                            productId: line.productId,
+                            warehouseId: adjustment.warehouseId,
+                            movementType: 'ADJUSTMENT',
+                            quantity: line.adjustmentQty,
+                            occurredAt: new Date(),
+                            referenceType: 'ADJUSTMENT',
+                            referenceId: adjustment.reference,
+                            notes: `Ajuste de inventario ${adjustment.reference} (${adjustment.type})`,
+                            createdByUserId: userId || adjustment.createdByUserId
+                        }
+                    });
                 }
 
-                await this.stockService.updateStock(
-                    line.productId.toString(),
-                    adjustment.warehouseId.toString(),
-                    {
-                        existence: newExistence,
-                        available: newExistence + (stock ? stock.arriving : 0) - (stock ? stock.reserved : 0) // Recalcular available
-                    }
-                );
-            }
+                const updated = await tx.inventoryAdjustment.update({
+                    where: { id },
+                    data: {
+                        status: 'APPLIED',
+                        appliedAt: new Date(),
+                        approvedByUserId: userId,
+                        approvedAt: new Date()
+                    },
+                    include: { lines: true }
+                });
 
-            adjustment.status = 'aplicado';
-            adjustment.appliedAt = new Date();
+                // Accounting entry (non-blocking)
+                await this.createAccountingEntryForAdjustment(updated);
 
-            // Generar asiento contable para el ajuste
-            await this.createAccountingEntryForAdjustment(adjustment);
-        } else if (status === 'aprobado') {
-            adjustment.status = 'aprobado';
-            if (userId) adjustment.approvedBy = new Types.ObjectId(userId);
-            adjustment.approvedAt = new Date();
-        } else if (status === 'rechazado') {
-            adjustment.status = 'rechazado';
+                return updated;
+            });
+
+        } else if (status === 'APPROVED') {
+            return this.prisma.inventoryAdjustment.update({
+                where: { id },
+                data: {
+                    status: 'APPROVED',
+                    approvedByUserId: userId,
+                    approvedAt: new Date()
+                }
+            });
+        } else if (status === 'REJECTED') {
+            return this.prisma.inventoryAdjustment.update({
+                where: { id },
+                data: { status: 'REJECTED' }
+            });
         }
 
-        return adjustment.save();
+        return adjustment;
     }
 
-    private async createAccountingEntryForAdjustment(adjustment: AdjustmentDocument) {
+    private async createAccountingEntryForAdjustment(adjustment: any) {
         try {
             const accounts = await this.accountingService.findAllAccounts();
-            const inventario = accounts.find(a => a.code === '1030.01'); // Inventario de Mercancía
-            const gastosAjuste = accounts.find(a => a.code === '5020') || accounts.find(a => a.code === '5010'); // Gastos de Operación / Ajustes
-            const otrosIngresos = accounts.find(a => a.code === '4020'); // Otros Ingresos
+            const inventario = accounts.find(a => a.code === '1030.01');
+            const gastosAjuste = accounts.find(a => a.code === '5020') || accounts.find(a => a.code === '5010');
+            const otrosIngresos = accounts.find(a => a.code === '4020');
 
-            if (!inventario) {
-                console.warn('[Accounting] Missing inventory account for adjustment');
-                return;
-            }
+            if (!inventario) return;
 
-            // Nota: En un sistema real usaríamos el costo de la línea, aquí asumimos un valor representativo 
-            // o el totalAmount si el esquema lo tuviera. Como no está en el schema, sumamos de las líneas si tienen costo.
-            // Si no, usamos un placeholder o simplemente logueamos la intención.
             let totalValue = 0;
             for (const line of adjustment.lines) {
-                // Si la línea tuviera costo unitario lo usaríamos. Como el schema no lo muestra explícitamente en el primer view_file,
-                // vamos a asumir que para propósitos de este test de integración, el ajuste impacta cantidades.
-                // En una implementación real, buscaríamos el costo actual del producto.
-                totalValue += (line.adjustmentQty * 10); // Valor arbitrario para demostración si no hay costo
+                totalValue += (Number(line.adjustmentQty) * (Number(line.unitCost) || 10));
             }
 
             if (totalValue <= 0) return;
 
-            const isPositivo = adjustment.type === 'positivo';
+            const isPositivo = adjustment.type === 'POSITIVE';
             const accountContra = isPositivo ? otrosIngresos : gastosAjuste;
 
-            if (!accountContra) {
-                console.warn(`[Accounting] Missing contra account for adjustment type: ${adjustment.type}`);
-                return;
-            }
+            if (!accountContra) return;
 
             await this.accountingService.createEntry({
                 date: new Date(),
-                description: `Ajuste de Inventario ${adjustment.type.toUpperCase()} - Ref: ${adjustment.reference}`,
+                description: `Ajuste de Inventario ${adjustment.type} - Ref: ${adjustment.reference}`,
                 sourceType: 'inventory_adjustment',
-                sourceId: adjustment._id.toString(),
+                sourceId: adjustment.id,
                 lines: [
                     {
-                        accountId: inventario._id,
+                        accountId: inventario.id,
                         accountCode: inventario.code,
                         accountName: inventario.name,
                         debit: isPositivo ? totalValue : 0,
@@ -152,7 +206,7 @@ export class AdjustmentsService {
                         memo: `Impacto en stock Ref: ${adjustment.reference}`
                     },
                     {
-                        accountId: accountContra._id,
+                        accountId: accountContra.id,
                         accountCode: accountContra.code,
                         accountName: accountContra.name,
                         debit: isPositivo ? 0 : totalValue,
@@ -161,7 +215,6 @@ export class AdjustmentsService {
                     }
                 ]
             });
-            console.log(`[Accounting] Created entry for Adjustment ${adjustment.reference} - Amount: ${totalValue}`);
         } catch (e) {
             console.error('Error automatically creating accounting entry for adjustment:', e);
         }

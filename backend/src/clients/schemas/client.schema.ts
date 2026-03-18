@@ -27,6 +27,9 @@ export class Client {
     phone?: string;
 
     @Prop()
+    mobile?: string;
+
+    @Prop()
     address?: string;
 
     @Prop()

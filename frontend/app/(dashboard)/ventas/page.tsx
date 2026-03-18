@@ -5,15 +5,30 @@ import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Tooltip,
-} from '@heroui/react';
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Badge } from '@/components/ui/badge';
 import {
   Search,
   Plus,
@@ -49,10 +64,11 @@ import { getCreditStatus } from '@/lib/mock-data/clients';
 import { api } from '@/lib/services/api';
 import { Loader2 } from 'lucide-react';
 import type { SalesOrder, SalesOrderStatus, DocumentType } from '@/lib/types/sales-order';
-import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS, normalizeStatus } from '@/lib/types/sales-order';
+import { STATUS_CONFIG, DOCUMENT_TYPE_LABELS } from '@/lib/types/sales-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { SkeletonTable } from '@/components/ui/skeleton-table';
+import { Pagination } from '@/components/ui/pagination';
 
 type StatusFilter = SalesOrderStatus | 'all';
 type DocTypeFilter = DocumentType | 'all';
@@ -84,6 +100,8 @@ export default function VentasPage() {
   const [docTypeFilter, setDocTypeFilter] = useState<DocTypeFilter>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Modal states
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -92,15 +110,31 @@ export default function VentasPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersData, clientsData] = await Promise.all([
+        // Fetch orders and clients independently so one failure doesn't break the other
+        const [ordersResult, clientsResult] = await Promise.allSettled([
           api.getSales(),
-          api.getUsers() // Usando getUsers temporalmente si no hay getClients específico, o api.getUsers()
+          api.getClients(),
         ]);
-        setSalesOrders(ordersData);
-        setClients(clientsData);
+
+        if (ordersResult.status === 'fulfilled') {
+          const data = ordersResult.value;
+          setSalesOrders(Array.isArray(data) ? data : []);
+        } else {
+          console.warn('No se pudieron cargar las órdenes:', ordersResult.reason?.message);
+          setSalesOrders([]);
+        }
+
+        if (clientsResult.status === 'fulfilled') {
+          const data = clientsResult.value;
+          setClients(Array.isArray(data) ? data : []);
+        } else {
+          console.warn('No se pudieron cargar los clientes:', clientsResult.reason?.message);
+          setClients([]);
+        }
       } catch (error) {
-        console.error('Error fetching sales data:', error);
-        toast.error('Error al cargar datos');
+        console.error('Error inesperado al cargar ventas:', error);
+        setSalesOrders([]);
+        setClients([]);
       } finally {
         setLoading(false);
       }
@@ -108,58 +142,94 @@ export default function VentasPage() {
     fetchData();
   }, []);
 
-  // Stats (Simplified for now based on local data)
+  // Helper to group technical statuses into logical pipeline categories
+  const getLogicalStatus = (status: string): SalesOrderStatus => {
+    const s = (status || '').toLowerCase();
+    if (s === 'borrador' || s === 'draft' || s === 'new' || !s) return 'borrador';
+    if (s === 'cotizado' || s === 'approved' || s === 'sent') return 'cotizado';
+    if (s === 'pedido' || s === 'convertida_a_pedido' || s === 'converted') return 'pedido';
+    if (s === 'aprobado' || s === 'reserved' || s === 'pedido_aprobado') return 'aprobado';
+    if (s === 'empacado' || s === 'dispatched' || s === 'packing_completed') return 'empacado';
+    if (s === 'facturado' || s === 'invoiced' || s === 'factura_emitida' || s === 'pagado') return 'facturado';
+    if (s === 'cancelado' || s === 'cancelada' || s === 'rejected') return 'cancelado';
+    return 'borrador';
+  };
+
+  // Stats calculation with normalized categories
   const stats = useMemo(() => {
-    const normalizedOrders = salesOrders.map(o => ({ ...o, status: normalizeStatus(o.status) }));
-
-    const pendingQuotes = normalizedOrders.filter(o => o.status === 'cotizado').length;
-    const pendingApproval = normalizedOrders.filter(o => o.status === 'pedido').length;
-    const readyToPack = normalizedOrders.filter(o => o.status === 'aprobado').length;
-    const readyToInvoice = normalizedOrders.filter(o => o.status === 'empacado').length;
-    const salesValueThisMonth = normalizedOrders
-      .filter(o => o.status === 'facturado')
-      .reduce((sum, o) => sum + (o.total || 0), 0);
-
-    const pipelineValue = normalizedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-
-    const byStatus: Record<string, number> = {
-      borrador: normalizedOrders.filter(o => o.status === 'borrador').length,
-      cotizado: pendingQuotes,
-      pedido: pendingApproval,
-      aprobado: readyToPack,
-      empacado: readyToInvoice,
-      facturado: normalizedOrders.filter(o => o.status === 'facturado').length,
-      cancelado: normalizedOrders.filter(o => o.status === 'cancelado').length,
+    const categoriesCount = {
+      borrador: 0,
+      cotizado: 0,
+      pedido: 0,
+      aprobado: 0,
+      empacado: 0,
+      facturado: 0,
+      cancelado: 0,
     };
 
+    let salesValueThisMonth = 0;
+    let pipelineValue = 0;
+
+    salesOrders.forEach(order => {
+      const logicalStatus = getLogicalStatus(order.status);
+      if (categoriesCount.hasOwnProperty(logicalStatus)) {
+        categoriesCount[logicalStatus]++;
+      }
+      
+      const total = Number(order.total) || 0;
+      pipelineValue += total;
+      
+      if (logicalStatus === 'facturado') {
+        salesValueThisMonth += total;
+      }
+    });
+
     return {
-      pendingQuotes,
-      pendingApproval,
-      readyToPack,
-      readyToInvoice,
+      pendingQuotes: categoriesCount.cotizado,
+      pendingApproval: categoriesCount.pedido,
+      readyToPack: categoriesCount.aprobado,
+      readyToInvoice: categoriesCount.empacado,
       salesValueThisMonth,
       pipelineValue,
-      byStatus
+      byStatus: categoriesCount
     };
   }, [salesOrders]);
 
-  // Filter orders
+  // Clients map for quick lookup
+  const clientsMap = useMemo(() => {
+    return clients.reduce((acc, client) => {
+      acc[client.id] = client;
+      return acc;
+    }, {} as Record<string, any>);
+  }, [clients]);
+
+  // Filter orders with logic that matches categories
   const filteredOrders = useMemo(() => {
     return salesOrders.filter((order) => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
         !searchQuery ||
-        order.orderNumber.toLowerCase().includes(searchLower) ||
+        (order.orderNumber || '').toLowerCase().includes(searchLower) ||
         (order.clientName || '').toLowerCase().includes(searchLower) ||
         (order.clientId || '').toLowerCase().includes(searchLower);
 
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      const logicalStatus = getLogicalStatus(order.status);
+      const matchesStatus = statusFilter === 'all' || logicalStatus === statusFilter;
       const matchesDocType = docTypeFilter === 'all' || order.documentType === docTypeFilter;
       const matchesCustomer = !selectedCustomer || order.clientId === selectedCustomer;
 
       return matchesSearch && matchesStatus && matchesDocType && matchesCustomer;
     });
   }, [salesOrders, searchQuery, statusFilter, docTypeFilter, selectedCustomer]);
+
+  const paginatedOrders = useMemo(() => {
+    return filteredOrders.slice(
+      (currentPage - 1) * rowsPerPage,
+      currentPage * rowsPerPage
+    );
+  }, [filteredOrders, currentPage, rowsPerPage]);
+
+  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
 
   // Handlers
   const handleViewOrder = (order: any) => {
@@ -300,7 +370,7 @@ export default function VentasPage() {
               onClick={() => setStatusFilter(statusFilter === stat.filterStatus ? 'all' : stat.filterStatus)}
               className={cn(
                 'rounded-[12px] border-none bg-white p-3 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
-                statusFilter === stat.filterStatus && 'ring-2 ring-brand-500 ring-offset-2'
+                statusFilter === stat.filterStatus && 'ring-2 ring-blue-500 ring-offset-2'
               )}
             >
               <div className="flex items-center gap-3">
@@ -357,7 +427,7 @@ export default function VentasPage() {
                   onClick={() => setStatusFilter(isActive ? 'all' : stage.status)}
                   className={cn(
                     'flex flex-1 flex-col items-center h-auto px-1.5 py-4 transition-all sm:px-3',
-                    isActive ? 'ring-2 ring-brand-500 ring-offset-2' : ''
+                    isActive ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                   )}
                 >
                   <span
@@ -389,14 +459,14 @@ export default function VentasPage() {
             placeholder="Buscar documento o cliente..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Document Type Filter */}
-          <Dropdown>
-            <DropdownTrigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant={docTypeFilter !== 'all' ? 'default' : 'secondary'}
                 size="sm"
@@ -405,24 +475,16 @@ export default function VentasPage() {
                 {docTypeFilter !== 'all' ? DOCUMENT_TYPE_LABELS[docTypeFilter] : 'Tipo'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={docTypeFilter !== 'all' ? [docTypeFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setDocTypeFilter(selected === docTypeFilter ? 'all' : (selected as DocTypeFilter));
-              }}
-            >
-              <DropdownItem key="cotizacion">Cotización</DropdownItem>
-              <DropdownItem key="pedido">Pedido</DropdownItem>
-              <DropdownItem key="factura">Factura</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setDocTypeFilter(docTypeFilter === 'cotizacion' ? 'all' : 'cotizacion')}>Cotización</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setDocTypeFilter(docTypeFilter === 'pedido' ? 'all' : 'pedido')}>Pedido</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setDocTypeFilter(docTypeFilter === 'factura' ? 'all' : 'factura')}>Factura</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Status Filter */}
-          <Dropdown>
-            <DropdownTrigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant={statusFilter !== 'all' ? 'default' : 'secondary'}
                 size="sm"
@@ -431,28 +493,21 @@ export default function VentasPage() {
                 {statusFilter !== 'all' ? (STATUS_CONFIG[statusFilter]?.label || statusFilter) : 'Estado'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={statusFilter !== 'all' ? [statusFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setStatusFilter(selected === statusFilter ? 'all' : (selected as StatusFilter));
-              }}
-            >
-              <DropdownItem key="borrador">Borrador</DropdownItem>
-              <DropdownItem key="cotizado">Cotizado</DropdownItem>
-              <DropdownItem key="pedido">Pedido</DropdownItem>
-              <DropdownItem key="aprobado">Aprobado</DropdownItem>
-              <DropdownItem key="empacado">Empacado</DropdownItem>
-              <DropdownItem key="facturado">Facturado</DropdownItem>
-              <DropdownItem key="cancelado">Cancelado</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-64 overflow-auto">
+              {['borrador', 'cotizado', 'pedido', 'aprobado', 'empacado', 'facturado', 'cancelado'].map((status) => (
+                <DropdownMenuItem 
+                  key={status} 
+                  onClick={() => setStatusFilter(statusFilter === status ? 'all' : status as StatusFilter)}
+                >
+                  {STATUS_CONFIG[status as SalesOrderStatus]?.label || status}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Customer Filter */}
-          <Dropdown>
-            <DropdownTrigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant={selectedCustomer ? 'default' : 'secondary'}
                 size="sm"
@@ -463,21 +518,18 @@ export default function VentasPage() {
                   : 'Cliente'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedCustomer ? [selectedCustomer] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedCustomer(selected === selectedCustomer ? null : selected);
-              }}
-              className="max-h-64 overflow-auto"
-            >
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-64 overflow-auto w-64">
               {clients.slice(0, 20).map((client) => (
-                <DropdownItem key={client.id}>{client.name}</DropdownItem>
+                <DropdownMenuItem 
+                  key={client.id}
+                  onClick={() => setSelectedCustomer(selectedCustomer === client.id ? null : client.id)}
+                >
+                  {client.name}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Clear Filters */}
           {hasActiveFilters && (
@@ -512,7 +564,7 @@ export default function VentasPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {filteredOrders.map((order, index) => (
+              {paginatedOrders.map((order, index) => (
                 <motion.tr
                   key={order.id}
                   initial={{ opacity: 0, x: -10 }}
@@ -523,7 +575,7 @@ export default function VentasPage() {
                   <td className="px-5 py-4">
                     <Button
                       variant="link"
-                      className="p-0 h-auto font-bold text-brand-600 dark:text-brand-400"
+                      className="p-0 h-auto font-bold text-blue-600 dark:text-blue-400"
                       onClick={() => handleViewOrder(order)}
                     >
                       {order.orderNumber}
@@ -538,12 +590,12 @@ export default function VentasPage() {
                   <td className="px-5 py-4">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">{formatDate(order.createdAt)}</span>
-                      <span className="text-[10px] text-muted-foreground">por {order.createdBy.name}</span>
+                      <span className="text-[10px] text-muted-foreground">por {order.createdBy?.name || 'Sistema'}</span>
                     </div>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-secondary">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -552,9 +604,14 @@ export default function VentasPage() {
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-muted-foreground">{order.clientReference || 'Ref: -'}</span>
-                          {getCreditStatus(order.clientId).status === 'warning' && (
-                            <Tooltip content="Mora en crédito" color="warning" size="sm">
-                              <AlertTriangle className="h-3 w-3 text-warning" />
+                          {clientsMap[order.clientId] && getCreditStatus(clientsMap[order.clientId]).status === 'warning' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertTriangle className="h-3 w-3 text-warning cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Mora en crédito
+                              </TooltipContent>
                             </Tooltip>
                           )}
                         </div>
@@ -580,17 +637,17 @@ export default function VentasPage() {
                     <div className="flex justify-center">
                       <span className={cn(
                         'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                        STATUS_CONFIG[order.status]?.bg || 'bg-gray-100',
-                        STATUS_CONFIG[order.status]?.text || 'text-gray-700'
+                        STATUS_CONFIG[order.status as SalesOrderStatus]?.bg || 'bg-gray-100',
+                        STATUS_CONFIG[order.status as SalesOrderStatus]?.text || 'text-gray-700'
                       )}>
-                        <span className={cn('mr-1.5 h-1.5 w-1.5 rounded-full', STATUS_CONFIG[order.status]?.dot || 'bg-gray-500')} />
-                        {STATUS_CONFIG[order.status]?.label || order.status}
+                        <span className={cn('mr-1.5 h-1.5 w-1.5 rounded-full', STATUS_CONFIG[order.status as SalesOrderStatus]?.dot || 'bg-gray-500')} />
+                        {STATUS_CONFIG[order.status as SalesOrderStatus]?.label || order.status}
                       </span>
                     </div>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <Dropdown placement="bottom-end">
-                      <DropdownTrigger>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -598,28 +655,27 @@ export default function VentasPage() {
                         >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
-                      </DropdownTrigger>
-                      <DropdownMenu
-                        aria-label="Acciones de venta"
-                        items={[
-                          { key: 'view', label: 'Ver documento', icon: Eye, action: () => handleViewOrder(order), show: true },
-                          { key: 'print', label: 'Imprimir', icon: Download, action: () => { }, show: true },
-                          { key: 'delete', label: 'Cancelar', icon: Trash2, action: () => handleDeleteOrder(order), show: order.status !== 'facturado' && order.status !== 'cancelada', danger: true },
-                        ].filter(i => i.show)}
-                      >
-                        {(item) => (
-                          <DropdownItem
-                            key={item.key}
-                            startContent={<item.icon className="h-4 w-4" />}
-                            className={item.danger ? 'text-danger' : ''}
-                            color={item.danger ? 'danger' : 'default'}
-                            onPress={item.action}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewOrder(order)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          <span>Ver documento</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Download className="mr-2 h-4 w-4" />
+                          <span>Imprimir</span>
+                        </DropdownMenuItem>
+                        {(order.status !== 'facturado' && order.status !== 'cancelada') && (
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteOrder(order)}
+                            className="text-destructive focus:text-destructive"
                           >
-                            {item.label}
-                          </DropdownItem>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Cancelar</span>
+                          </DropdownMenuItem>
                         )}
-                      </DropdownMenu>
-                    </Dropdown>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </motion.tr>
               ))}
@@ -639,30 +695,41 @@ export default function VentasPage() {
 
       {/* Results count */}
       {filteredOrders.length > 0 && (
-        <div className="text-center text-sm text-muted-foreground">
-          Mostrando {filteredOrders.length} de {salesOrders.length} documentos
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredOrders.length}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={(val) => {
+            setRowsPerPage(val);
+            setCurrentPage(1);
+          }}
+          itemName="documentos"
+        />
       )}
 
       {/* Delete Confirmation Modal */}
-      <CustomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} size="sm">
-        <CustomModalHeader onClose={() => setIsDeleteOpen(false)}>Cancelar documento</CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <p className="text-muted-foreground">
-            ¿Estás seguro de cancelar{' '}
-            <span className="font-medium text-foreground">"{selectedOrder?.orderNumber}"</span>? Esta acción
-            no se puede deshacer.
-          </p>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>
-            Volver
-          </Button>
-          <Button variant="destructive" onClick={confirmDelete}>
-            Cancelar Documento
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar documento</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de cancelar <span className="font-medium text-foreground">"{selectedOrder?.orderNumber}"</span>? 
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancelar Documento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

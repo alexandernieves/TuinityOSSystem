@@ -29,6 +29,7 @@ export type ProductStatus = 'active' | 'inactive' | 'discontinued';
 export interface Product {
   id: string;
   reference: string;           // EVL-00001 format
+  name: string;                // Product name
   description: string;         // Full product description
   group: string;               // WHISKY, RON, VODKA, etc.
   subGroup: string;

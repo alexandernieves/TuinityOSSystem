@@ -50,4 +50,19 @@ export class TrafficController {
     getStats() {
         return this.trafficService.getStats();
     }
+
+    @Post('expedients/from-invoice/:id')
+    createFromInvoice(@Param('id') id: string, @Request() req) {
+        return this.trafficService.createFromInvoice(id, req.user.sub);
+    }
+
+    @Post('expedients/:id/prefill-dmc')
+    prefillDMC(@Param('id') id: string, @Request() req) {
+        return this.trafficService.prefillDMC(id, req.user.sub);
+    }
+
+    @Post('expedients/:id/prefill-bl')
+    prefillBL(@Param('id') id: string, @Request() req) {
+        return this.trafficService.prefillBL(id, req.user.sub);
+    }
 }

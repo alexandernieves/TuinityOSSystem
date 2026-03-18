@@ -3,14 +3,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Tabs,
-  Tab,
-} from "@heroui/react";
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Plus,
   FileText,
@@ -201,8 +200,8 @@ export default function AjustesPage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-              <FileText className="h-5 w-5 text-brand-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -217,7 +216,7 @@ export default function AjustesPage() {
         {canCreateAdjustments && (
           <button
             onClick={handleNewAdjustment}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+            className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
           >
             <Plus className="h-4 w-4" />
             Nuevo Ajuste
@@ -226,76 +225,33 @@ export default function AjustesPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs
-        selectedKey={selectedTab}
-        onSelectionChange={(key) => setSelectedTab(key as TabKey)}
-        color="primary"
-        variant="underlined"
-        classNames={{
-          tabList: "gap-6 border-b border-gray-200",
-          cursor: "bg-brand-600",
-          tab: "px-0 h-10",
-          tabContent: "group-data-[selected=true]:text-brand-600",
-        }}
-      >
-        <Tab
-          key="all"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Todos</span>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                {counts.all}
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 overflow-x-auto">
+        {[
+          { key: 'all' as TabKey, label: 'Todos', count: counts.all, color: 'text-gray-600', countClass: 'bg-gray-200 text-gray-600' },
+          { key: 'pendiente' as TabKey, label: 'Pendientes', count: counts.pendiente, color: 'text-amber-700', countClass: 'bg-amber-100 text-amber-700' },
+          { key: 'aprobado' as TabKey, label: 'Aprobados', count: counts.aprobado, color: 'text-emerald-700', countClass: 'bg-emerald-100 text-emerald-700' },
+          { key: 'rechazado' as TabKey, label: 'Rechazados', count: counts.rechazado, color: 'text-red-700', countClass: 'bg-red-100 text-red-700' },
+          { key: 'aplicado' as TabKey, label: 'Aplicados', count: counts.aplicado, color: 'text-blue-700', countClass: 'bg-blue-100 text-blue-700' },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setSelectedTab(tab.key)}
+            className={cn(
+              'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all',
+              selectedTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            )}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', selectedTab === tab.key ? tab.countClass : 'bg-gray-200 text-gray-600')}>
+                {tab.count}
               </span>
-            </div>
-          }
-        />
-        <Tab
-          key="pendiente"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Pendientes</span>
-              {counts.pendiente > 0 && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  {counts.pendiente}
-                </span>
-              )}
-            </div>
-          }
-        />
-        <Tab
-          key="aprobado"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Aprobados</span>
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                {counts.aprobado}
-              </span>
-            </div>
-          }
-        />
-        <Tab
-          key="rechazado"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Rechazados</span>
-              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                {counts.rechazado}
-              </span>
-            </div>
-          }
-        />
-        <Tab
-          key="aplicado"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Aplicados</span>
-              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                {counts.aplicado}
-              </span>
-            </div>
-          }
-        />
-      </Tabs>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Search */}
       <div className="relative w-full sm:w-64">
@@ -305,7 +261,7 @@ export default function AjustesPage() {
           placeholder="Buscar ajuste..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -374,7 +330,7 @@ export default function AjustesPage() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleViewAdjustment(adj)}
-                        className="font-mono text-sm font-medium text-brand-600 hover:text-brand-700"
+                        className="font-mono text-sm font-medium text-blue-600 hover:text-blue-700"
                       >
                         {adj.reference || adj.id}
                       </button>
@@ -440,77 +396,37 @@ export default function AjustesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownTrigger>
-                        <DropdownMenu
-                          aria-label="Acciones"
-                          classNames={{
-                            base: "bg-white border border-gray-200 shadow-lg",
-                          }}
-                          items={[
-                            {
-                              key: "view",
-                              label: "Ver detalle",
-                              icon: Eye,
-                              action: () => handleViewAdjustment(adj),
-                              show: true,
-                              className: "",
-                              color: undefined as "danger" | undefined,
-                            },
-                            {
-                              key: "approve",
-                              label: "Aprobar",
-                              icon: CheckCircle,
-                              action: () => handleApprove(adj),
-                              show:
-                                canApproveAdjustments &&
-                                adj.status === "pendiente",
-                              className: "text-emerald-600",
-                              color: undefined as "danger" | undefined,
-                            },
-                            {
-                              key: "apply",
-                              label: "Aplicar",
-                              icon: CheckCircle,
-                              action: () => handleApply(adj),
-                              show:
-                                canApproveAdjustments &&
-                                adj.status === "aprobado",
-                              className: "text-blue-600",
-                              color: undefined as "danger" | undefined,
-                            },
-                            {
-                              key: "reject",
-                              label: "Rechazar",
-                              icon: XCircle,
-                              action: () => handleReject(adj),
-                              show:
-                                canApproveAdjustments &&
-                                adj.status === "pendiente",
-                              className: "text-danger",
-                              color: "danger" as "danger" | undefined,
-                            },
-                          ].filter((menuItem) => menuItem.show)}
-                        >
-                          {(menuItem) => (
-                            <DropdownItem
-                              key={menuItem.key}
-                              startContent={
-                                <menuItem.icon className="h-4 w-4" />
-                              }
-                              onPress={menuItem.action}
-                              className={menuItem.className}
-                              color={menuItem.color}
-                            >
-                              {menuItem.label}
-                            </DropdownItem>
-                          )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewAdjustment(adj)} className="flex items-center gap-2">
+                              <Eye className="h-4 w-4" />
+                              Ver detalle
+                            </DropdownMenuItem>
+                            {canApproveAdjustments && adj.status === 'pendiente' && (
+                              <DropdownMenuItem onClick={() => handleApprove(adj)} className="flex items-center gap-2 text-emerald-600">
+                                <CheckCircle className="h-4 w-4" />
+                                Aprobar
+                              </DropdownMenuItem>
+                            )}
+                            {canApproveAdjustments && adj.status === 'aprobado' && (
+                              <DropdownMenuItem onClick={() => handleApply(adj)} className="flex items-center gap-2 text-blue-600">
+                                <CheckCircle className="h-4 w-4" />
+                                Aplicar
+                              </DropdownMenuItem>
+                            )}
+                            {canApproveAdjustments && adj.status === 'pendiente' && (
+                              <DropdownMenuItem onClick={() => handleReject(adj)} className="flex items-center gap-2 text-red-600">
+                                <XCircle className="h-4 w-4" />
+                                Rechazar
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
                         </DropdownMenu>
-                      </Dropdown>
                     </td>
                   </motion.tr>
                 );
@@ -535,7 +451,7 @@ export default function AjustesPage() {
           {canCreateAdjustments && (
             <button
               onClick={handleNewAdjustment}
-              className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />
               Crear Ajuste

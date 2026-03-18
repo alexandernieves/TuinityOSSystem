@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from "@/components/ui/button";
 import {
   FileText,
   Search,
@@ -12,6 +12,8 @@ import {
   Download,
   Printer,
 } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils/cn';
@@ -119,38 +121,39 @@ export default function LibroMayorPage() {
         </div>
         {selectedAccountId && (
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
               onClick={handleExport}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+              className="flex h-9 items-center gap-2"
             >
               <Download className="h-4 w-4" />
               Exportar
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               onClick={handlePrint}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+              className="flex h-9 items-center gap-2"
             >
               <Printer className="h-4 w-4" />
               Imprimir
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* Account Selector + Date Range */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Seleccionar cuenta
-          </label>
+        <div className="lg:col-span-2 space-y-2">
+          <Label htmlFor="account-search">Seleccionar cuenta</Label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
+            <Input
+              id="account-search"
               type="text"
               placeholder="Buscar por código o nombre de cuenta..."
               value={accountSearch}
               onChange={(e) => setAccountSearch(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="pl-9 h-10"
             />
           </div>
           {accountSearch && (
@@ -178,22 +181,24 @@ export default function LibroMayorPage() {
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Desde</label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="date-from">Desde</Label>
+            <Input
+              id="date-from"
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
+              className="h-10"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Hasta</label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="date-to">Hasta</Label>
+            <Input
+              id="date-to"
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
+              className="h-10"
             />
           </div>
         </div>

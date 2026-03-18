@@ -4,8 +4,14 @@ import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button, Input } from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Store,
   Search,
@@ -580,146 +586,153 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Opening Modal */}
-      <CustomModal isOpen={isOpeningModal} onClose={() => { }} size="sm">
-        <CustomModalHeader>
-          <Wallet className="h-5 w-5 text-emerald-600" />
-          Apertura de Caja
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <p className="text-sm text-gray-500">
-            Ingresa el monto inicial de efectivo en caja para comenzar a vender.
-          </p>
-          <Input
-            type="number"
-            label="Fondo Inicial"
-            placeholder="0.00"
-            startContent={<DollarSign className="h-4 w-4 text-gray-400" />}
-            value={openingAmount}
-            onChange={(e) => setOpeningAmount(e.target.value)}
-            className="font-mono text-lg"
-          />
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            color="success"
-            className="w-full font-bold"
-            onPress={handleOpenRegister}
-            isLoading={isProcessing}
-          >
-            Abrir Caja y Empezar
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
-
-      {/* Payment Modal */}
-      <CustomModal isOpen={isPayOpen} onClose={() => setIsPayOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsPayOpen(false)}>
-          <DollarSign className="h-5 w-5 text-emerald-600" />
-          Cobrar Venta
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="text-center rounded-lg bg-gray-50 dark:bg-[#1a1a1a] p-4 mb-4">
-            <p className="text-xs text-gray-500 dark:text-[#888] mb-1">Total a Cobrar</p>
-            <p className="font-mono text-3xl font-bold text-gray-900 dark:text-white">
-              {formatCurrency(cartTotal)}
+      {/* Opening Dialog */}
+      <Dialog open={isOpeningModal} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm" hideCloseButton>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-emerald-600" />
+              Apertura de Caja
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-gray-500">
+              Ingresa el monto inicial de efectivo en caja para comenzar a vender.
             </p>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="number"
+                placeholder="0.00"
+                value={openingAmount}
+                onChange={(e) => setOpeningAmount(e.target.value)}
+                className="h-12 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] pl-9 pr-4 font-mono text-lg text-gray-900 dark:text-white placeholder:text-gray-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
           </div>
+          <DialogFooter>
+            <Button
+              className="w-full bg-emerald-600 font-bold text-white hover:bg-emerald-700 flex items-center justify-center gap-2"
+              onClick={handleOpenRegister}
+              disabled={isProcessing}
+            >
+              {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
+              Abrir Caja y Empezar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Método de Pago</p>
-            <div className="grid grid-cols-2 gap-2">
-              {([
-                { key: 'efectivo' as const, label: 'Efectivo', icon: Banknote },
-                { key: 'tarjeta_debito' as const, label: 'Débito', icon: CreditCard },
-                { key: 'tarjeta_credito' as const, label: 'Crédito', icon: CreditCard },
-                { key: 'transferencia' as const, label: 'Transferencia', icon: ArrowLeftRight },
-              ]).map((method) => (
-                <button
-                  key={method.key}
-                  onClick={() => setPaymentMethod(method.key)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-all',
-                    paymentMethod === method.key
-                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500'
-                      : 'border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                  )}
-                >
-                  <method.icon className="h-4 w-4" />
-                  {method.label}
-                </button>
-              ))}
+      {/* Payment Dialog */}
+      <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-600" />
+              Cobrar Venta
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="text-center rounded-lg bg-gray-50 dark:bg-[#1a1a1a] p-4">
+              <p className="text-xs text-gray-500 dark:text-[#888] mb-1">Total a Cobrar</p>
+              <p className="font-mono text-3xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(cartTotal)}
+              </p>
             </div>
 
-            {paymentMethod === 'efectivo' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monto Recibido</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={cashReceived}
-                  onChange={(e) => setCashReceived(e.target.value)}
-                  placeholder="0.00"
-                  className="h-12 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-4 text-xl font-mono font-bold text-gray-900 dark:text-white text-center placeholder:text-gray-300 dark:placeholder:text-[#555] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  autoFocus
-                />
-                {cashReceivedNum > 0 && (
-                  <div className="flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-3">
-                    <span className="text-sm text-emerald-700 dark:text-emerald-400">Cambio</span>
-                    <span className="font-mono text-xl font-bold text-emerald-700 dark:text-emerald-400">
-                      {formatCurrency(changeAmount)}
-                    </span>
-                  </div>
-                )}
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Método de Pago</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: 'efectivo' as const, label: 'Efectivo', icon: Banknote },
+                  { key: 'tarjeta_debito' as const, label: 'Débito', icon: CreditCard },
+                  { key: 'tarjeta_credito' as const, label: 'Crédito', icon: CreditCard },
+                  { key: 'transferencia' as const, label: 'Transferencia', icon: ArrowLeftRight },
+                ]).map((method) => (
+                  <button
+                    key={method.key}
+                    onClick={() => setPaymentMethod(method.key)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-all',
+                      paymentMethod === method.key
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500'
+                        : 'border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                    )}
+                  >
+                    <method.icon className="h-4 w-4" />
+                    {method.label}
+                  </button>
+                ))}
               </div>
-            )}
 
-            {(paymentMethod === 'tarjeta_debito' || paymentMethod === 'tarjeta_credito') && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Últimos 4 dígitos</label>
-                <input
-                  type="text"
-                  maxLength={4}
-                  value={cardRef}
-                  onChange={(e) => setCardRef(e.target.value.replace(/\D/g, ''))}
-                  placeholder="0000"
-                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-4 text-center font-mono text-lg text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-[#555] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  autoFocus
-                />
-              </div>
-            )}
+              {paymentMethod === 'efectivo' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monto Recibido</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={cashReceived}
+                    onChange={(e) => setCashReceived(e.target.value)}
+                    placeholder="0.00"
+                    className="h-12 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-4 text-xl font-mono font-bold text-gray-900 dark:text-white text-center placeholder:text-gray-300 dark:placeholder:text-[#555] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    autoFocus
+                  />
+                  {cashReceivedNum > 0 && (
+                    <div className="flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                      <span className="text-sm text-emerald-700 dark:text-emerald-400">Cambio</span>
+                      <span className="font-mono text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                        {formatCurrency(changeAmount)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {paymentMethod === 'transferencia' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Referencia</label>
-                <input
-                  type="text"
-                  value={transferRef}
-                  onChange={(e) => setTransferRef(e.target.value)}
-                  placeholder="Número de referencia"
-                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-[#555] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  autoFocus
-                />
-              </div>
-            )}
+              {(paymentMethod === 'tarjeta_debito' || paymentMethod === 'tarjeta_credito') && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Últimos 4 dígitos</label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={cardRef}
+                    onChange={(e) => setCardRef(e.target.value.replace(/\D/g, ''))}
+                    placeholder="0000"
+                    className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-4 text-center font-mono text-lg text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-[#555] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {paymentMethod === 'transferencia' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Referencia</label>
+                  <input
+                    type="text"
+                    value={transferRef}
+                    onChange={(e) => setTransferRef(e.target.value)}
+                    placeholder="Número de referencia"
+                    className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-[#555] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsPayOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            color="success"
-            className="font-bold"
-            onPress={handleConfirmPayment}
-            isDisabled={paymentMethod === 'efectivo' && cashReceivedNum < cartTotal}
-            isLoading={isProcessing}
-          >
-            <Check className="h-4 w-4" />
-            Confirmar Cobro
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsPayOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 font-bold text-white hover:bg-emerald-700 flex items-center gap-2"
+              onClick={handleConfirmPayment}
+              disabled={isProcessing || (paymentMethod === 'efectivo' && cashReceivedNum < cartTotal)}
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Confirmar Cobro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

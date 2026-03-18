@@ -1,4 +1,5 @@
 export type UserRole =
+  | 'owner'
   | 'gerencia'
   | 'contabilidad'
   | 'compras'
@@ -12,6 +13,9 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  sessionId?: string;
+  status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+  isActive?: boolean;
 }
 
 export interface AuthState {

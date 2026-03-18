@@ -3,12 +3,7 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Button,
-  Input,
-  Select,
-  SelectItem,
-} from '@heroui/react';
+
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -220,44 +215,38 @@ export default function AuditoriaPage() {
           >
             {/* Filters */}
             <div className="flex flex-wrap gap-3">
-              <Select
-                placeholder="Todos los usuarios"
-                selectedKeys={filterUser ? [filterUser] : []}
+              <select
+                value={filterUser}
                 onChange={(e) => setFilterUser(e.target.value)}
-                variant="bordered"
-                size="sm"
-                className="w-48"
+                className="h-8 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
               >
+                <option value="">Todos los usuarios</option>
                 {UNIQUE_USERS.map((user) => (
-                  <SelectItem key={user.value}>{user.label}</SelectItem>
+                  <option key={user.value} value={user.value}>{user.label}</option>
                 ))}
-              </Select>
+              </select>
 
-              <Select
-                placeholder="Todos los módulos"
-                selectedKeys={filterModule ? [filterModule] : []}
+              <select
+                value={filterModule}
                 onChange={(e) => setFilterModule(e.target.value)}
-                variant="bordered"
-                size="sm"
-                className="w-48"
+                className="h-8 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
               >
+                <option value="">Todos los módulos</option>
                 {UNIQUE_MODULES.map((mod) => (
-                  <SelectItem key={mod.value}>{mod.label}</SelectItem>
+                  <option key={mod.value} value={mod.value}>{mod.label}</option>
                 ))}
-              </Select>
+              </select>
 
-              <Select
-                placeholder="Todas las acciones"
-                selectedKeys={filterAction ? [filterAction] : []}
+              <select
+                value={filterAction}
                 onChange={(e) => setFilterAction(e.target.value)}
-                variant="bordered"
-                size="sm"
-                className="w-48"
+                className="h-8 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
               >
+                <option value="">Todas las acciones</option>
                 {ACTIONS.map((action) => (
-                  <SelectItem key={action.value}>{action.label}</SelectItem>
+                  <option key={action.value} value={action.value}>{action.label}</option>
                 ))}
-              </Select>
+              </select>
 
               {(filterUser || filterModule || filterAction) && (
                 <button
@@ -403,7 +392,7 @@ export default function AuditoriaPage() {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-900 dark:text-white">{session.userName}</span>
                             {session.isCurrent && (
-                              <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-500">Actual</span>
+                              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500">Actual</span>
                             )}
                           </div>
                         </td>
@@ -473,7 +462,7 @@ export default function AuditoriaPage() {
                         type="number"
                         value={policies.minPasswordLength}
                         onChange={(e) => setPolicies({ ...policies, minPasswordLength: parseInt(e.target.value) || 0 })}
-                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -482,7 +471,7 @@ export default function AuditoriaPage() {
                         type="number"
                         value={policies.passwordExpirationDays}
                         onChange={(e) => setPolicies({ ...policies, passwordExpirationDays: parseInt(e.target.value) || 0 })}
-                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -534,7 +523,7 @@ export default function AuditoriaPage() {
                         type="number"
                         value={policies.sessionTimeoutMinutes}
                         onChange={(e) => setPolicies({ ...policies, sessionTimeoutMinutes: parseInt(e.target.value) || 0 })}
-                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -543,7 +532,7 @@ export default function AuditoriaPage() {
                         type="number"
                         value={policies.maxLoginAttempts}
                         onChange={(e) => setPolicies({ ...policies, maxLoginAttempts: parseInt(e.target.value) || 0 })}
-                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div>
@@ -552,7 +541,7 @@ export default function AuditoriaPage() {
                         type="number"
                         value={policies.lockoutDurationMinutes}
                         onChange={(e) => setPolicies({ ...policies, lockoutDurationMinutes: parseInt(e.target.value) || 0 })}
-                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -580,7 +569,7 @@ export default function AuditoriaPage() {
                 <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-[#2a2a2a]">
                   <button
                     onClick={handleSavePolicies}
-                    className="flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+                    className="flex h-10 items-center gap-2 rounded-lg bg-blue-700 px-5 text-sm font-medium text-white transition-colors hover:bg-blue-800"
                   >
                     <Save className="h-4 w-4" />
                     Guardar Políticas

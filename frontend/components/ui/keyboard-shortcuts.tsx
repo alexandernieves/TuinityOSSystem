@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { useSidebar } from '@/lib/contexts/sidebar-context';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   Keyboard,
   Search,
@@ -81,7 +81,7 @@ const CATEGORY_ORDER = ['sistema', 'acciones', 'navegacion'];
 export function KeyboardShortcuts() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { toggleCollapsed } = useSidebar();
+  const { toggleSidebar } = useSidebar();
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const handleShortcut = useCallback(
@@ -113,7 +113,7 @@ export function KeyboardShortcuts() {
       // Ctrl+B → Toggle sidebar
       if (ctrl && !shift && !alt && key === 'b') {
         e.preventDefault();
-        toggleCollapsed();
+        toggleSidebar();
         return;
       }
 
@@ -202,7 +202,7 @@ export function KeyboardShortcuts() {
         return;
       }
     },
-    [router, theme, setTheme, toggleCollapsed, isHelpOpen],
+    [router, theme, setTheme, toggleSidebar, isHelpOpen],
   );
 
   useEffect(() => {
@@ -239,8 +239,8 @@ export function KeyboardShortcuts() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-[#2a2a2a]">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500/10">
-                  <Keyboard className="h-5 w-5 text-brand-500" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                  <Keyboard className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-gray-900 dark:text-white">

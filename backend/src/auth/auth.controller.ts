@@ -14,11 +14,26 @@ export class AuthController {
         @Ip() ip: string,
         @Headers('user-agent') userAgent: string,
     ) {
+        console.log('[AUTH] Login Attempt Start');
+        console.log(`[AUTH] Email: ${loginDto.email}`);
+        
         const user = await this.authService.validateUser(loginDto.email, loginDto.password);
+        
         if (!user) {
+            console.log(`[AUTH] Login Failed: Invalid credentials for ${loginDto.email}`);
             throw new UnauthorizedException('Invalid credentials');
         }
-        return this.authService.login(user, ip, userAgent);
+
+        console.log(`[AUTH] Login Success: User ${user.email} validated`);
+        const result = await this.authService.login(user, ip, userAgent);
+        console.log(`[AUTH] Session Created: ID ${result.user.sessionId}`);
+        
+        return result;
+    }
+
+    @Post('register')
+    async register(@Body() registerDto: any) {
+        return this.authService.register(registerDto);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -56,9 +71,6 @@ export class AuthController {
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
-        return {
-            ...user.toObject(),
-            id: user._id
-        };
+        return user;
     }
 }

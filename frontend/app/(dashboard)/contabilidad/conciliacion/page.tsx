@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from "@/components/ui/button";
 import {
   ClipboardCheck,
   ChevronRight,
@@ -221,13 +221,13 @@ export default function ConciliacionPage() {
                 <p className="text-xs text-gray-500 dark:text-[#888888]">{selectedBank.accountNumber} | Saldo: {formatCurrencyAccounting(selectedBank.currentBalance)}</p>
               </div>
               {!extractoImported && (
-                <button
+                <Button
                   onClick={handleImportExtracto}
-                  className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700"
+                  className="bg-purple-600 text-white hover:bg-purple-700"
                 >
                   <Upload className="h-4 w-4" />
                   Importar Extracto
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -370,13 +370,13 @@ export default function ConciliacionPage() {
               {/* Reconcile Button */}
               <div className="flex items-center justify-center gap-3">
                 {(selectedSystem.size > 0 || selectedBanco.size > 0) && (
-                  <button
+                  <Button
                     onClick={handleReconcile}
-                    className="flex items-center gap-2 rounded-lg bg-purple-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-purple-700"
+                    className="bg-purple-600 text-white hover:bg-purple-700 h-11 px-8"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Conciliar ({selectedSystem.size} + {selectedBanco.size})
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -405,13 +405,13 @@ export default function ConciliacionPage() {
               {/* Close Button */}
               {canReconcileBank && (
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     onClick={handleCloseConciliation}
-                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                    className="bg-emerald-600 text-white hover:bg-emerald-700 h-11 px-8"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Cerrar Conciliación
-                  </button>
+                  </Button>
                 </div>
               )}
             </>

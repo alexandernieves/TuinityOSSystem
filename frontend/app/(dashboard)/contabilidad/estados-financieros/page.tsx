@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
-import { Tabs, Tab } from '@heroui/react';
+import { Button } from "@/components/ui/button";
 import {
   BarChart3,
   ChevronRight,
@@ -193,20 +193,22 @@ export default function EstadosFinancierosPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="outline"
             onClick={handleExport}
-            className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+            className="flex h-9 items-center gap-2"
           >
             <Download className="h-4 w-4" />
             Exportar
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={handlePrint}
-            className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+            className="flex h-9 items-center gap-2"
           >
             <Printer className="h-4 w-4" />
             Imprimir
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -3,11 +3,15 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
-  Button,
-  Input,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -154,7 +158,7 @@ export default function CatalogosPage() {
                 <span className={cn(
                   'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
                   isSelected
-                    ? 'bg-brand-500/10 text-brand-600'
+                    ? 'bg-blue-500/10 text-blue-600'
                     : 'bg-gray-200 dark:bg-[#2a2a2a] text-gray-500 dark:text-[#666666]'
                 )}>
                   {catalog.itemCount}
@@ -181,12 +185,12 @@ export default function CatalogosPage() {
                 placeholder="Buscar items..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <button
               onClick={() => handleOpenItemModal()}
-              className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+              className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
             >
               <Plus className="h-4 w-4" />
               Nuevo Item
@@ -256,7 +260,7 @@ export default function CatalogosPage() {
             {!searchQuery && (
               <button
                 onClick={() => handleOpenItemModal()}
-                className="flex items-center gap-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+                className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
               >
                 <Plus className="h-4 w-4" />
                 Agregar Primer Item
@@ -267,43 +271,45 @@ export default function CatalogosPage() {
       </div>
 
       {/* Item Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950">
-              <BookOpen className="h-5 w-5 text-teal-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {editingItem ? 'Editar Item' : 'Nuevo Item'}
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-[#888888]">{selectedCatalog.name}</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950">
+                  <BookOpen className="h-5 w-5 text-teal-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {editingItem ? 'Editar Item' : 'Nuevo Item'}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-[#888888] font-normal">{selectedCatalog.name}</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Código</label>
-              <Input placeholder="Ej: TRF" value={itemForm.code} onChange={(e) => setItemForm({ ...itemForm, code: e.target.value })} variant="bordered" />
+              <Input placeholder="Ej: TRF" value={itemForm.code} onChange={(e) => setItemForm({ ...itemForm, code: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label>
-              <Input placeholder="Ej: Transferencia Bancaria" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} variant="bordered" />
+              <Input placeholder="Ej: Transferencia Bancaria" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Descripción (opcional)</label>
-              <Input placeholder="Descripción del item" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} variant="bordered" />
+              <Input placeholder="Descripción del item" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} />
             </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
-          <Button color="primary" onPress={handleSaveItem} className="bg-brand-600">
-            {editingItem ? 'Guardar Cambios' : 'Crear Item'}
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveItem} className="bg-blue-600 text-white hover:bg-blue-700">
+              {editingItem ? 'Guardar Cambios' : 'Crear Item'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

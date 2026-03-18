@@ -39,12 +39,12 @@ export class AnalyticsService {
         const monthRevenue = monthSales.reduce((sum: number, s: any) => sum + (s.total || 0), 0);
 
         // CXC (outstanding client balances)
-        const clientsWithBalance = clients.filter((c: any) => (c.currentBalance || 0) > 0);
-        const totalCXC = clientsWithBalance.reduce((sum: number, c: any) => sum + (c.currentBalance || 0), 0);
+        const clientsWithBalance = clients.filter((c: any) => Number(c.currentBalance || 0) > 0);
+        const totalCXC = clientsWithBalance.reduce((sum: number, c: any) => sum + Number(c.currentBalance || 0), 0);
 
         // CXP (outstanding supplier balances)
-        const suppliersWithBalance = suppliers.filter((s: any) => (s.currentBalance || 0) > 0);
-        const totalCXP = suppliersWithBalance.reduce((sum: number, s: any) => sum + (s.currentBalance || 0), 0);
+        const suppliersWithBalance = suppliers.filter((s: any) => Number(s.currentBalance || 0) > 0);
+        const totalCXP = suppliersWithBalance.reduce((sum: number, s: any) => sum + Number(s.currentBalance || 0), 0);
 
         // Purchase Orders
         const pendingPOs = purchaseOrders.filter((po: any) => po.status === 'pendiente' || po.status === 'confirmada');

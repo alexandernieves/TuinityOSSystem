@@ -3,12 +3,12 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sidebar } from '@/components/layout/sidebar';
+import { AppSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { KeyboardShortcuts } from '@/components/ui/keyboard-shortcuts';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { SidebarProvider, useSidebar } from '@/lib/contexts/sidebar-context';
+import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,46 +17,19 @@ interface DashboardLayoutProps {
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 function DashboardContent({ children }: DashboardLayoutProps) {
-  const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
-  const { sidebarWidth } = useSidebar();
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  // Show loading state while checking auth
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
-  // Don't render dashboard if not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
-
   return (
-    <div className="flex flex-col h-screen w-full bg-[#1a1a1a] overflow-hidden">
-      {/* TopBar */}
-      <Header />
-
-      <div className="flex flex-1 relative overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar />
+    <SidebarInset>
+      <div className="flex flex-col h-full">
+        {/* TopBar */}
+        <Header />
 
         {/* Main Content Area */}
-        <main
-          className="flex-1 h-full overflow-y-auto bg-[#1a1a1a] relative"
-          style={{ borderTopRightRadius: '16px' }}
-        >
+        <main className="flex-1 overflow-y-auto relative">
           <div
-            className="relative bg-[#f1f1f1] min-h-full"
-            style={{ zIndex: 1, borderTopRightRadius: '16px' }}
+            className="relative bg-muted/30 min-h-full"
+            style={{ zIndex: 1 }}
           >
-            <div className="p-5 max-w-[920px] mx-auto min-h-screen">
+            <div className="py-5 px-4 lg:px-6 min-h-screen">
               <Breadcrumbs />
               <AnimatePresence mode="wait">
                 <motion.div
@@ -72,17 +45,38 @@ function DashboardContent({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </main>
-      </div>
 
-      {/* Keyboard Shortcuts & Global Widgets */}
-      <KeyboardShortcuts />
-    </div>
+        {/* Keyboard Shortcuts & Global Widgets */}
+        <KeyboardShortcuts />
+      </div>
+    </SidebarInset>
   );
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  // If not authenticated, don't show the dashboard layout at all
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <SidebarProvider>
+      <AppSidebar />
       <DashboardContent>{children}</DashboardContent>
     </SidebarProvider>
   );

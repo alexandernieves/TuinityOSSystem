@@ -232,7 +232,7 @@ export default function ParametrosPage() {
                               {commercialParams?.priceLevels?.map((level: any) => (
                                 <tr key={level.level} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
                                   <td className="px-4 py-3">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500/10 text-sm font-bold text-brand-600">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-sm font-bold text-blue-600">
                                       {level.level}
                                     </span>
                                   </td>
@@ -244,7 +244,7 @@ export default function ParametrosPage() {
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     {commercialParams.defaultPriceLevel === level.level && (
-                                      <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-500">Por Defecto</span>
+                                      <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500">Por Defecto</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-3 text-center">
@@ -427,7 +427,7 @@ export default function ParametrosPage() {
                                     <span className="text-sm text-gray-600 dark:text-gray-400">{doc.paddingLength} dígitos</span>
                                   </td>
                                   <td className="px-4 py-3 text-center">
-                                    <span className="rounded bg-brand-500/10 px-2 py-0.5 font-mono text-xs font-medium text-brand-600">{doc.example}</span>
+                                    <span className="rounded bg-blue-500/10 px-2 py-0.5 font-mono text-xs font-medium text-blue-600">{doc.example}</span>
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     <button
@@ -488,7 +488,7 @@ export default function ParametrosPage() {
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] p-3">
               <p className="text-xs text-gray-500 dark:text-[#888888]">Vista previa:</p>
-              <p className="mt-1 font-mono text-sm font-medium text-brand-600">
+              <p className="mt-1 font-mono text-sm font-medium text-blue-600">
                 {docForm.prefix}{String(editingDoc?.currentNumber || 1).padStart(parseInt(docForm.paddingLength) || 5, '0')}
               </p>
             </div>

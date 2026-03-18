@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -21,24 +20,12 @@ import { TrafficModule } from './traffic/traffic.module';
 import { AccountingModule } from './accounting/accounting.module';
 import { SettingsModule } from './settings/settings.module';
 import { StorageModule } from './storage/storage.module';
+import { ErpModule } from './erp.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-    }),
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        const uri = configService.get<string>('MONGODB_URI');
-        if (!uri) {
-          console.error('CRITICAL ERROR: MONGODB_URI is undefined. Check Render environment variables!');
-        }
-        return {
-          uri: uri || 'mongodb://localhost/fallback',
-        };
-      },
-      inject: [ConfigService],
     }),
     AuthModule,
     UsersModule,
@@ -58,6 +45,7 @@ import { StorageModule } from './storage/storage.module';
     AccountingModule,
     SettingsModule,
     StorageModule,
+    ErpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

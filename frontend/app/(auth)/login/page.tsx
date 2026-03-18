@@ -169,7 +169,7 @@ export default function LoginPage() {
                 </motion.p>
               )}
 
-              <div className="mt-4 flex justify-center">
+              <div className="mt-4 flex flex-col items-center justify-center gap-3">
                 <Button
                   type="submit"
                   className="w-full"
@@ -177,9 +177,17 @@ export default function LoginPage() {
                 >
                   Iniciar Sesión
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/register')}
+                  className="text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                >
+                  ¿No tienes cuenta? Registrate aquí
+                </button>
               </div>
             </motion.form>
           </div>
+
 
           {/* Footer with Tuinity Logo */}
           <motion.div

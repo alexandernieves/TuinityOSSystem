@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Avatar } from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Camera, Loader2, User, Mail, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -55,17 +60,13 @@ export default function PerfilPage() {
           <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6">
             <div className="flex flex-col items-center">
               <div className="relative group">
-                <Avatar
-                  src={user.avatar}
-                  name={user.name}
-                  className="h-32 w-32 text-2xl"
-                  classNames={{
-                    base: "ring-4 ring-brand-500/10",
-                  }}
-                />
+                <Avatar className="h-32 w-32 text-2xl ring-4 ring-blue-500/10">
+                  <AvatarImage src={user.avatar} />
+                  <AvatarFallback className="text-2xl">{user.name.charAt(0)}</AvatarFallback>
+                </Avatar>
                 <button 
                   onClick={() => document.getElementById('avatar-input')?.click()}
-                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-transform hover:scale-110 active:scale-95"
+                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-transform hover:scale-110 active:scale-95"
                 >
                   {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
                 </button>
@@ -78,7 +79,7 @@ export default function PerfilPage() {
                 />
               </div>
               <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-white">{user.name}</h2>
-              <p className="text-sm font-medium text-brand-600 uppercase tracking-wider mt-1">{user.role}</p>
+              <p className="text-sm font-medium text-blue-600 uppercase tracking-wider mt-1">{user.role}</p>
             </div>
           </div>
         </div>
@@ -97,9 +98,8 @@ export default function PerfilPage() {
                   </label>
                   <Input 
                     value={user.name}
-                    variant="bordered"
-                    isReadOnly
-                    classNames={{ inputWrapper: "bg-gray-50 dark:bg-[#1a1a1a]" }}
+                    readOnly
+                    className="bg-gray-50 dark:bg-[#1a1a1a]"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -108,9 +108,8 @@ export default function PerfilPage() {
                   </label>
                   <Input 
                     value={user.email}
-                    variant="bordered"
-                    isReadOnly
-                    classNames={{ inputWrapper: "bg-gray-50 dark:bg-[#1a1a1a]" }}
+                    readOnly
+                    className="bg-gray-50 dark:bg-[#1a1a1a]"
                   />
                 </div>
               </div>

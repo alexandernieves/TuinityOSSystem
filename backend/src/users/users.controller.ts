@@ -17,6 +17,11 @@ export class UsersController {
         return this.usersService.findAll();
     }
 
+    @Get('pending')
+    getPendingUsers() {
+        return this.usersService.getPendingUsers();
+    }
+
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.usersService.findById(id);
@@ -39,13 +44,30 @@ export class UsersController {
         return this.usersService.toggleActive(id, isActive);
     }
 
+    @Patch(':id/approve')
+    approveUser(@Param('id') id: string, @Body('role') role: string) {
+        return this.usersService.approveUser(id, role);
+    }
+
     @Post(':id/avatar')
     @UseInterceptors(FileInterceptor('avatar'))
     async uploadAvatar(
         @Param('id') id: string,
-        @UploadedFile() file: Express.Multer.File
+        @UploadedFile() file: any
     ) {
-        const avatarUrl = await this.storageService.uploadFile(file, 'user-profiles');
-        return this.usersService.update(id, { avatar: avatarUrl });
+        if (!file) {
+            console.error(`[Users] No avatar file received for user ${id}`);
+            throw new UnauthorizedException('No se recibió ningún archivo');
+        }
+
+        console.log(`[Users] Uploading avatar for user ${id}: ${file.originalname}`);
+        try {
+            const avatarUrl = await this.storageService.uploadFile(file, 'user-profiles');
+            console.log(`[Users] Avatar uploaded successfully: ${avatarUrl}`);
+            return this.usersService.update(id, { avatar: avatarUrl });
+        } catch (error) {
+            console.error(`[Users] Failed to upload avatar for user ${id}:`, error.message);
+            throw error;
+        }
     }
 }

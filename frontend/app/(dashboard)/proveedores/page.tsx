@@ -5,8 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Building2, MapPin, Mail, Phone, MoreVertical, Edit, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
 import { SkeletonGrid } from '@/components/ui/skeleton-grid';
@@ -14,12 +25,15 @@ import { cn } from '@/lib/utils/cn';
 
 interface Supplier {
     id: string;
-    name: string;
+    code: string;
+    legalName: string;
+    tradeName?: string;
     country: string;
     contact?: string;
     email?: string;
     phone?: string;
     isActive: boolean;
+    currentBalance: number;
 }
 
 export default function ProveedoresPage() {
@@ -59,8 +73,9 @@ export default function ProveedoresPage() {
     };
 
     const filteredSuppliers = suppliers.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.country.toLowerCase().includes(searchQuery.toLowerCase())
+        (s.legalName?.toLowerCase().includes(searchQuery.toLowerCase()) || '') ||
+        (s.code?.toLowerCase().includes(searchQuery.toLowerCase()) || '') ||
+        (s.country?.toLowerCase().includes(searchQuery.toLowerCase()) || '')
     );
 
     const handleOpenAdd = () => {
@@ -71,7 +86,7 @@ export default function ProveedoresPage() {
     const handleOpenEdit = (supplier: Supplier) => {
         setSelectedSupplier(supplier);
         setFormData({
-            name: supplier.name,
+            name: supplier.legalName,
             country: supplier.country,
             contact: supplier.contact || '',
             email: supplier.email || '',
@@ -180,28 +195,33 @@ export default function ProveedoresPage() {
                             >
                                 <Card className="group relative p-6 mb-0">
                                     <div className="absolute right-4 top-4">
-                                        <Dropdown placement="bottom-end">
-                                            <DropdownTrigger>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400">
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
-                                            </DropdownTrigger>
-                                            <DropdownMenu aria-label="Acciones de proveedor">
-                                                <DropdownItem key="edit" startContent={<Edit className="h-4 w-4" />} onPress={() => handleOpenEdit(supplier)}>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleOpenEdit(supplier)} className="flex items-center gap-2">
+                                                    <Edit className="h-4 w-4" />
                                                     Editar
-                                                </DropdownItem>
-                                                <DropdownItem key="delete" className="text-danger" color="danger" startContent={<Trash2 className="h-4 w-4" />} onPress={() => handleOpenDelete(supplier)}>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleOpenDelete(supplier)} className="flex items-center gap-2 text-red-600">
+                                                    <Trash2 className="h-4 w-4" />
                                                     Eliminar
-                                                </DropdownItem>
-                                            </DropdownMenu>
-                                        </Dropdown>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                     <div className="mb-4 flex items-center gap-3 pr-8">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
                                             <Building2 className="h-6 w-6" />
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={supplier.name}>{supplier.name}</h3>
+                                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={supplier.legalName}>{supplier.legalName}</h3>
+                                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-gray-500">
+                                                {supplier.code}
+                                            </div>
                                             <div className="flex items-center gap-1.5 text-sm text-gray-500">
                                                 <MapPin className="h-3.5 w-3.5" />
                                                 {supplier.country}
@@ -227,6 +247,17 @@ export default function ProveedoresPage() {
                                                 {supplier.phone}
                                             </div>
                                         )}
+                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#2a2a2a]">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[12px] text-gray-500">Saldo Pendiente:</span>
+                                                <span className={cn(
+                                                    "font-bold text-[14px]",
+                                                    Number(supplier.currentBalance) > 0 ? "text-red-600" : "text-green-600"
+                                                )}>
+                                                    ${Number(supplier.currentBalance).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </Card>
                             </motion.div>
@@ -235,81 +266,95 @@ export default function ProveedoresPage() {
                 </div>
             )}
 
-            {/* Modals */}
-            <CustomModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} size="md">
-                <form onSubmit={handleAddSubmit}>
-                    <CustomModalHeader onClose={() => setIsAddOpen(false)}>Nuevo Proveedor</CustomModalHeader>
-                    <CustomModalBody className="space-y-4">
-                        <div>
-                            <label className={labelClass}>Nombre de Empresa *</label>
-                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
+            {/* Add Modal */}
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Nuevo Proveedor</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleAddSubmit}>
+                        <div className="space-y-4 py-4">
+                            <div>
+                                <label className={labelClass}>Nombre de Empresa *</label>
+                                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>País *</label>
+                                <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Persona de Contacto</label>
+                                <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Correo Electrónico</label>
+                                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Teléfono</label>
+                                <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
+                            </div>
                         </div>
-                        <div>
-                            <label className={labelClass}>País *</label>
-                            <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Persona de Contacto</label>
-                            <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Correo Electrónico</label>
-                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Teléfono</label>
-                            <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
-                        </div>
-                    </CustomModalBody>
-                    <CustomModalFooter>
-                        <button type="button" onClick={() => setIsAddOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
-                        <button type="submit" className={buttonPrimaryClass}>Guardar</button>
-                    </CustomModalFooter>
-                </form>
-            </CustomModal>
+                        <DialogFooter>
+                            <button type="button" onClick={() => setIsAddOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+                            <button type="submit" className={buttonPrimaryClass}>Guardar</button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
-            <CustomModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} size="md">
-                <form onSubmit={handleEditSubmit}>
-                    <CustomModalHeader onClose={() => setIsEditOpen(false)}>Editar Proveedor</CustomModalHeader>
-                    <CustomModalBody className="space-y-4">
-                        <div>
-                            <label className={labelClass}>Nombre de Empresa *</label>
-                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
+            {/* Edit Modal */}
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Editar Proveedor</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit}>
+                        <div className="space-y-4 py-4">
+                            <div>
+                                <label className={labelClass}>Nombre de Empresa *</label>
+                                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>País *</label>
+                                <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Persona de Contacto</label>
+                                <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Correo Electrónico</label>
+                                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Teléfono</label>
+                                <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
+                            </div>
                         </div>
-                        <div>
-                            <label className={labelClass}>País *</label>
-                            <input required value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Persona de Contacto</label>
-                            <input value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Correo Electrónico</label>
-                            <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Teléfono</label>
-                            <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClass} />
-                        </div>
-                    </CustomModalBody>
-                    <CustomModalFooter>
-                        <button type="button" onClick={() => setIsEditOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
-                        <button type="submit" className={buttonPrimaryClass}>Actualizar</button>
-                    </CustomModalFooter>
-                </form>
-            </CustomModal>
+                        <DialogFooter>
+                            <button type="button" onClick={() => setIsEditOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+                            <button type="submit" className={buttonPrimaryClass}>Actualizar</button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
-            <CustomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} size="sm">
-                <CustomModalHeader onClose={() => setIsDeleteOpen(false)}>Eliminar Proveedor</CustomModalHeader>
-                <CustomModalBody>
-                    ¿Estás seguro que deseas eliminar permanente a <strong>{selectedSupplier?.name}</strong>? Esta acción no se puede revertir.
-                </CustomModalBody>
-                <CustomModalFooter>
-                    <button type="button" onClick={() => setIsDeleteOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
-                    <button type="button" onClick={handleDeleteSubmit} className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-red-600 text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-red-700 active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all">Eliminar</button>
-                </CustomModalFooter>
-            </CustomModal>
+            {/* Delete Modal */}
+            <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Eliminar Proveedor</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 py-2">
+                        ¿Estás seguro que deseas eliminar permanente a <strong>{selectedSupplier?.legalName}</strong>? Esta acción no se puede revertir.
+                    </p>
+                    <DialogFooter>
+                        <button type="button" onClick={() => setIsDeleteOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+                        <button type="button" onClick={handleDeleteSubmit} className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-red-600 text-white font-semibold text-[13px] hover:bg-red-700 transition-all">Eliminar</button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -4,13 +4,25 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Button,
-  Input,
   Select,
+  SelectContent,
   SelectItem,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Plus,
@@ -156,7 +168,7 @@ export default function AnulacionesPage() {
         <Ban className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
         <h2 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Acceso restringido</h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-[#888888]">No tienes permisos para ver anulaciones.</p>
-        <Button color="primary" onPress={() => router.push('/clientes/cxc')} className="bg-brand-700">
+        <Button onClick={() => router.push('/clientes/cxc')} className="bg-blue-700 hover:bg-blue-800 text-white">
           Volver a CxC
         </Button>
       </div>
@@ -185,7 +197,7 @@ export default function AnulacionesPage() {
         </div>
         <button
           onClick={() => setIsOpen(true)}
-          className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+          className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
         >
           <Plus className="h-4 w-4" />
           Nueva Solicitud
@@ -402,101 +414,101 @@ export default function AnulacionesPage() {
       </div>
 
       {/* New Request Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg">
-          <CustomModalHeader onClose={() => setIsOpen(false)}>
-              <Ban className="h-5 w-5 text-red-500" />
-              Nueva Solicitud de Anulacion
-          </CustomModalHeader>
-          <CustomModalBody className="space-y-4">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Tipo de Documento <span className="text-red-500">*</span>
-                  </label>
-                  <Select
-                    placeholder="Seleccionar..."
-                    variant="bordered"
-                    selectedKeys={[newDocType]}
-                    onSelectionChange={(keys) => setNewDocType(Array.from(keys)[0] as string)}
-                  >
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Ban className="h-5 w-5 text-red-500" />
+                Nueva Solicitud de Anulacion
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="doc-type">Tipo de Documento <span className="text-red-500">*</span></Label>
+                <Select value={newDocType} onValueChange={setNewDocType}>
+                  <SelectTrigger id="doc-type">
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
                     {DOCUMENT_TYPES.map((dt) => (
-                      <SelectItem key={dt.key}>{dt.label}</SelectItem>
+                      <SelectItem key={dt.key} value={dt.key}>{dt.label}</SelectItem>
                     ))}
-                  </Select>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Numero de Documento <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="FAC-00000"
-                    variant="bordered"
-                    value={newDocNumber}
-                    onChange={(e) => setNewDocNumber(e.target.value)}
-                  />
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Monto <span className="text-red-500">*</span>
-                </label>
+              <div className="space-y-2">
+                <Label htmlFor="doc-number">Numero de Documento <span className="text-red-500">*</span></Label>
                 <Input
-                  placeholder="0.00"
-                  type="number"
-                  variant="bordered"
-                  startContent={<span className="text-gray-400">$</span>}
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
+                  id="doc-number"
+                  placeholder="FAC-00000"
+                  value={newDocNumber}
+                  onChange={(e) => setNewDocNumber(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Razon de Anulacion <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  placeholder="Motivo de la anulacion..."
-                  variant="bordered"
-                  value={newReason}
-                  onChange={(e) => setNewReason(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Observaciones
-                </label>
-                <textarea
-                  placeholder="Detalles adicionales..."
-                  value={newObservations}
-                  onChange={(e) => setNewObservations(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
-
-              <div className="rounded-lg bg-amber-500/5 border border-amber-500/30 p-3">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Esta solicitud sera enviada a Gerencia para aprobacion. El documento no sera anulado hasta que se apruebe y ejecute.
-                  </p>
-                </div>
               </div>
             </div>
-          </CustomModalBody>
-          <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)} isDisabled={isSaving}>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Monto <span className="text-red-500">*</span></Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                <Input
+                  id="amount"
+                  placeholder="0.00"
+                  type="number"
+                  value={newAmount}
+                  onChange={(e) => setNewAmount(e.target.value)}
+                  className="pl-7"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reason">Razon de Anulacion <span className="text-red-500">*</span></Label>
+              <Input
+                id="reason"
+                placeholder="Motivo de la anulacion..."
+                value={newReason}
+                onChange={(e) => setNewReason(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="observations">Observaciones</Label>
+              <Textarea
+                id="observations"
+                placeholder="Detalles adicionales..."
+                value={newObservations}
+                onChange={(e) => setNewObservations(e.target.value)}
+                className="resize-none h-24"
+              />
+            </div>
+
+            <div className="rounded-lg bg-amber-500/5 border border-amber-500/30 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Esta solicitud sera enviada a Gerencia para aprobacion. El documento no sera anulado hasta que se apruebe y ejecute.
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={isSaving}>
               Cancelar
             </Button>
             <Button
-              color="danger"
-              onPress={handleSubmitRequest}
-              isLoading={isSaving}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleSubmitRequest}
+              disabled={isSaving}
             >
+              {isSaving ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+              ) : null}
               Enviar Solicitud
             </Button>
-          </CustomModalFooter>
-      </CustomModal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
