@@ -143,7 +143,7 @@ export function ChartAreaInteractive() {
                       <div className="rounded-lg border bg-background p-2 shadow-lg">
                         <p className="text-sm font-medium">{label}</p>
                         <p className="text-sm text-muted-foreground">
-                          {metric}: ${payload[0].value.toLocaleString()}
+                          {metric}: ${payload[0].value?.toLocaleString()}
                         </p>
                       </div>
                     )

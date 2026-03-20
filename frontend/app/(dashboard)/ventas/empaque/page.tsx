@@ -350,7 +350,7 @@ export default function EmpaquePage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {order.lines.map((line) => (
+                        {order.lines.map((line: any) => (
                           <tr key={line.id}>
                             <td className="py-2">
                               <p className="text-sm font-medium text-foreground">{line.productDescription}</p>
@@ -424,7 +424,7 @@ export default function EmpaquePage() {
               <div className="rounded-lg border border-border p-4">
                 <h4 className="mb-3 text-sm font-medium text-foreground">Verificar productos empacados:</h4>
                 <div className="space-y-2">
-                  {selectedOrder?.lines.map((line) => (
+                  {selectedOrder?.lines.map((line: any) => (
                     <label
                       key={line.id}
                       className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/50 cursor-pointer"

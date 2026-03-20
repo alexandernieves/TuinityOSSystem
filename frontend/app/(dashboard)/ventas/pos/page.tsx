@@ -107,7 +107,7 @@ export default function POSPage() {
       const [regStatus, allProducts, allStock] = await Promise.all([
         api.getPOSRegisterStatus(),
         api.getProducts(),
-        api.getStock()
+        api.getStocks()
       ]);
 
       setRegister(regStatus);
@@ -588,7 +588,7 @@ export default function POSPage() {
 
       {/* Opening Dialog */}
       <Dialog open={isOpeningModal} onOpenChange={() => {}}>
-        <DialogContent className="max-w-sm" hideCloseButton>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-emerald-600" />

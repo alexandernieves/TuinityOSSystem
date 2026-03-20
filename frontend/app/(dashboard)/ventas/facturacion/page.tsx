@@ -390,7 +390,7 @@ export default function FacturacionPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {selectedOrder?.lines.map((line) => (
+                      {selectedOrder?.lines.map((line: any) => (
                         <tr key={line.id}>
                           <td className="py-2">
                             <p className="text-foreground">{line.productDescription}</p>
