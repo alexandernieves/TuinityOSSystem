@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -12,6 +11,7 @@ import {
   AlertTriangle,
   Layers,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
@@ -44,6 +44,7 @@ export default function NuevaTransferenciaPage() {
   const [lines, setLines] = useState<TransferLine[]>([]);
   const [allowPartialCases, setAllowPartialCases] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
@@ -158,7 +159,7 @@ export default function NuevaTransferenciaPage() {
       return;
     }
 
-    setLoading(true);
+    setIsSaving(true);
     try {
       await api.createTransfer({
         sourceWarehouseId,
@@ -193,10 +194,12 @@ export default function NuevaTransferenciaPage() {
       router.push("/inventario/transferencias");
     } catch (err: any) {
       toast.error("Error al crear", { description: err.message });
-    } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
+
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
+  const labelClass = "block text-[13px] font-semibold text-[#1a1a1a] mb-1.5";
 
   return (
     <div className="space-y-6">
@@ -209,14 +212,14 @@ export default function NuevaTransferenciaPage() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-            <ArrowRightLeft className="h-5 w-5 text-brand-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950">
+            <ArrowRightLeft className="h-5 w-5 text-[#008060]" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
               Nueva Transferencia
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-[#888888]">
               Mover mercancía entre bodegas
             </p>
           </div>
@@ -224,70 +227,54 @@ export default function NuevaTransferenciaPage() {
       </div>
 
       {/* Form Card */}
-      <div className="rounded-xl border border-gray-200 bg-white">
-        <div className="border-b border-gray-200 p-6">
+      <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
+        <div className="border-b border-gray-200 dark:border-[#2a2a2a] p-6">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className={labelClass}>
                 Bodega Origen
               </label>
-              <Select
-                selectedKeys={[sourceWarehouseId]}
+              <select
+                value={sourceWarehouseId}
                 onChange={(e) => setSourceWarehouseId(e.target.value)}
-                variant="bordered"
-                classNames={{
-                  trigger: "bg-white dark:bg-[#1a1a1a]",
-                  value: "text-gray-900 dark:text-white",
-                  popoverContent: "bg-white dark:bg-[#1a1a1a]",
-                }}
+                className={inputClass}
               >
                 {warehouses.map((w) => (
-                  <SelectItem
-                    key={w.id}
-                    classNames={{ base: "text-gray-900 dark:text-white" }}
-                  >
+                  <option key={w.id} value={w.id}>
                     {w.name} ({w.type})
-                  </SelectItem>
+                  </option>
                 ))}
-              </Select>
+              </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className={labelClass}>
                 Bodega Destino
               </label>
-              <Select
-                selectedKeys={[destWarehouseId]}
+              <select
+                value={destWarehouseId}
                 onChange={(e) => setDestWarehouseId(e.target.value)}
-                variant="bordered"
-                classNames={{
-                  trigger: "bg-white dark:bg-[#1a1a1a]",
-                  value: "text-gray-900 dark:text-white",
-                  popoverContent: "bg-white dark:bg-[#1a1a1a]",
-                }}
+                className={inputClass}
               >
                 {warehouses
                   .filter((w) => w.id !== sourceWarehouseId)
                   .map((w) => (
-                    <SelectItem
-                      key={w.id}
-                      classNames={{ base: "text-gray-900 dark:text-white" }}
-                    >
+                    <option key={w.id} value={w.id}>
                       {w.name} ({w.type})
-                    </SelectItem>
+                    </option>
                   ))}
-              </Select>
+              </select>
             </div>
           </div>
 
           {isB2BtoB2C && (
-            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="mt-4 rounded-lg border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 p-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-blue-600" />
+                <AlertTriangle className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <p className="text-sm font-medium text-blue-900">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
                     Transferencia B2B → B2C
                   </p>
-                  <p className="mt-1 text-xs text-blue-700">
+                  <p className="mt-1 text-[13px] text-blue-700 dark:text-blue-400">
                     Las cajas se convertirán a unidades. Se aplicará un factor
                     de inflación del{" "}
                     {((DEFAULT_TRANSFER_INFLATION_FACTOR - 1) * 100).toFixed(0)}
@@ -299,15 +286,15 @@ export default function NuevaTransferenciaPage() {
           )}
 
           <div className="mt-6">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className={labelClass}>
               Observación
             </label>
-            <Textarea
+            <textarea
               placeholder="Notas adicionales..."
               value={observation}
               onChange={(e) => setObservation(e.target.value)}
-              variant="bordered"
-              classNames={{ inputWrapper: "bg-white" }}
+              className={cn(inputClass, "resize-none h-24")}
+              rows={3}
             />
           </div>
         </div>
@@ -322,9 +309,9 @@ export default function NuevaTransferenciaPage() {
               <button
                 onClick={() => setAllowPartialCases(!allowPartialCases)}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors",
                   allowPartialCases
-                    ? "border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-400"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400"
                     : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-[#2a2a2a] dark:bg-[#141414] dark:text-gray-400 dark:hover:bg-[#1a1a1a]",
                 )}
               >
@@ -333,7 +320,7 @@ export default function NuevaTransferenciaPage() {
               </button>
               <button
                 onClick={handleAddProduct}
-                className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#2a2a2a]"
+                className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-[#1a1a1a] dark:text-gray-300 dark:hover:bg-[#2a2a2a]"
               >
                 <Plus className="h-4 w-4" />
                 Agregar Producto
@@ -346,32 +333,32 @@ export default function NuevaTransferenciaPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                    <th className="px-4 py-3 text-left text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                       Producto
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                    <th className="px-4 py-3 text-right text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                       Stock
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                    <th className="px-4 py-3 text-right text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                       Cajas
                     </th>
                     {allowPartialCases && (
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                      <th className="px-4 py-3 text-right text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                         Und. sueltas
                       </th>
                     )}
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                    <th className="px-4 py-3 text-right text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                       Und/Caja
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                    <th className="px-4 py-3 text-right text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                       Total Und.
                     </th>
                     {canViewCosts && (
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]">
+                      <th className="px-4 py-3 text-right text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]">
                         Valor
                       </th>
                     )}
-                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888]"></th>
+                    <th className="px-4 py-3 text-center text-[13px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
@@ -388,7 +375,7 @@ export default function NuevaTransferenciaPage() {
                       >
                         <td className="px-4 py-3">
                           <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            <p className="text-[13px] font-medium text-gray-900 dark:text-white">
                               {line.productDescription}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-[#888]">
@@ -396,7 +383,7 @@ export default function NuevaTransferenciaPage() {
                             </p>
                             {/* Conversion preview */}
                             <div className="mt-1.5 space-y-0.5">
-                              <p className="text-xs text-brand-600 dark:text-brand-400">
+                              <p className="text-xs text-[#008060] dark:text-emerald-400">
                                 {allowPartialCases && line.looseUnits > 0
                                   ? `${line.quantityCases} cajas + ${line.looseUnits} und. sueltas = ${lineTotalUnits} botellas`
                                   : `${effectiveCases % 1 !== 0 ? effectiveCases.toFixed(1) : effectiveCases} ${effectiveCases === 1 ? "caja" : "cajas"} \u00D7 ${line.unitsPerCase} und/caja = ${lineTotalUnits} botellas`}
@@ -410,7 +397,7 @@ export default function NuevaTransferenciaPage() {
                                       (inflado:{" "}
                                       {formatCurrency(
                                         costPerUnit *
-                                          DEFAULT_TRANSFER_INFLATION_FACTOR,
+                                        DEFAULT_TRANSFER_INFLATION_FACTOR,
                                       )}
                                       )
                                     </span>
@@ -421,12 +408,12 @@ export default function NuevaTransferenciaPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                          <span className="text-[13px] text-gray-600 dark:text-gray-400">
                             {line.sourceStock}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <Input
+                          <input
                             type="number"
                             min={0}
                             max={line.sourceStock}
@@ -437,18 +424,12 @@ export default function NuevaTransferenciaPage() {
                                 parseInt(e.target.value) || 0,
                               )
                             }
-                            variant="bordered"
-                            size="sm"
-                            classNames={{
-                              base: "w-20 ml-auto",
-                              inputWrapper: "bg-white dark:bg-[#141414]",
-                              input: "text-right",
-                            }}
+                            className={cn(inputClass, "w-20 ml-auto text-right")}
                           />
                         </td>
                         {allowPartialCases && (
                           <td className="px-4 py-3">
-                            <Input
+                            <input
                               type="number"
                               min={0}
                               max={line.unitsPerCase - 1}
@@ -459,33 +440,27 @@ export default function NuevaTransferenciaPage() {
                                   parseInt(e.target.value) || 0,
                                 )
                               }
-                              variant="bordered"
-                              size="sm"
-                              classNames={{
-                                base: "w-20 ml-auto",
-                                inputWrapper: "bg-white dark:bg-[#141414]",
-                                input: "text-right",
-                              }}
+                              className={cn(inputClass, "w-20 ml-auto text-right")}
                             />
                           </td>
                         )}
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                          <span className="text-[13px] text-gray-600 dark:text-gray-400">
                             {line.unitsPerCase}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          <span className="text-[13px] font-semibold text-[#008060] dark:text-emerald-400">
                             {lineTotalUnits}
                           </span>
                         </td>
                         {canViewCosts && (
                           <td className="px-4 py-3 text-right">
-                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300">
+                            <span className="font-mono text-[13px] text-gray-700 dark:text-gray-300">
                               {formatCurrency(
                                 isB2BtoB2C
                                   ? lineValue *
-                                      DEFAULT_TRANSFER_INFLATION_FACTOR
+                                  DEFAULT_TRANSFER_INFLATION_FACTOR
                                   : lineValue,
                               )}
                             </span>
@@ -494,7 +469,7 @@ export default function NuevaTransferenciaPage() {
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => handleRemoveLine(index)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                            className="flex mx-auto h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -506,17 +481,17 @@ export default function NuevaTransferenciaPage() {
               </table>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12">
+            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] py-12">
               <Package className="mb-3 h-10 w-10 text-gray-400" />
-              <p className="mb-1 text-sm font-medium text-gray-900">
+              <p className="mb-1 text-[13px] font-medium text-gray-900 dark:text-white">
                 Sin productos
               </p>
-              <p className="mb-4 text-xs text-gray-500">
+              <p className="mb-4 text-xs text-gray-500 dark:text-[#888]">
                 Agrega productos para transferir
               </p>
               <button
                 onClick={handleAddProduct}
-                className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                className="flex items-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all"
               >
                 <Plus className="h-4 w-4" />
                 Agregar Producto
@@ -528,9 +503,9 @@ export default function NuevaTransferenciaPage() {
           {lines.length > 0 && (
             <div className="mt-6 space-y-3">
               {/* Total preview line */}
-              <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 dark:border-brand-800 dark:bg-brand-950/20">
-                <Layers className="h-4 w-4 text-brand-600 dark:text-brand-400" />
-                <p className="text-sm font-medium text-brand-800 dark:text-brand-300">
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 dark:border-emerald-800 dark:bg-emerald-950/20">
+                <Layers className="h-4 w-4 text-[#008060] dark:text-emerald-400" />
+                <p className="text-[13px] font-medium text-emerald-800 dark:text-emerald-300">
                   Total:{" "}
                   {totalCases % 1 !== 0 ? totalCases.toFixed(1) : totalCases}{" "}
                   cajas ({totalUnits} unidades)
@@ -548,7 +523,7 @@ export default function NuevaTransferenciaPage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-[#1a1a1a] p-4">
+              <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-[#1a1a1a] p-4 border border-gray-100 dark:border-[#2a2a2a] rounded-b-xl">
                 <div className="flex gap-8">
                   <div>
                     <p className="text-xs text-gray-500 dark:text-[#888]">
@@ -564,7 +539,7 @@ export default function NuevaTransferenciaPage() {
                     <p className="text-xs text-gray-500 dark:text-[#888]">
                       Total Unidades
                     </p>
-                    <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                    <p className="text-lg font-semibold text-[#008060] dark:text-emerald-400">
                       {totalUnits}
                     </p>
                   </div>
@@ -583,7 +558,7 @@ export default function NuevaTransferenciaPage() {
                       <p className="text-xs text-gray-500 dark:text-[#888]">
                         Valor Inflado
                       </p>
-                      <p className="text-lg font-semibold text-brand-600 dark:text-brand-400">
+                      <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(
                           totalValue * DEFAULT_TRANSFER_INFLATION_FACTOR,
                         )}
@@ -592,21 +567,24 @@ export default function NuevaTransferenciaPage() {
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <Button
-                    variant="light"
-                    onPress={() => router.back()}
-                    isDisabled={loading}
+                  <button
+                    onClick={() => router.back()}
+                    disabled={isSaving}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
                   >
                     Cancelar
-                  </Button>
-                  <Button
-                    color="primary"
-                    onPress={handleSubmit}
-                    className="bg-brand-600"
-                    isLoading={loading}
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSaving}
+                    className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[190px]"
                   >
-                    {loading ? "Enviando..." : "Enviar Transferencia"}
-                  </Button>
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Enviar Transferencia"
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

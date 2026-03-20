@@ -11,11 +11,26 @@ export class Warehouse {
     @Prop({ required: true })
     name: string;
 
-    @Prop({ required: true, enum: ['B2B', 'B2C'] })
+    @Prop({ required: true, enum: ['B2B', 'B2C', 'oficina', 'bodega', 'tienda', 'zona_libre'] })
     type: string;
 
     @Prop()
-    location?: string;
+    address?: string;
+
+    @Prop()
+    city?: string;
+
+    @Prop()
+    country?: string;
+
+    @Prop()
+    phone?: string;
+
+    @Prop()
+    manager?: string;
+
+    @Prop({ default: false })
+    isHeadquarters: boolean;
 
     @Prop({ default: true })
     isActive: boolean;

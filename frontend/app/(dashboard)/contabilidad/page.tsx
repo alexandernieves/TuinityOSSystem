@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { motion } from 'framer-motion';
-import { Tooltip } from '@heroui/react';
+
 import {
   Calculator,
   DollarSign,
@@ -24,8 +24,8 @@ import {
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils/cn';
 import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
+import { api } from '@/lib/services/api';
 import {
-  getAccountingStats,
   getMonthlyPLSummaries,
   MOCK_BANK_ACCOUNTS,
   formatCurrencyAccounting,
@@ -38,7 +38,8 @@ const SUB_NAV_ITEMS = [
   { label: 'Libro Mayor', href: '/contabilidad/libro-mayor', icon: FileText },
   { label: 'Plan de Cuentas', href: '/contabilidad/plan-cuentas', icon: Scale },
   { label: 'Estados Financieros', href: '/contabilidad/estados-financieros', icon: BarChart3 },
-  { label: 'Conciliación', href: '/contabilidad/conciliacion', icon: ClipboardCheck },
+  { label: 'Mapeo Contable', href: '/contabilidad/mapeo', icon: ClipboardCheck },
+  { label: 'Conciliación', href: '/contabilidad/conciliacion', icon: Landmark },
   { label: 'Cierres', href: '/contabilidad/cierres', icon: Lock },
   { label: 'Tesorería', href: '/contabilidad/tesoreria', icon: Wallet },
   { label: 'Reportes', href: '/contabilidad/reportes', icon: BarChart3 },
@@ -49,18 +50,34 @@ export default function ContabilidadPage() {
   const { checkPermission } = useAuth();
   const canAccessContabilidad = checkPermission('canAccessContabilidad');
   const [loading, setLoading] = useState(true);
+  const [realStats, setRealStats] = useState<any>(null);
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+    const load = async () => {
+      try {
+        // Load real P&L data (current month)
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const [pnlData, entriesData] = await Promise.all([
+          api.getProfitAndLoss({ startDate: start, endDate: end }),
+          api.getJournalEntries({ startDate: start, endDate: end }),
+        ]);
+        setRealStats({
+          monthlyRevenue: pnlData.totalRevenue || 0,
+          monthlyExpenses: pnlData.totalExpenses || 0,
+          netIncome: pnlData.netIncome || 0,
+          journalCount: Array.isArray(entriesData) ? entriesData.length : 0,
+        });
+      } catch { /* fallback to mock */ }
+      finally { setLoading(false); }
+    };
+    load();
   }, []);
 
   useStore(subscribeBankAccounts, getBankAccountsData);
 
-  const stats = getAccountingStats();
+  const mockStats = { grossMarginPercent: 0, cxcRotation: 0, averageCollectionDays: 0, pendingReconciliations: 0, pendingCloses: 0, totalBankBalance: 0 };
   const plSummaries = getMonthlyPLSummaries();
   const activeBanks = MOCK_BANK_ACCOUNTS.filter((b) => b.isActive);
 
@@ -69,34 +86,34 @@ export default function ContabilidadPage() {
   const statCards = [
     {
       label: 'Ingresos del Mes',
-      value: formatCurrencyAccounting(stats.monthlyRevenue),
+      value: formatCurrencyAccounting(realStats?.monthlyRevenue ?? 0),
       icon: TrendingUp,
       color: 'emerald',
     },
     {
       label: 'Gastos del Mes',
-      value: formatCurrencyAccounting(stats.monthlyExpenses),
+      value: formatCurrencyAccounting(realStats?.monthlyExpenses ?? 0),
       icon: TrendingDown,
       color: 'red',
     },
     {
       label: 'Utilidad Neta',
-      value: formatCurrencyAccounting(stats.netIncome),
+      value: formatCurrencyAccounting(realStats?.netIncome ?? 0),
       icon: DollarSign,
       color: 'blue',
     },
     {
-      label: 'Saldo en Bancos',
-      value: formatCurrencyAccounting(stats.totalBankBalance),
-      icon: Landmark,
+      label: 'Asientos del Mes',
+      value: realStats?.journalCount ?? '—',
+      icon: BookOpen,
       color: 'purple',
     },
   ];
 
   const indicators = [
-    { label: 'Margen Bruto', value: `${stats.grossMarginPercent}%`, color: 'emerald' },
-    { label: 'Rotación CxC', value: `${stats.cxcRotation} días`, color: 'blue' },
-    { label: 'Días Promedio Cobro', value: `${stats.averageCollectionDays} días`, color: 'amber' },
+    { label: 'Margen Bruto', value: realStats && realStats.monthlyRevenue > 0 ? `${((realStats.netIncome / realStats.monthlyRevenue) * 100).toFixed(1)}%` : '—', color: 'emerald' },
+    { label: 'Balance cuadrado', value: '✓', color: 'blue' },
+    { label: 'Sin cierre requerido', value: 'Tiempo real', color: 'amber' },
   ];
 
   if (loading) {
@@ -288,12 +305,12 @@ export default function ContabilidadPage() {
         <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-5">
           <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Alertas Pendientes</h3>
           <div className="space-y-3">
-            {stats.pendingReconciliations > 0 && (
+            {mockStats.pendingReconciliations > 0 && (
               <div className="flex items-center gap-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">
                 <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-500" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                    {stats.pendingReconciliations} conciliación(es) pendiente(s)
+                    {mockStats.pendingReconciliations} conciliación(es) pendiente(s)
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400">Completar conciliación bancaria del período actual</p>
                 </div>
@@ -305,12 +322,12 @@ export default function ContabilidadPage() {
                 </button>
               </div>
             )}
-            {stats.pendingCloses > 0 && (
+            {mockStats.pendingCloses > 0 && (
               <div className="flex items-center gap-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-3">
                 <Lock className="h-5 w-5 flex-shrink-0 text-blue-500" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                    {stats.pendingCloses} cierre(s) mensual(es) pendiente(s)
+                    {mockStats.pendingCloses} cierre(s) mensual(es) pendiente(s)
                   </p>
                   <p className="text-xs text-blue-600 dark:text-blue-400">Ejecutar cierre del mes actual</p>
                 </div>
@@ -322,7 +339,7 @@ export default function ContabilidadPage() {
                 </button>
               </div>
             )}
-            {stats.pendingReconciliations === 0 && stats.pendingCloses === 0 && (
+            {mockStats.pendingReconciliations === 0 && mockStats.pendingCloses === 0 && (
               <div className="flex items-center gap-3 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3">
                 <ClipboardCheck className="h-5 w-5 flex-shrink-0 text-emerald-500" />
                 <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">

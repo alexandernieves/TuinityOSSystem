@@ -1,10 +1,13 @@
 export type UserRole =
+  | 'owner'
   | 'gerencia'
   | 'contabilidad'
   | 'compras'
   | 'vendedor'
   | 'trafico'
-  | 'bodega';
+  | 'bodega'
+  | 'pos_cajero'
+  | 'pos_encargado';
 
 export interface User {
   id: string;
@@ -12,7 +15,9 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
-  dashboardPreferences?: Record<string, boolean>;
+  sessionId?: string;
+  status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+  isActive?: boolean;
 }
 
 export interface AuthState {

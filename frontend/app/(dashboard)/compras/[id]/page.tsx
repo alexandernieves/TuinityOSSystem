@@ -3,11 +3,16 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
-  Button,
-  Input,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   ArrowLeft,
   PackageCheck,
@@ -188,7 +193,7 @@ export default function OrderDetailPage() {
         <AlertCircle className="mb-4 h-12 w-12 text-gray-400" />
         <h2 className="mb-2 text-lg font-medium text-gray-900">Orden no encontrada</h2>
         <p className="mb-4 text-sm text-gray-500">La orden {orderId} no existe o fue eliminada.</p>
-        <Button color="primary" onPress={() => router.push('/compras')} className="bg-brand-600">
+        <Button onClick={() => router.push('/compras')} className="bg-blue-600 hover:bg-blue-700 text-white">
           Volver a Compras
         </Button>
       </div>
@@ -242,26 +247,25 @@ export default function OrderDetailPage() {
         <div className="flex items-center gap-2">
           {canReceive && (
             <Button
-              color="success"
-              onPress={() => setIsReceiveOpen(true)}
-              startContent={<PackageCheck className="h-4 w-4" />}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => setIsReceiveOpen(true)}
             >
+              <PackageCheck className="h-4 w-4 mr-2" />
               Recibir Mercancía
             </Button>
           )}
           {canEdit && (
             <Button
-              variant="bordered"
-              startContent={<Edit className="h-4 w-4" />}
-              onPress={() => toast.info('Editar orden', { description: 'Funcionalidad próximamente.' })}
+              variant="outline"
+              onClick={() => toast.info('Editar orden', { description: 'Funcionalidad próximamente.' })}
             >
+              <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
           )}
           <Button
-            variant="bordered"
-            startContent={<Printer className="h-4 w-4" />}
-            onPress={() => {
+            variant="outline"
+            onClick={() => {
               printPurchaseOrder(
                 {
                   orderNumber: order.orderNumber,
@@ -291,6 +295,7 @@ export default function OrderDetailPage() {
               });
             }}
           >
+            <Printer className="h-4 w-4 mr-2" />
             Imprimir
           </Button>
         </div>
@@ -549,7 +554,7 @@ export default function OrderDetailPage() {
               className="flex w-full items-center justify-between border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] px-4 py-3 transition-colors hover:bg-gray-100 dark:hover:bg-[#222]"
             >
               <div className="flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-brand-600" />
+                <Calculator className="h-4 w-4 text-blue-600" />
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Prorrateo de Costos</h2>
                 {(order.costProrated || isProrationApplied) && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
@@ -722,7 +727,7 @@ export default function OrderDetailPage() {
                                 className={cn(
                                   'w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] py-2 pl-8 pr-3 text-right font-mono text-sm',
                                   'text-gray-900 dark:text-white placeholder:text-gray-400',
-                                  'focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500',
+                                  'focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500',
                                   'transition-colors'
                                 )}
                               />
@@ -749,10 +754,8 @@ export default function OrderDetailPage() {
                     {/* Calculate Button */}
                     <div className="flex justify-end">
                       <Button
-                        color="primary"
-                        className="bg-brand-600"
-                        startContent={<Calculator className="h-4 w-4" />}
-                        onPress={() => {
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => {
                           const expenses: ExpenseBreakdown = {
                             freight: parseFloat(prorationExpenses.freight) || 0,
                             insurance: parseFloat(prorationExpenses.insurance) || 0,
@@ -788,6 +791,7 @@ export default function OrderDetailPage() {
                           }
                         }}
                       >
+                        <Calculator className="h-4 w-4 mr-2" />
                         Calcular Prorrateo
                       </Button>
                     </div>
@@ -939,10 +943,10 @@ export default function OrderDetailPage() {
                         {/* Apply Button */}
                         <div className="flex justify-end">
                           <Button
-                            color="success"
-                            startContent={<CheckCircle className="h-4 w-4" />}
-                            onPress={() => setIsConfirmOpen(true)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => setIsConfirmOpen(true)}
                           >
+                            <CheckCircle className="h-4 w-4 mr-2" />
                             Aplicar Prorrateo
                           </Button>
                         </div>
@@ -955,61 +959,64 @@ export default function OrderDetailPage() {
           </motion.div>
         )}
 
-      {/* Proration Confirmation Modal */}
-      <CustomModal isOpen={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsConfirmOpen(false)}>
-          <Calculator className="h-5 w-5 text-brand-600" />
-          Confirmar Prorrateo
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-3">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            Está a punto de aplicar el prorrateo de costos a esta orden. Esta acción asignará los gastos
-            de internación proporcionalmente a cada línea de producto.
-          </p>
-          {prorationResult && (
-            <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-3 space-y-1.5">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Total FOB:</span>
-                <span className="font-mono font-medium text-gray-900 dark:text-white">{formatCostCurrency(prorationResult.totalFOB)}</span>
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-blue-600" />
+              Confirmar Prorrateo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Está a punto de aplicar el prorrateo de costos a esta orden. Esta acción asignará los gastos
+              de internación proporcionalmente a cada línea de producto.
+            </p>
+            {prorationResult && (
+              <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-3 space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Total FOB:</span>
+                  <span className="font-mono font-medium text-gray-900 dark:text-white">{formatCostCurrency(prorationResult.totalFOB)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Total Gastos:</span>
+                  <span className="font-mono font-medium text-gray-900 dark:text-white">{formatCostCurrency(prorationResult.totalExpenses)}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-gray-200 dark:border-[#2a2a2a] pt-1.5">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Total CIF:</span>
+                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatCostCurrency(prorationResult.totalCIF)}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Total Gastos:</span>
-                <span className="font-mono font-medium text-gray-900 dark:text-white">{formatCostCurrency(prorationResult.totalExpenses)}</span>
+            )}
+            {prorationResult?.hasAlerts && (
+              <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3">
+                <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{prorationResult.alerts.length} producto(s) con incremento de costo mayor al 10%.</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm border-t border-gray-200 dark:border-[#2a2a2a] pt-1.5">
-                <span className="font-medium text-gray-700 dark:text-gray-300">Total CIF:</span>
-                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatCostCurrency(prorationResult.totalCIF)}</span>
-              </div>
-            </div>
-          )}
-          {prorationResult?.hasAlerts && (
-            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3">
-              <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                <span>{prorationResult.alerts.length} producto(s) con incremento de costo mayor al 10%.</span>
-              </div>
-            </div>
-          )}
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsConfirmOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            color="success"
-            startContent={<CheckCircle className="h-4 w-4" />}
-            onPress={() => {
-              setIsProrationApplied(true);
-              setIsConfirmOpen(false);
-              toast.success('Prorrateo aplicado', {
-                description: 'Los costos calculados se usarán al confirmar la recepción.',
-              });
-            }}
-          >
-            Confirmar y Aplicar
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => {
+                setIsProrationApplied(true);
+                setIsConfirmOpen(false);
+                toast.success('Prorrateo aplicado', {
+                  description: 'Los costos calculados se usarán al confirmar la recepción.',
+                });
+              }}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmar y Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Notes Section */}
       {order.notes && (
@@ -1031,139 +1038,145 @@ export default function OrderDetailPage() {
         </motion.div>
       )}
 
-      {/* Receive Merchandise Modal */}
-      <CustomModal isOpen={isReceiveOpen} onClose={() => setIsReceiveOpen(false)} size="3xl" scrollable>
-        <CustomModalHeader onClose={() => setIsReceiveOpen(false)}>
-          <PackageCheck className="h-5 w-5 text-emerald-600" />
-          Recibir Mercancía
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-6">
-            {/* Order Summary */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Proveedor:</span>
-                <span className="ml-2 font-medium text-gray-900">{order.supplierName}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Factura:</span>
-                <span className="ml-2 font-mono font-medium text-gray-900">
-                  {order.supplierInvoice || '-'}
-                </span>
-              </div>
-            </div>
-
-            {/* Quantities Confirmation */}
-            <div>
-              <h3 className="mb-3 text-sm font-medium text-gray-900">Confirmar cantidades recibidas</h3>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                        Producto
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                        Ordenado
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                        Recibido
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                        Pendiente
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {order.lines.map((line) => {
-                      const pending = line.quantity - line.quantityReceived;
-                      return (
-                        <tr key={line.id}>
-                          <td className="px-3 py-2">
-                            <div className="max-w-[250px]">
-                              <p className="truncate text-sm text-gray-900">{line.productDescription}</p>
-                              <p className="text-xs text-gray-500">{line.productReference}</p>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <span className="text-sm text-gray-900">{line.quantity}</span>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <Input
-                              type="number"
-                              size="sm"
-                              value={String(receptionQuantities[line.productId] || 0)}
-                              onChange={(e) => handleReceptionQtyChange(line.productId, parseInt(e.target.value) || 0)}
-                              className="w-20"
-                              classNames={{ inputWrapper: 'bg-white' }}
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <span className={cn('text-sm', (pending - (receptionQuantities[line.productId] || 0)) > 0 ? 'text-amber-600' : 'text-gray-400')}>
-                              {Math.max(0, pending - (receptionQuantities[line.productId] || 0))}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Expenses */}
-            {canViewCosts && (
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-gray-900">Gastos de internación</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="% Gastos de internación"
-                    type="number"
-                    value={expensePercentage}
-                    onChange={(e) => setExpensePercentage(e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: 'bg-white' }}
-                    endContent={<span className="text-gray-400">%</span>}
-                    description="Porcentaje total sobre FOB"
-                  />
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-xs text-gray-500">Total gastos estimado</p>
-                    <p className="font-mono text-lg font-bold text-gray-900">
-                      {formatCurrency(order.totalFOB * (parseFloat(expensePercentage) / 100))}
-                    </p>
-                  </div>
+      <Dialog open={isReceiveOpen} onOpenChange={setIsReceiveOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-emerald-600" />
+              Recibir Mercancía
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            <div className="space-y-6">
+              {/* Order Summary */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Proveedor:</span>
+                  <span className="ml-2 font-medium text-gray-900">{order.supplierName}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Factura:</span>
+                  <span className="ml-2 font-mono font-medium text-gray-900">
+                    {order.supplierInvoice || '-'}
+                  </span>
                 </div>
               </div>
-            )}
 
-            {/* Impact Preview */}
-            {canViewCosts && (
+              {/* Quantities Confirmation */}
               <div>
-                <h3 className="mb-3 text-sm font-medium text-gray-900">Impacto en costos</h3>
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-center gap-2 text-sm text-amber-800">
-                    <TrendingUp className="h-4 w-4" />
-                    <span>
-                      Al confirmar, los costos promedio ponderados se actualizarán automáticamente.
-                    </span>
-                  </div>
+                <h3 className="mb-3 text-sm font-medium text-gray-900">Confirmar cantidades recibidas</h3>
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                          Producto
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                          Ordenado
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                          Recibido
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                          Pendiente
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {order.lines.map((line) => {
+                        const pending = line.quantity - line.quantityReceived;
+                        return (
+                          <tr key={line.id}>
+                            <td className="px-3 py-2">
+                              <div className="max-w-[250px]">
+                                <p className="truncate text-sm text-gray-900">{line.productDescription}</p>
+                                <p className="text-xs text-gray-500">{line.productReference}</p>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="text-sm text-gray-900">{line.quantity}</span>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <Input
+                                type="number"
+                                value={String(receptionQuantities[line.productId] || 0)}
+                                onChange={(e) => handleReceptionQtyChange(line.productId, parseInt(e.target.value) || 0)}
+                                className="w-20 ml-auto"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className={cn('text-sm', (pending - (receptionQuantities[line.productId] || 0)) > 0 ? 'text-amber-600' : 'text-gray-400')}>
+                                {Math.max(0, pending - (receptionQuantities[line.productId] || 0))}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            )}
+
+              {/* Expenses */}
+              {canViewCosts && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium text-gray-900">Gastos de internación</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">% Gastos de internación</label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          value={expensePercentage}
+                          onChange={(e) => setExpensePercentage(e.target.value)}
+                          className="pr-8"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">Porcentaje total sobre FOB</p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-xs text-gray-500">Total gastos estimado</p>
+                      <p className="font-mono text-lg font-bold text-gray-900">
+                        {formatCurrency(order.totalFOB * (parseFloat(expensePercentage) / 100))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Impact Preview */}
+              {canViewCosts && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium text-gray-900">Impacto en costos</h3>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-center gap-2 text-sm text-amber-800">
+                      <TrendingUp className="h-4 w-4" />
+                      <span>
+                        Al confirmar, los costos promedio ponderados se actualizarán automáticamente.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsReceiveOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            color="success"
-            onPress={handleConfirmReception}
-          >
-            Confirmar Recepción
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter className="p-6 pt-2 gap-2 border-t mt-auto">
+            <Button variant="outline" onClick={() => setIsReceiveOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleConfirmReception}
+            >
+              Confirmar Recepción
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

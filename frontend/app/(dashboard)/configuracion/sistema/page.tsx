@@ -229,7 +229,7 @@ export default function SistemaPage() {
           </div>
           <button
             onClick={handleBackup}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+            className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
           >
             <Database className="h-4 w-4" />
             Crear Backup

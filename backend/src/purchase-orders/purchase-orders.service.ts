@@ -1,205 +1,376 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { PurchaseOrder, PurchaseOrderDocument } from './schemas/purchase-order.schema';
+import { PrismaService } from '../services/shared/prisma.service';
 import { ProductsService } from '../products/products.service';
 import { StockService } from '../stock/stock.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { AccountsPayableService } from '../services/accounts-payable/accounts-payable.service';
+import { AccountsPayableEntryType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
+import { LotsService } from '../services/inventory/lots.service';
 
 @Injectable()
 export class PurchaseOrdersService {
     constructor(
-        @InjectModel(PurchaseOrder.name) private poModel: Model<PurchaseOrderDocument>,
+        private prisma: PrismaService,
         private productsService: ProductsService,
         private stockService: StockService,
         private accountingService: AccountingService,
+        private apService: AccountsPayableService,
+        private notificationsService: NotificationsService,
+        private lotsService: LotsService,
     ) { }
 
-    async findAll(filters: any = {}): Promise<PurchaseOrderDocument[]> {
-        const query: any = {};
-        if (filters.supplierId) query.supplierId = filters.supplierId;
-        if (filters.status && filters.status !== 'all') query.status = filters.status;
-        if (filters.bodegaId) query.bodegaId = filters.bodegaId;
-
-        return this.poModel.find(query).sort({ createdAt: -1 }).exec();
+    async findAll(filters: any = {}): Promise<any[]> {
+        return this.prisma.purchaseOrder.findMany({
+            where: {
+                ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
+                ...(filters.status && filters.status !== 'all' ? { status: filters.status } : {}),
+                ...(filters.bodegaId ? { warehouseId: filters.bodegaId } : {}),
+            },
+            include: {
+                supplier: true,
+                warehouse: true,
+                lines: { include: { product: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
     }
 
-    async findOne(id: string): Promise<PurchaseOrderDocument> {
-        const po = await this.poModel.findById(id).exec();
+    async findOne(id: string): Promise<any> {
+        const po = await this.prisma.purchaseOrder.findUnique({
+            where: { id },
+            include: {
+                supplier: true,
+                warehouse: true,
+                lines: { include: { product: true } }
+            }
+        });
         if (!po) {
             throw new NotFoundException(`Orden de Compra con ID ${id} no encontrada`);
         }
         return po;
     }
 
-    async create(createPoDto: any): Promise<PurchaseOrderDocument> {
+    async create(createPoDto: any): Promise<any> {
         try {
-            console.log('Creating Purchase Order with payload:', JSON.stringify(createPoDto, null, 2));
-            const newPo = new this.poModel(createPoDto);
-            const savedPo = await newPo.save();
+            const count = await this.prisma.purchaseOrder.count();
+            const orderNumber = createPoDto.orderNumber || `OC-${Date.now()}-${count + 1}`;
 
-            // Actualizar stock "en llegada" (arriving)
+            const savedPo = await this.prisma.purchaseOrder.create({
+                data: {
+                    number: orderNumber,
+                    supplierId: createPoDto.supplierId,
+                    warehouseId: createPoDto.bodegaId,
+                    orderDate: createPoDto.date ? new Date(createPoDto.date) : new Date(),
+                    expectedArrivalDate: (createPoDto.expectedArrivalDate || createPoDto.expectedDate) ? new Date(createPoDto.expectedArrivalDate || createPoDto.expectedDate) : null,
+                    status: 'CONFIRMED',
+                    notes: createPoDto.notes,
+                    subtotal: createPoDto.subtotal || 0,
+                    total: createPoDto.total || 0,
+                    lines: {
+                        create: createPoDto.lines.map((l: any) => ({
+                            productId: l.productId,
+                            quantityOrdered: l.quantity,
+                            unitCost: l.unitCostFOB || l.unitCostCIF || l.unitCost || 0,
+                            lineTotal: l.totalFOB || l.totalCIF || l.total || 0,
+                        }))
+                    }
+                },
+                include: { lines: true }
+            });
+
+            // Update arriving stock
             for (const line of savedPo.lines) {
-                const stock = await this.stockService.findOne(line.productId, savedPo.bodegaId);
-                const currentArriving = stock?.arriving || 0;
-                const currentExistence = stock?.existence || 0;
-                const currentReserved = stock?.reserved || 0;
+                if (!savedPo.warehouseId) continue;
+                const stock = await this.stockService.findOne(line.productId, savedPo.warehouseId);
+                const currentArriving = stock ? Number(stock.arriving) : 0;
+                const newArriving = currentArriving + Number(line.quantityOrdered);
 
-                const newArriving = currentArriving + line.quantity;
-                const newAvailable = currentExistence + newArriving - currentReserved;
-
-                await this.stockService.updateStock(line.productId, savedPo.bodegaId, {
+                await this.stockService.updateStock(line.productId, savedPo.warehouseId, {
                     arriving: newArriving,
-                    available: newAvailable,
                 });
             }
+
+            await this.notificationsService.notifyRole('COMPRAS', {
+                type: 'PO_CREATED',
+                title: 'Nueva Orden de Compra',
+                message: `Se ha generado la OC ${orderNumber} por un total de ${Number(savedPo.total).toLocaleString('es-PA', { style: 'currency', currency: 'USD' })}.`,
+                module: 'PURCHASING',
+                entityType: 'PurchaseOrder',
+                entityId: savedPo.id,
+                severity: 'INFO',
+                actionUrl: `/compras/ordenes/${savedPo.id}`,
+            });
 
             return savedPo;
         } catch (error: any) {
             console.error('Error creating Purchase Order:', error);
-            if (error.name === 'ValidationError' || error.name === 'CastError') {
-                throw new BadRequestException(error.message);
-            }
-            throw error;
+            throw new BadRequestException(error.message);
         }
     }
 
-    async updateStatus(id: string, status: string): Promise<PurchaseOrderDocument> {
+    async updateStatus(id: string, status: string): Promise<any> {
         const po = await this.findOne(id);
         const oldStatus = po.status;
 
         if (oldStatus === status) return po;
 
         // Si se cancela, restar del "arriving"
-        if (status === 'cancelada') {
+        if (status === 'CANCELED' || status === 'CANCELLED') {
             for (const line of po.lines) {
-                const stock = await this.stockService.findOne(line.productId, po.bodegaId);
+                if (!po.warehouseId) continue;
+                const stock = await this.stockService.findOne(line.productId, po.warehouseId);
                 if (stock) {
-                    const newArriving = Math.max(0, stock.arriving - line.quantity);
-                    const newAvailable = stock.existence + newArriving - stock.reserved;
-                    await this.stockService.updateStock(line.productId, po.bodegaId, {
+                    const newArriving = Math.max(0, Number(stock.arriving) - Number(line.quantityOrdered));
+                    await this.stockService.updateStock(line.productId, po.warehouseId, {
                         arriving: newArriving,
-                        available: newAvailable,
                     });
                 }
             }
         }
 
-        po.status = status;
-        return po.save();
+        return this.prisma.purchaseOrder.update({
+            where: { id },
+            data: { status: status as any }
+        });
     }
 
-    async receive(id: string, receptionData: any): Promise<PurchaseOrderDocument> {
+    async receive(id: string, receptionData: any): Promise<any> {
         const po = await this.findOne(id);
-
-        if (po.status === 'completada' || po.status === 'cancelada') {
+        if (po.status === 'COMPLETED' || po.status === 'CANCELED') {
             throw new BadRequestException('Esta orden ya no puede recibir mercancía');
         }
 
-        // receptionData.lines es un array de { productId, quantityReceived, unitCostCIF }
         const linesToUpdate = receptionData.lines || [];
+        const receiptNumber = `REC-${Date.now()}`;
 
-        for (const data of linesToUpdate) {
-            const line = (po.lines as any).find(l => l.productId.toString() === data.productId);
-            if (!line) continue;
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Crear el registro de Recepción de Compra
+            const purchaseReceipt = await tx.purchaseReceipt.create({
+                data: {
+                    number: receiptNumber,
+                    purchaseOrderId: po.id,
+                    supplierId: po.supplierId,
+                    warehouseId: po.warehouseId,
+                    receiptDate: new Date(),
+                    supplierInvoiceNumber: receptionData.supplierInvoiceNumber,
+                    notes: receptionData.notes || `Recepción de la OC ${po.number}`,
+                    status: 'CONFIRMED',
+                    createdByUserId: receptionData.userId
+                }
+            });
 
-            const qtyDiff = data.quantityReceived;
+            for (const data of linesToUpdate) {
+                const line = po.lines.find(l => l.productId === data.productId);
+                if (!line) continue;
 
-            // Actualizar stock
-            const stock = await this.stockService.findOne(data.productId, po.bodegaId);
-            if (stock) {
-                const newArriving = Math.max(0, stock.arriving - qtyDiff);
-                const newExistence = stock.existence + qtyDiff;
-                const newAvailable = newExistence + newArriving - stock.reserved;
+                const qtyReceived = Number(data.quantityReceived);
+                const unitCostCIF = Number(data.unitCostCIF || line.unitCost || 0);
 
-                await this.stockService.updateStock(data.productId, po.bodegaId, {
-                    existence: newExistence,
-                    arriving: newArriving,
-                    available: newAvailable,
+                // 2. Crear línea de recepción
+                const receiptLine = await tx.purchaseReceiptLine.create({
+                    data: {
+                        purchaseReceiptId: purchaseReceipt.id,
+                        purchaseOrderLineId: line.id,
+                        productId: data.productId,
+                        quantityReceived: qtyReceived,
+                        unitCost: unitCostCIF,
+                        lineTotal: unitCostCIF * qtyReceived,
+                    }
+                });
+
+                // 3. Manejo de Lotes (FEFO)
+                let lotId = null;
+                if (data.lotNumber) {
+                    const lot = await this.lotsService.recordLotEntry({
+                        productId: data.productId,
+                        warehouseId: po.warehouseId,
+                        lotNumber: data.lotNumber,
+                        expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+                        quantity: qtyReceived,
+                        purchaseReceiptLineId: receiptLine.id,
+                        tx
+                    });
+                    lotId = lot.id;
+
+                    // Registrar en PurchaseReceiptLineLot para trazabilidad
+                    await tx.purchaseReceiptLineLot.create({
+                        data: {
+                            purchaseReceiptLineId: receiptLine.id,
+                            productLotId: lotId,
+                            lotNumber: data.lotNumber,
+                            expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+                            quantityReceived: qtyReceived
+                        }
+                    });
+                }
+
+                // 4. Update stock existence and arriving
+                const stock = await tx.inventoryExistence.findUnique({
+                    where: {
+                        productId_warehouseId: {
+                            productId: data.productId,
+                            warehouseId: po.warehouseId
+                        }
+                    }
+                });
+
+                const currentArriving = stock ? Number(stock.arriving) : 0;
+                const currentExistence = stock ? Number(stock.existence) : 0;
+                const currentReserved = stock ? Number(stock.reserved) : 0;
+
+                const newArriving = Math.max(0, currentArriving - qtyReceived);
+                const newExistence = currentExistence + qtyReceived;
+                const newAvailable = newExistence + newArriving - currentReserved;
+
+                await tx.inventoryExistence.upsert({
+                    where: {
+                        productId_warehouseId: {
+                            productId: data.productId,
+                            warehouseId: po.warehouseId
+                        }
+                    },
+                    create: {
+                        productId: data.productId,
+                        warehouseId: po.warehouseId,
+                        existence: newExistence,
+                        arriving: newArriving,
+                        available: newAvailable
+                    },
+                    update: {
+                        existence: newExistence,
+                        arriving: newArriving,
+                        available: newAvailable
+                    }
+                });
+
+                // 5. Registrar Movimiento en Kardex con referencia al Lote
+                await tx.inventoryMovement.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: po.warehouseId,
+                        productLotId: lotId, // REFERENCIA AL LOTE
+                        movementType: 'PURCHASE_RECEIPT',
+                        quantity: qtyReceived,
+                        unitCost: unitCostCIF,
+                        totalCost: unitCostCIF * qtyReceived,
+                        balanceQuantity: newExistence,
+                        balanceValue: newExistence * unitCostCIF,
+                        referenceType: 'PURCHASE_RECEIPT',
+                        referenceId: purchaseReceipt.number,
+                        occurredAt: new Date(),
+                        notes: `Recepción OC ${po.number}${data.lotNumber ? ' - Lote: ' + data.lotNumber : ''}`
+                    }
+                });
+
+                // 6. Update PO Line
+                await tx.purchaseOrderLine.update({
+                    where: { id: line.id },
+                    data: {
+                        quantityReceived: { increment: qtyReceived },
+                        unitCost: unitCostCIF,
+                        lineTotal: (Number(line.quantityReceived) + qtyReceived) * unitCostCIF
+                    }
+                });
+
+                // 7. Update product weighted average cost
+                const product: any = await tx.product.findUnique({ where: { id: data.productId } });
+                const aggregate = await tx.inventoryExistence.aggregate({
+                    where: { productId: data.productId },
+                    _sum: { existence: true }
+                });
+
+                const totalExistence = Number(aggregate._sum.existence || 0);
+                const previousExistence = totalExistence - qtyReceived;
+                const previousCost = Number(product?.costAvgWeighted || product?.costCIF || 0);
+
+                const newWeightedAvg = totalExistence > 0
+                    ? ((previousExistence * previousCost) + (qtyReceived * unitCostCIF)) / totalExistence
+                    : unitCostCIF;
+
+                await tx.product.update({
+                    where: { id: data.productId },
+                    data: {
+                        costAvgWeighted: newWeightedAvg,
+                        costCIF: unitCostCIF,
+                        costFOB: data.unitCostFOB || product?.costFOB
+                    }
                 });
             }
 
-            // Actualizar línea de la PO
-            line.quantityReceived = (line.quantityReceived || 0) + qtyDiff;
-            if (data.unitCostCIF) {
-                const unitCIF = data.unitCostCIF;
-                line.unitCostCIF = unitCIF;
-                line.totalCIF = unitCIF * line.quantityReceived;
-            }
+            // Reload PO to check completion
+            const updatedPo = await tx.purchaseOrder.findUnique({
+                where: { id },
+                include: { lines: true }
+            });
 
-            // RECALCULAR COSTO PROMEDIO PONDERADO DEL PRODUCTO
-            if (data.unitCostCIF) {
-                const product = await this.productsService.findOne(data.productId);
-                const totalStock = await this.stockService.getProductStockAggregate(data.productId);
+            const allReceived = updatedPo?.lines.every(l => Number(l.quantityReceived) >= Number(l.quantityOrdered));
+            const finalStatus = allReceived ? 'RECEIVED' : 'PARTIALLY_RECEIVED';
 
-                // Nueva fórmula: ((Stock Anterior * Costo Anterior) + (Cantidad Nueva * Costo Nuevo)) / Stock Total
-                const previousExistence = totalStock.existence - qtyDiff;
-                const previousCost = product.costAvgWeighted || product.costCIF || 0;
+            const savedPo = await tx.purchaseOrder.update({
+                where: { id },
+                data: { status: finalStatus },
+                include: { lines: true }
+            });
 
-                const newWeightedAvg = totalStock.existence > 0
-                    ? ((previousExistence * previousCost) + (qtyDiff * data.unitCostCIF)) / totalStock.existence
-                    : data.unitCostCIF;
+            // Accounting Entry
+            await this.createAccountingEntryForReception(savedPo, linesToUpdate);
 
-                await this.productsService.update(data.productId, {
-                    costAvgWeighted: newWeightedAvg,
-                    costCIF: data.unitCostCIF, // Actualizamos el último CIF
-                    costFOB: line.unitCostFOB // Actualizamos el último FOB
+            // Accounts Payable Entry (CxP)
+            const totalValue = linesToUpdate.reduce((sum, l) => sum + (Number(l.quantityReceived) * Number(l.unitCostCIF || l.unitCost || 0)), 0);
+            if (totalValue > 0) {
+                await this.apService.createAccountsPayableEntry({
+                    supplierId: savedPo.supplierId,
+                    purchaseOrderId: savedPo.id,
+                    entryType: AccountsPayableEntryType.PURCHASE_CHARGE,
+                    amount: totalValue,
+                    notes: `Recepción Mercancía OC: ${savedPo.number}`,
+                    createdByUserId: receptionData.userId
                 });
             }
-        }
 
-        // Verificar si se completó la orden
-        const allReceived = po.lines.every(l => (l.quantityReceived || 0) >= l.quantity);
-        po.status = allReceived ? 'completada' : 'en_recepcion';
+            await this.notificationsService.notifyRole('COMPRAS', {
+                type: 'GOODS_RECEIVED',
+                title: 'Mercancía Recibida',
+                message: `Se ha registrado la recepción de mercancía para la OC ${savedPo.number}. Estado: ${finalStatus}.`,
+                module: 'PURCHASING',
+                entityType: 'PurchaseOrder',
+                entityId: savedPo.id,
+                severity: finalStatus === 'RECEIVED' ? 'SUCCESS' : 'WARNING',
+                actionUrl: `/compras/ordenes/${savedPo.id}`,
+            });
 
-        const savedPo = await po.save();
+            // If there's a difference, notify Gerencia
+            const totalOrdered = savedPo.lines.reduce((sum, l) => sum + Number(l.quantityOrdered), 0);
+            const totalReceived = savedPo.lines.reduce((sum, l) => sum + Number(l.quantityReceived), 0);
+            if (totalReceived < totalOrdered && finalStatus === 'RECEIVED') {
+                await this.notificationsService.notifyRole('GERENCIA', {
+                    type: 'PO_DISCREPANCY',
+                    title: 'Diferencia en Recepción de OC',
+                    message: `La OC ${savedPo.number} se marcó como recibida pero con diferencias en las cantidades.`,
+                    module: 'PURCHASING',
+                    entityType: 'PurchaseOrder',
+                    entityId: savedPo.id,
+                    severity: 'CRITICAL',
+                    actionUrl: `/compras/ordenes/${savedPo.id}`,
+                });
+            }
 
-        // Generar asiento contable por la recepción (parcial o total)
-        await this.createAccountingEntryForReception(savedPo, linesToUpdate);
-
-        return savedPo;
+            return savedPo;
+        });
     }
 
-    private async createAccountingEntryForReception(po: PurchaseOrderDocument, receivedLines: any[]) {
+    private async createAccountingEntryForReception(po: any, receivedLines: any[]) {
         try {
-            const accounts = await this.accountingService.findAllAccounts();
-            const inventario = accounts.find(a => a.code === '1030.01'); // Inventario de Mercancía
-            const proveedores = accounts.find(a => a.code === '2010.01'); // Proveedores Nacionales
-
-            if (!inventario || !proveedores) {
-                console.warn(`[Accounting] Missing accounts for PO reception: inventario(${!!inventario}), proveedores(${!!proveedores})`);
-                return;
-            }
-
-            const totalValue = receivedLines.reduce((sum, l) => sum + ((l.quantityReceived || 0) * (l.unitCostCIF || 0)), 0);
-
+            const totalValue = receivedLines.reduce((sum: number, l: any) => sum + (Number(l.quantityReceived) * Number(l.unitCostCIF || l.unitCost || 0)), 0);
             if (totalValue <= 0) return;
 
-            await this.accountingService.createEntry({
-                date: new Date(),
-                description: `Recepción Mercancía - OC: ${po.orderNumber}`,
-                sourceType: 'purchase_order',
-                sourceId: po._id.toString(),
-                lines: [
-                    {
-                        accountId: inventario._id,
-                        accountCode: inventario.code,
-                        accountName: inventario.name,
-                        debit: totalValue,
-                        credit: 0,
-                        memo: `Entrada stock OC ${po.orderNumber}`
-                    },
-                    {
-                        accountId: proveedores._id,
-                        accountCode: proveedores.code,
-                        accountName: proveedores.name,
-                        debit: 0,
-                        credit: totalValue,
-                        memo: `Obligación con proveedor por OC ${po.orderNumber}`
-                    }
-                ]
+            await this.accountingService.generateAutoEntry({
+                operationType: 'PURCHASE_RECEIPT',
+                referenceId: po.id,
+                amount: totalValue,
+                memo: `Recepción Mercancía - OC: ${po.number}`,
             });
-            console.log(`[Accounting] Created entry for PO reception ${po.orderNumber} - Amount: ${totalValue}`);
         } catch (e) {
             console.error('Error automatically creating accounting entry for PO reception:', e);
         }

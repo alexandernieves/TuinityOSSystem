@@ -9,92 +9,9 @@
 
 :root {
   /* ═══════════════════════════════════════════════
-     BRAND EVOLUTION — Navy from their web
-     This is the ACTION color: buttons, links,
-     active badges, icons, sidebar, headers
+     SHADCN/UI CORE VARIABLES
+     Using OKLCH color space for better consistency
      ═══════════════════════════════════════════════ */
-  --brand-950: #0A1628;
-  --brand-900: #0D1B2A;
-  --brand-800: #1B2D50;
-  --brand-700: #253D6B;
-  --brand-600: #2E4A7A;
-  --brand-500: #3A5A8C;
-  --brand-400: #5A7AAE;
-  --brand-300: #8BA3CA;
-  --brand-200: #B8CAE2;
-  --brand-100: #DCE5F2;
-  --brand-50: #EFF3FA;
-
-  /* ═══════════════════════════════════════════════
-     SURFACES — WHITE is the protagonist
-     Workspace is clean, clear, spacious
-     ═══════════════════════════════════════════════ */
-  --surface-main: #FFFFFF;
-  --surface-secondary: #F8FAFC;
-  --surface-tertiary: #F1F5F9;
-  --surface-hover: #F1F5F9;
-  --surface-selected: #EFF3FA;
-  --surface-sidebar: #0D1B2A;
-
-  /* ═══════════════════════════════════════════════
-     TEXT
-     ═══════════════════════════════════════════════ */
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #94A3B8;
-  --text-on-brand: #FFFFFF;
-  --text-on-brand-muted: #94A8C7;
-  --text-link: #1B2D50;
-
-  /* ═══════════════════════════════════════════════
-     SEMANTIC STATES — Only for states,
-     NOT for general actions
-     ═══════════════════════════════════════════════ */
-  --success: #059669;
-  --success-bg: #ECFDF5;
-  --success-light: #10B981;
-
-  --warning: #D97706;
-  --warning-bg: #FFFBEB;
-  --warning-light: #F59E0B;
-
-  --danger: #DC2626;
-  --danger-bg: #FEF2F2;
-  --danger-light: #EF4444;
-
-  --info: #2563EB;
-  --info-bg: #EFF6FF;
-  --info-light: #3B82F6;
-
-  /* ═══════════════════════════════════════════════
-     BORDERS
-     ═══════════════════════════════════════════════ */
-  --border-default: #E2E8F0;
-  --border-strong: #CBD5E1;
-  --border-brand: #1B2D50;
-
-  /* ═══════════════════════════════════════════════
-     SHADOWS
-     ═══════════════════════════════════════════════ */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-
-  /* ═══════════════════════════════════════════════
-     SPACING & SIZING
-     ═══════════════════════════════════════════════ */
-  --sidebar-width: 256px;
-  --sidebar-collapsed-width: 72px;
-  --header-height: 64px;
-
-  /* ═══════════════════════════════════════════════
-     RADIUS
-     ═══════════════════════════════════════════════ */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 24px;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -102,7 +19,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: #2563EB;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -110,7 +27,8 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: #EF4444;
+  --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -128,12 +46,18 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
-  /* ═══════════════════════════════════════════════
-     SHOPIFY-LIKE DESIGN TOKENS
-     ═══════════════════════════════════════════════ */
-  --shopify-green: #1a1a1a;
-  --shopify-green-hover: #333333;
-  --shopify-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  /* Semantic colors */
+  --success: oklch(0.696 0.17 155.1);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.75 0.18 85);
+  --warning-foreground: oklch(0.28 0.07 46);
+  --info: oklch(0.588 0.22 255);
+  --info-foreground: oklch(0.985 0 0);
+
+  /* Spacing */
+  --sidebar-width: 256px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 64px;
 }
 
 /* ═══════════════════════════════════════════════
@@ -151,88 +75,107 @@ html {
 }
 
 body {
-  background: var(--surface-main);
-  color: var(--text-primary);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-dm-sans), system-ui, sans-serif;
   line-height: 1.5;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 /* ═══════════════════════════════════════════════
    TYPOGRAPHY
    ═══════════════════════════════════════════════ */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-dm-sans), system-ui, sans-serif;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--foreground);
   margin: 0;
 }
 
-h1 {
-  font-size: 2rem;
-  line-height: 1.25;
-}
+h1 { font-size: 2rem; line-height: 1.25; }
+h2 { font-size: 1.5rem; line-height: 1.3; }
+h3 { font-size: 1.25rem; line-height: 1.4; }
+h4 { font-size: 1.125rem; line-height: 1.4; }
+h5 { font-size: 1rem; line-height: 1.5; }
+h6 { font-size: 0.875rem; line-height: 1.5; }
 
-h2 {
-  font-size: 1.5rem;
-  line-height: 1.3;
-}
-
-h3 {
-  font-size: 1.25rem;
-  line-height: 1.4;
-}
-
-h4 {
-  font-size: 1.125rem;
-  line-height: 1.4;
-}
-
-h5 {
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-h6 {
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-/* Monospace for codes, references */
-.font-mono,
-code,
-pre,
-.reference {
+/* Monospace for codes */
+.font-mono, code, pre, .reference {
   font-family: var(--font-jetbrains-mono), monospace;
 }
 
 /* ═══════════════════════════════════════════════
-   SCROLLBAR STYLING
+   SCROLLBAR STYLING — Minimalist & Transparent
    ═══════════════════════════════════════════════ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 2px;
+  height: 2px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface-secondary);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--brand-300);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+  transition: background 0.3s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-400);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════
+   FORM ELEMENTS — CLEAN & SHOPIFY STYLE
+   ═══════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════
+   FORM ELEMENTS & COMPONENTS — CLEAN SHADCN STYLE
+   ═══════════════════════════════════════════════ */
+
+/* Reset custom shadcn component defaults to ensure consistency */
+.card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+}
+
+.dark .card {
+  background-color: #0c0c0c;
+  border-color: #1a1a1a;
+}
+
+/* ═══════════════════════════════════════════════
+   BUTTONS — REFINED STYLE
+   ═══════════════════════════════════════════════ */
+
+button {
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+}
+
+/* Sidebar active state */
+.sidebar-item-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.dark .sidebar-item-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 /* ═══════════════════════════════════════════════
@@ -240,7 +183,7 @@ pre,
    ═══════════════════════════════════════════════ */
 /* Default focus for non-input elements (buttons, links, etc.) */
 :focus-visible:not(input):not(textarea):not(select) {
-  outline: 2px solid var(--brand-400);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -263,8 +206,8 @@ select:focus-visible,
 [data-slot="base"]:has(input:focus),
 [data-slot="base"]:has(textarea:focus) {
   outline: none !important;
-  box-shadow: 0 0 0 2px var(--brand-400) !important;
-  border-color: var(--brand-400) !important;
+  box-shadow: 0 0 0 2px var(--ring) !important;
+  border-color: var(--ring) !important;
 }
 
 /* ═══════════════════════════════════════════════
@@ -347,13 +290,13 @@ select:focus-visible,
 
 /* Sidebar active state */
 .sidebar-item-active {
-  background: var(--brand-700);
-  border-left: 3px solid var(--brand-400);
+  background: var(--primary);
+  border-left: 3px solid var(--ring);
 }
 
 /* Table row hover */
 .table-row-hover:hover {
-  background: var(--surface-hover);
+  background: var(--muted);
 }
 
 /* Status badge pulse for urgent */
@@ -372,270 +315,66 @@ select:focus-visible,
 }
 
 /* ═══════════════════════════════════════════════
-   SHOPIFY-LIKE UTILITIES
-   ═══════════════════════════════════════════════ */
-.shopify-card {
-  background-color: #ffffff;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: var(--shopify-shadow);
-}
-
-.shopify-btn-primary {
-  padding: 8px 16px;
-  border-radius: 10px;
-  background-color: var(--shopify-green);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-  box-shadow: var(--shopify-shadow);
-}
-
-.shopify-btn-primary:active {
-  transform: scale(0.98);
-}
-
-.shopify-btn-primary:hover {
-  background-color: var(--shopify-green-hover);
-}
-
-.shopify-btn-secondary {
-  padding: 8px 12px;
-  border-radius: 10px;
-  background-color: #ffffff;
-  color: #333333;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-  box-shadow: var(--shopify-shadow);
-}
-
-.shopify-btn-secondary:active {
-  transform: scale(0.98);
-}
-
-.shopify-btn-secondary:hover {
-  background-color: #f7f7f7;
-}
-
-/* ═══════════════════════════════════════════════
-   TAILWIND COLOR CLASSES (using CSS variables)
+   HEROUI DROPDOWN OVERRIDES
+   Dropdown backgrounds with dark mode support
    ═══════════════════════════════════════════════ */
 
-/* Brand colors */
-.bg-brand-50 {
-  background-color: var(--brand-50);
+/* HeroUI Dropdown Menu - Popover wrapper */
+div[data-slot="content"],
+div[data-slot="base"],
+section[data-slot="base"] {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
 }
 
-.bg-brand-100 {
-  background-color: var(--brand-100);
+/* Specific override for Cards */
+div[data-slot="base"].card {
+  border-radius: 12px !important;
 }
 
-.bg-brand-200 {
-  background-color: var(--brand-200);
+.dark div[data-slot="content"],
+.dark div[data-slot="base"],
+.dark section[data-slot="base"] {
+  background-color: #1a1a1a !important;
+  border: 1px solid #2a2a2a !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4) !important;
 }
 
-.bg-brand-300 {
-  background-color: var(--brand-300);
+/* HeroUI Menu/Listbox wrapper */
+ul[data-slot="list"],
+div[role="listbox"],
+div[role="menu"],
+ul[role="listbox"],
+ul[role="menu"] {
+  background-color: #FFFFFF !important;
+  padding: 4px !important;
 }
 
-.bg-brand-400 {
-  background-color: var(--brand-400);
+.dark ul[data-slot="list"],
+.dark div[role="listbox"],
+.dark div[role="menu"],
+.dark ul[role="listbox"],
+.dark ul[role="menu"] {
+  background-color: #1a1a1a !important;
 }
 
-.bg-brand-500 {
-  background-color: var(--brand-500);
+/* HeroUI Dropdown Content */
+[class*="dropdown"][class*="content"],
+[class*="popover"][class*="content"],
+[class*="listbox"][class*="wrapper"] {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
 }
 
-.bg-brand-600 {
-  background-color: var(--brand-600);
-}
-
-.bg-brand-700 {
-  background-color: var(--brand-700);
-}
-
-.bg-brand-800 {
-  background-color: var(--brand-800);
-}
-
-.bg-brand-900 {
-  background-color: var(--brand-900);
-}
-
-.bg-brand-950 {
-  background-color: var(--brand-950);
-}
-
-.text-brand-50 {
-  color: var(--brand-50);
-}
-
-.text-brand-100 {
-  color: var(--brand-100);
-}
-
-.text-brand-200 {
-  color: var(--brand-200);
-}
-
-.text-brand-300 {
-  color: var(--brand-300);
-}
-
-.text-brand-400 {
-  color: var(--brand-400);
-}
-
-.text-brand-500 {
-  color: var(--brand-500);
-}
-
-.text-brand-600 {
-  color: var(--brand-600);
-}
-
-.text-brand-700 {
-  color: var(--brand-700);
-}
-
-.text-brand-800 {
-  color: var(--brand-800);
-}
-
-.text-brand-900 {
-  color: var(--brand-900);
-}
-
-.text-brand-950 {
-  color: var(--brand-950);
-}
-
-.border-brand-400 {
-  border-color: var(--brand-400);
-}
-
-.border-brand-800 {
-  border-color: var(--brand-800);
-}
-
-/* Surface colors */
-.bg-surface-main {
-  background-color: var(--surface-main);
-}
-
-.bg-surface-secondary {
-  background-color: var(--surface-secondary);
-}
-
-.bg-surface-tertiary {
-  background-color: var(--surface-tertiary);
-}
-
-.bg-surface-hover {
-  background-color: var(--surface-hover);
-}
-
-.bg-surface-selected {
-  background-color: var(--surface-selected);
-}
-
-.bg-surface-sidebar {
-  background-color: var(--surface-sidebar);
-}
-
-/* Text colors */
-.text-text-primary {
-  color: var(--text-primary);
-}
-
-.text-text-secondary {
-  color: var(--text-secondary);
-}
-
-.text-text-muted {
-  color: var(--text-muted);
-}
-
-/* Semantic colors */
-.text-success {
-  color: var(--success);
-}
-
-.text-warning {
-  color: var(--warning);
-}
-
-.text-danger {
-  color: var(--danger);
-}
-
-.text-info {
-  color: var(--info);
-}
-
-.bg-success {
-  background-color: var(--success);
-}
-
-.bg-warning {
-  background-color: var(--warning);
-}
-
-.bg-danger {
-  background-color: var(--danger);
-}
-
-.bg-info {
-  background-color: var(--info);
-}
-
-.bg-success-bg {
-  background-color: var(--success-bg);
-}
-
-.bg-warning-bg {
-  background-color: var(--warning-bg);
-}
-
-.bg-danger-bg {
-  background-color: var(--danger-bg);
-}
-
-.bg-info-bg {
-  background-color: var(--info-bg);
-}
-
-/* Border colors */
-.border-border-default {
-  border-color: var(--border-default);
-}
-
-.border-border-strong {
-  border-color: var(--border-strong);
-}
-
-/* Hover variants */
-.hover\:bg-brand-50:hover {
-  background-color: var(--brand-50);
-}
-
-.hover\:bg-brand-700:hover {
-  background-color: var(--brand-700);
-}
-
-.hover\:bg-surface-tertiary:hover {
-  background-color: var(--surface-tertiary);
-}
-
-.hover\:text-brand-700:hover {
-  color: var(--brand-700);
-}
-
-.hover\:text-text-primary:hover {
-  color: var(--text-primary);
+.dark [class*="dropdown"][class*="content"],
+.dark [class*="popover"][class*="content"],
+.dark [class*="listbox"][class*="wrapper"] {
+  background-color: #1a1a1a !important;
+  border: 1px solid #2a2a2a !important;
 }
 
 @theme inline {
@@ -661,6 +400,7 @@ select:focus-visible,
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -677,6 +417,25 @@ select:focus-visible,
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Brand Palette */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: var(--primary);
+  --color-brand-600: var(--primary);
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
 }
 
 .dark {
@@ -736,40 +495,6 @@ select:focus-visible,
   --sidebar-border: #2a2a2a;
   --sidebar-ring: #00D1B2;
 
-  /* Override custom surfaces for dark mode */
-  --surface-main: #0a0a0a;
-  --surface-secondary: #141414;
-  --surface-tertiary: #1a1a1a;
-  --surface-hover: #252525;
-  --surface-selected: #1e1e1e;
-  --surface-sidebar: #0a0a0a;
-
-  /* Text colors for dark mode */
-  --text-primary: #FFFFFF;
-  --text-secondary: #AAAAAA;
-  --text-muted: #666666;
-  --text-link: #00D1B2;
-  --text-on-brand: #FFFFFF;
-
-  /* Semantic colors adjusted for dark backgrounds */
-  --success: #10B981;
-  --success-bg: rgba(16, 185, 129, 0.15);
-  --success-light: #34D399;
-  --warning: #F59E0B;
-  --warning-bg: rgba(245, 158, 11, 0.15);
-  --warning-light: #FBBF24;
-  --danger: #EF4444;
-  --danger-bg: rgba(239, 68, 68, 0.15);
-  --danger-light: #F87171;
-  --info: #3B82F6;
-  --info-bg: rgba(59, 130, 246, 0.15);
-  --info-light: #60A5FA;
-
-  /* Border colors for dark mode */
-  --border-default: #2a2a2a;
-  --border-strong: #3a3a3a;
-  --border-brand: #00D1B2;
-
   /* Shadows for dark mode */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
@@ -802,6 +527,12 @@ select:focus-visible,
   select:focus {
     outline: none !important;
   }
+
+  /* Cursor pointer for buttons (Tailwind v4 changed to default) */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -820,10 +551,8 @@ section[data-slot="base"] {
   overflow: hidden !important;
 }
 
-/* Specific override for Cards to use Shopify shadow */
-div[data-slot="base"].card,
-.shopify-card {
-  box-shadow: var(--shopify-shadow) !important;
+/* Specific override for Cards */
+div[data-slot="base"].card {
   border-radius: 12px !important;
 }
 
@@ -1007,8 +736,8 @@ div[role="menuitem"]:hover,
 
 /* HeroUI Input focus - uses border color change instead of outline */
 [data-slot="input-wrapper"]:focus-within {
-  border-color: var(--brand-400) !important;
-  box-shadow: 0 0 0 1px var(--brand-400) !important;
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 1px var(--ring), 0 0 0 4px rgba(58, 90, 140, 0.1) !important;
 }
 
 /* Remove focus ring from native inputs inside HeroUI wrappers */
@@ -1024,8 +753,8 @@ div[role="menuitem"]:hover,
 [data-slot="trigger"]:focus,
 [data-slot="trigger"]:focus-visible {
   outline: none !important;
-  border-color: var(--brand-400) !important;
-  box-shadow: 0 0 0 1px var(--brand-400) !important;
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 1px var(--ring) !important;
 }
 
 /* Native HTML inputs (used in login page and some forms) */
@@ -1141,4 +870,25 @@ div:has(> [data-slot="wrapper"])>div.fixed {
     size: A4;
     margin: 15mm;
   }
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ═══════════════════════════════════════════════
+   HIDE NUMBER INPUT SPINNERS (ARROWS)
+   ═══════════════════════════════════════════════ */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

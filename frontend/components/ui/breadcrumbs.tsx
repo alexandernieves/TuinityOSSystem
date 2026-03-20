@@ -47,7 +47,14 @@ const ROUTE_LABELS: Record<string, string> = {
 };
 
 function getSegmentLabel(segment: string): string {
-  return ROUTE_LABELS[segment] ?? segment;
+  // Detect UUIDs to avoid showing large hashes in breadcrumbs
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
+  if (isUUID) return 'Detalle';
+  
+  if (ROUTE_LABELS[segment]) return ROUTE_LABELS[segment];
+  
+  // Basic formatting for unknown segments (e.g. "mi-perfil" -> "Mi perfil")
+  return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
 }
 
 export function Breadcrumbs() {

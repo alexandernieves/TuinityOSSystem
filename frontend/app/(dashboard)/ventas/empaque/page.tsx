@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
-  Button,
-  Textarea,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Switch } from '@/components/ui/switch';
 import {
   PackageCheck,
@@ -25,28 +30,45 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getSalesOrdersData,
-  subscribeSalesOrders,
-  updateSalesOrder,
-  formatDate,
+  api
+} from '@/lib/services/api';
+import {
+    formatDate,
 } from '@/lib/mock-data/sales-orders';
 import type { SalesOrder } from '@/lib/types/sales-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { printPackingList } from '@/lib/utils/print-utils';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 export default function EmpaquePage() {
   const router = useRouter();
-  const salesOrders = useStore(subscribeSalesOrders, getSalesOrdersData);
   const { checkPermission } = useAuth();
   const canPackOrders = checkPermission('canPackOrders');
 
-  const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
+  const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [packingNotes, setPackingNotes] = useState('');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [checkedLines, setCheckedLines] = useState<Set<string>>(new Set());
-
   const [isPackOpen, setIsPackOpen] = useState(false);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getSales({ status: 'aprobado' });
+      setSalesOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error('Error al cargar pedidos para empaque');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   // Get orders ready for packing (status: aprobado)
   const readyToPack = useMemo(() => {
@@ -121,17 +143,26 @@ export default function EmpaquePage() {
     });
   };
 
-  const handleConfirmPack = () => {
+  const handleConfirmPack = async () => {
     if (selectedOrder) {
-      updateSalesOrder(selectedOrder.id, { status: 'empacado', packedAt: new Date().toISOString() });
-      toast.success('Pedido empacado', {
-        description: `El pedido ${selectedOrder.orderNumber} ha sido marcado como empacado y está listo para facturación.`,
-      });
-      setIsPackOpen(false);
-      setSelectedOrder(null);
-      setCheckedLines(new Set());
+      try {
+        await api.packSalesOrder(selectedOrder.id);
+        toast.success('Pedido empacado', {
+          description: `El pedido ${selectedOrder.orderNumber} ha sido marcado como empacado y está listo para facturación.`,
+        });
+        setIsPackOpen(false);
+        setSelectedOrder(null);
+        setCheckedLines(new Set());
+        fetchOrders(); // Refresh list
+      } catch (error: any) {
+        toast.error('Error al confirmar empaque', {
+            description: error.message
+        });
+      }
     }
   };
+
+  if (loading) return <SkeletonDashboard />;
 
   // Redirect if not authorized
   if (!canPackOrders) {
@@ -140,7 +171,7 @@ export default function EmpaquePage() {
         <AlertCircle className="mb-4 h-12 w-12 text-amber-500" />
         <h2 className="mb-2 text-lg font-medium text-foreground">Acceso restringido</h2>
         <p className="mb-4 text-sm text-muted-foreground">No tienes permisos para empacar pedidos.</p>
-        <Button color="primary" onPress={() => router.push('/ventas')}>
+        <Button onClick={() => router.push('/ventas')} className="bg-blue-600 hover:bg-blue-700 text-white">
           Volver a Ventas
         </Button>
       </div>
@@ -289,18 +320,18 @@ export default function EmpaquePage() {
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      variant="bordered"
-                      startContent={<Printer className="h-4 w-4" />}
-                      onPress={() => handlePrint(order)}
+                      variant="outline"
+                      onClick={() => handlePrint(order)}
                     >
+                      <Printer className="h-4 w-4 mr-2" />
                       Imprimir
                     </Button>
                     <Button
                       size="sm"
-                      color="success"
-                      startContent={<PackageCheck className="h-4 w-4" />}
-                      onPress={() => handlePackClick(order)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => handlePackClick(order)}
                     >
+                      <PackageCheck className="h-4 w-4 mr-2" />
                       Marcar Empacado
                     </Button>
                   </div>
@@ -319,7 +350,7 @@ export default function EmpaquePage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {order.lines.map((line) => (
+                        {order.lines.map((line: any) => (
                           <tr key={line.id}>
                             <td className="py-2">
                               <p className="text-sm font-medium text-foreground">{line.productDescription}</p>
@@ -331,7 +362,7 @@ export default function EmpaquePage() {
                               <span className="font-mono text-sm text-muted-foreground">{line.productReference}</span>
                             </td>
                             <td className="py-2 text-center">
-                              <span className="inline-flex h-8 min-w-[32px] items-center justify-center rounded-lg bg-brand-500/10 px-3 font-mono text-sm font-bold text-brand-500">
+                              <span className="inline-flex h-8 min-w-[32px] items-center justify-center rounded-lg bg-blue-500/10 px-3 font-mono text-sm font-bold text-blue-500">
                                 {line.quantity}
                               </span>
                             </td>
@@ -361,80 +392,83 @@ export default function EmpaquePage() {
       )}
 
       {/* Pack Confirmation Modal */}
-      <CustomModal isOpen={isPackOpen} onClose={() => setIsPackOpen(false)} size="lg" scrollable>
-        <CustomModalHeader onClose={() => setIsPackOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-              <PackageCheck className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Confirmar Empaque</h2>
-              <p className="text-sm text-muted-foreground">{selectedOrder?.orderNumber}</p>
+      <Dialog open={isPackOpen} onOpenChange={setIsPackOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <PackageCheck className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Confirmar Empaque</h2>
+                  <p className="text-sm text-muted-foreground font-normal">{selectedOrder?.orderNumber}</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Cliente:</span>
+                  <p className="font-medium text-foreground">{selectedOrder?.customerName}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Destino:</span>
+                  <p className="font-medium text-foreground">{selectedOrder?.customerCountry}</p>
+                </div>
+              </div>
+
+              {/* Checklist */}
+              <div className="rounded-lg border border-border p-4">
+                <h4 className="mb-3 text-sm font-medium text-foreground">Verificar productos empacados:</h4>
+                <div className="space-y-2">
+                  {selectedOrder?.lines.map((line: any) => (
+                    <label
+                      key={line.id}
+                      className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/50 cursor-pointer"
+                    >
+                      <Switch
+                        checked={checkedLines.has(line.id)}
+                        onCheckedChange={() => toggleLineCheck(line.id)}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{line.productDescription}</p>
+                        <p className="text-xs text-muted-foreground">{line.productReference}</p>
+                      </div>
+                      <span className="font-mono text-sm font-bold text-blue-500">x{line.quantity}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Notas de empaque (opcional)</label>
+                <Textarea
+                  placeholder="Observaciones sobre el empaque, bultos, peso..."
+                  value={packingNotes}
+                  onChange={(e) => setPackingNotes(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
             </div>
           </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Cliente:</span>
-                <p className="font-medium text-foreground">{selectedOrder?.customerName}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Destino:</span>
-                <p className="font-medium text-foreground">{selectedOrder?.customerCountry}</p>
-              </div>
-            </div>
-
-            {/* Checklist */}
-            <div className="rounded-lg border border-border p-4">
-              <h4 className="mb-3 text-sm font-medium text-foreground">Verificar productos empacados:</h4>
-              <div className="space-y-2">
-                {selectedOrder?.lines.map((line) => (
-                  <label
-                    key={line.id}
-                    className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/50"
-                  >
-                    <Switch
-                      checked={checkedLines.has(line.id)}
-                      onCheckedChange={() => toggleLineCheck(line.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{line.productDescription}</p>
-                      <p className="text-xs text-muted-foreground">{line.productReference}</p>
-                    </div>
-                    <span className="font-mono text-sm font-bold text-brand-500">x{line.quantity}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Notas de empaque (opcional)</label>
-              <Textarea
-                placeholder="Observaciones sobre el empaque, bultos, peso..."
-                value={packingNotes}
-                onChange={(e) => setPackingNotes(e.target.value)}
-                variant="bordered"
-                minRows={2}
-              />
-            </div>
-          </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsPackOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            color="success"
-            onPress={handleConfirmPack}
-            isDisabled={selectedOrder ? checkedLines.size !== selectedOrder.lines.length : false}
-            startContent={<Check className="h-4 w-4" />}
-          >
-            Confirmar Empaque
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter className="p-6 pt-2 gap-2 border-t mt-auto">
+            <Button variant="outline" onClick={() => setIsPackOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleConfirmPack}
+              disabled={selectedOrder ? checkedLines.size !== selectedOrder.lines.length : false}
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Confirmar Empaque
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

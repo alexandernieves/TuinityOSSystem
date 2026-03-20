@@ -1,379 +1,135 @@
 'use client';
-
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useStore } from '@/hooks/use-store';
-import { motion } from 'framer-motion';
-import {
-  Button,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
-import {
-  Wallet,
-  ChevronRight,
-  Landmark,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  TrendingUp,
-  TrendingDown,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/services/api';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/contexts/auth-context';
-import { cn } from '@/lib/utils/cn';
-import {
-  MOCK_BANK_ACCOUNTS,
-  MOCK_BANK_MOVEMENTS,
-  getCashFlowProjections,
-  formatCurrencyAccounting,
-  subscribeBankAccounts,
-  getBankAccountsData,
-  subscribeBankMovements,
-  getBankMovementsData,
-  addBankMovement,
-} from '@/lib/mock-data/accounting';
+import { Landmark, Plus, ArrowRightLeft, TrendingUp, TrendingDown, MoreHorizontal, History } from 'lucide-react';
+
+const fmt = (n: number) => n?.toLocaleString('es-PA', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }) ?? '$0.00';
 
 export default function TesoreriaPage() {
-  const router = useRouter();
-  const { checkPermission } = useAuth();
-  const canAccessTreasury = checkPermission('canAccessTreasury');
+    const [accounts, setAccounts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [summary, setSummary] = useState<any>(null);
 
-  useStore(subscribeBankAccounts, getBankAccountsData);
-  const bankMovements = useStore(subscribeBankMovements, getBankMovementsData);
+    const load = async () => {
+        setLoading(true);
+        try {
+            const [accs, cf] = await Promise.all([
+                api.getBankAccounts(),
+                api.getCashFlowByBank()
+            ]);
+            setAccounts(accs);
+            setSummary(cf);
+        } catch (e: any) {
+            toast.error('Error cargando bancos: ' + e.message);
+        } finally {
+            setLoading(setLoading(false) as any);
+        }
+    };
 
-  const [isOpen, setIsOpen] = useState(false);
+    useEffect(() => { load(); }, []);
 
-  // Payment form
-  const [paymentBank, setPaymentBank] = useState('');
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentBeneficiary, setPaymentBeneficiary] = useState('');
-  const [paymentConcept, setPaymentConcept] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
-
-  const activeBanks = MOCK_BANK_ACCOUNTS.filter((b) => b.isActive);
-  const totalBalance = activeBanks.reduce((sum, b) => sum + b.currentBalance, 0);
-  const projections = getCashFlowProjections();
-
-  const recentMovements = useMemo(
-    () => [...MOCK_BANK_MOVEMENTS].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [bankMovements]
-  );
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-PA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-    });
-  };
-
-  const handleEmitPayment = () => {
-    if (!paymentBank || !paymentAmount || !paymentBeneficiary || !paymentConcept) {
-      toast.error('Campos requeridos', {
-        description: 'Completa todos los campos obligatorios.',
-      });
-      return;
-    }
-    addBankMovement({
-      id: `BM-${Date.now()}`,
-      date: new Date().toISOString(),
-      bankAccountId: paymentBank,
-      bankName: MOCK_BANK_ACCOUNTS.find((b) => b.id === paymentBank)?.bankName || '',
-      description: `${paymentConcept} - ${paymentBeneficiary}`,
-      type: 'egreso',
-      amount: parseFloat(paymentAmount),
-      balance: 0,
-      reference: paymentReference || undefined,
-    });
-    toast.success('Pago emitido', {
-      description: `Pago de ${formatCurrencyAccounting(parseFloat(paymentAmount))} emitido a ${paymentBeneficiary}.`,
-    });
-    setIsOpen(false);
-    setPaymentBank('');
-    setPaymentAmount('');
-    setPaymentBeneficiary('');
-    setPaymentConcept('');
-    setPaymentReference('');
-  };
-
-  return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/contabilidad')}
-            className="text-sm text-gray-500 dark:text-[#888888] hover:text-gray-700 dark:hover:text-white"
-          >
-            Contabilidad
-          </button>
-          <ChevronRight className="h-4 w-4 text-gray-400" />
-          <div className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Tesorería</h1>
-          </div>
-        </div>
-        {canAccessTreasury && (
-          <button
-            onClick={() => setIsOpen(true)}
-            className="flex h-9 items-center gap-2 rounded-lg bg-purple-600 px-4 text-sm font-medium text-white transition-colors hover:bg-purple-700"
-          >
-            <Plus className="h-4 w-4" />
-            Emitir Pago
-          </button>
-        )}
-      </div>
-
-      {/* Total Balance */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-gradient-to-r from-purple-600 to-purple-800 p-6 text-white"
-      >
-        <div className="flex items-center gap-3">
-          <Landmark className="h-8 w-8 opacity-80" />
-          <div>
-            <p className="text-sm opacity-80">Saldo Total en Bancos</p>
-            <p className="font-mono text-3xl font-bold">{formatCurrencyAccounting(totalBalance)}</p>
-            <p className="text-xs opacity-60">{activeBanks.length} cuentas activas</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Bank Cards Grid */}
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">Cuentas Bancarias</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {activeBanks.map((bank, index) => (
-            <motion.div
-              key={bank.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-4"
-              style={{ borderLeftWidth: 4, borderLeftColor: bank.color }}
-            >
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">{bank.bankName}</p>
-              <p className="text-xs text-gray-500 dark:text-[#888888]">
-                {bank.accountType === 'corriente' ? 'Corriente' : bank.accountType === 'ahorros' ? 'Ahorros' : 'Inversión'} | {bank.accountNumber}
-              </p>
-              <div className="mt-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-[#888888]">Saldo Actual</span>
-                  <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">
-                    {formatCurrencyAccounting(bank.currentBalance)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-[#888888]">Disponible</span>
-                  <span className="font-mono text-sm text-gray-600 dark:text-gray-400">
-                    {formatCurrencyAccounting(bank.availableBalance)}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recent Movements */}
-      <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-        <div className="border-b border-gray-200 dark:border-[#2a2a2a] px-4 py-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Movimientos Recientes</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Fecha</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Banco</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Descripción</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Tipo</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Monto</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {recentMovements.map((mov, index) => (
-                <motion.tr
-                  key={mov.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.02 }}
-                  className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-                >
-                  <td className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{formatDate(mov.date)}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-white">{mov.bankName}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300">{mov.description}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
-                        mov.type === 'ingreso'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : 'bg-red-500/10 text-red-500'
-                      )}
-                    >
-                      {mov.type === 'ingreso' ? (
-                        <ArrowDownRight className="h-3 w-3" />
-                      ) : (
-                        <ArrowUpRight className="h-3 w-3" />
-                      )}
-                      {mov.type === 'ingreso' ? 'Ingreso' : 'Egreso'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span
-                      className={cn(
-                        'font-mono text-sm font-medium',
-                        mov.type === 'ingreso' ? 'text-emerald-600' : 'text-red-600'
-                      )}
-                    >
-                      {mov.type === 'ingreso' ? '+' : '-'}{formatCurrencyAccounting(mov.amount)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-mono text-sm text-gray-900 dark:text-white">
-                    {formatCurrencyAccounting(mov.balance)}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Cash Flow Projection */}
-      <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-        <div className="border-b border-gray-200 dark:border-[#2a2a2a] px-4 py-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Proyección de Flujo de Efectivo</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Período</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Ingresos Esperados</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Gastos Esperados</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Flujo Neto</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Saldo Acumulado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {projections.map((proj, index) => (
-                <tr key={proj.period} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
-                  <td className="px-4 py-2.5">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{proj.period}</p>
-                    <p className="text-[10px] text-gray-500 dark:text-[#888888]">
-                      {formatDate(proj.startDate)} - {formatDate(proj.endDate)}
-                    </p>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span className="font-mono text-sm text-emerald-600">{formatCurrencyAccounting(proj.expectedIncome)}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span className="font-mono text-sm text-red-600">{formatCurrencyAccounting(proj.expectedExpenses)}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 font-mono text-sm font-semibold',
-                        proj.netFlow >= 0 ? 'text-emerald-600' : 'text-red-600'
-                      )}
-                    >
-                      {proj.netFlow >= 0 ? (
-                        <TrendingUp className="h-3 w-3" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3" />
-                      )}
-                      {formatCurrencyAccounting(proj.netFlow)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-mono text-sm font-medium text-gray-900 dark:text-white">
-                    {formatCurrencyAccounting(proj.cumulativeBalance)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Payment Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg">
-          <CustomModalHeader onClose={() => setIsOpen(false)}>
-              <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              Emitir Pago
-          </CustomModalHeader>
-          <CustomModalBody className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Banco</label>
-                <select
-                  value={paymentBank}
-                  onChange={(e) => setPaymentBank(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="">Seleccionar banco...</option>
-                  {activeBanks.map((bank) => (
-                    <option key={bank.id} value={bank.id}>
-                      {bank.bankName} ({bank.accountNumber}) - {formatCurrencyAccounting(bank.availableBalance)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Monto</label>
-                  <input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 font-mono text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Referencia</label>
-                  <input
-                    type="text"
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    placeholder="Referencia del pago"
-                    className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Beneficiario</label>
-                <input
-                  type="text"
-                  value={paymentBeneficiary}
-                  onChange={(e) => setPaymentBeneficiary(e.target.value)}
-                  placeholder="Nombre del beneficiario"
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Concepto</label>
-                <input
-                  type="text"
-                  value={paymentConcept}
-                  onChange={(e) => setPaymentConcept(e.target.value)}
-                  placeholder="Concepto del pago"
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
+    return (
+        <div className="p-6 max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tesorería y Bancos</h1>
+                <p className="text-sm text-gray-500">Gestión de saldos, movimientos y transferencias entre cuentas</p>
             </div>
-          </CustomModalBody>
-          <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onPress={handleEmitPayment} className="bg-purple-600 text-white">
-              Emitir Pago
-            </Button>
-          </CustomModalFooter>
-      </CustomModal>
-    </div>
-  );
+
+            {/* Summary Cards */}
+            {summary && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <Landmark className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-500">Saldo Total Consolidado</span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{fmt(summary.totalNet)}</p>
+                    </div>
+                    <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-500">Total Ingresos (Período)</span>
+                        </div>
+                        <p className="text-2xl font-bold text-emerald-600 font-mono">{fmt(summary.totalCashIn)}</p>
+                    </div>
+                    <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                                <TrendingDown className="w-5 h-5 text-red-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-500">Total Egresos (Período)</span>
+                        </div>
+                        <p className="text-2xl font-bold text-red-600 font-mono">{fmt(summary.totalCashOut)}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3">
+                <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors">
+                    <Plus className="w-4 h-4" /> Nueva Cuenta
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-bold transition-colors">
+                    <ArrowRightLeft className="w-4 h-4" /> Transferencia entre Bancos
+                </button>
+            </div>
+
+            {/* Banks Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {loading ? [1, 2, 3].map(i => <div key={i} className="h-48 bg-gray-100 dark:bg-white/5 animate-pulse rounded-2xl" />) :
+                    accounts.map(acc => (
+                        <div key={acc.id} className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm hover:border-blue-500/50 transition-all group">
+                            <div className="p-5 border-b border-gray-100 dark:border-white/5">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg" style={{ backgroundColor: acc.color + '20' || '#3b82f620', color: acc.color || '#3b82f6' }}>
+                                            {acc.bankName?.[0]}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-900 dark:text-white leading-tight">{acc.name}</h3>
+                                            <p className="text-xs text-gray-500">{acc.bankName} • {acc.accountNumber}</p>
+                                        </div>
+                                    </div>
+                                    <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                        <MoreHorizontal className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Saldo Actual</p>
+                                        <p className="text-xl font-mono font-bold text-gray-900 dark:text-white">{fmt(acc.currentBalance)}</p>
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${acc.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700'}`}>
+                                        {acc.isActive ? 'ACTIVA' : 'INACTIVA'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex border-t border-gray-50 dark:border-white/5">
+                                <button className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-r border-gray-50 dark:border-white/5">
+                                    <History className="w-3.5 h-3.5" /> Movimientos
+                                </button>
+                                <button
+                                    onClick={() => window.location.href = `/contabilidad/conciliacion?bankAccountId=${acc.id}`}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                >
+                                    <Landmark className="w-3.5 h-3.5" /> Conciliar
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                }
+            </div>
+
+            {!loading && accounts.length === 0 && (
+                <div className="p-12 text-center bg-gray-50 dark:bg-white/5 rounded-3xl border-2 border-dashed border-gray-200 dark:border-white/10">
+                    <p className="text-gray-500">No hay cuentas bancarias configuradas.</p>
+                </div>
+            )}
+        </div>
+    );
 }

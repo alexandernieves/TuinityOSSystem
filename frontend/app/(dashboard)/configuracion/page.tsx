@@ -118,8 +118,8 @@ export default function ConfiguracionPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50">
-          <Settings className="h-5 w-5 text-brand-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
+          <Settings className="h-5 w-5 text-blue-600" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Configuración</h1>
@@ -168,7 +168,7 @@ export default function ConfiguracionPage() {
                 onMouseLeave={() => setActiveSection(null)}
                 className={cn(
                   'group flex items-start gap-4 rounded-[12px] bg-white p-5 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
-                  activeSection === section.id && 'ring-2 ring-brand-500 ring-offset-2'
+                  activeSection === section.id && 'ring-2 ring-blue-500 ring-offset-2'
                 )}
               >
                 <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', section.bgColor)}>

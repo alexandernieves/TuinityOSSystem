@@ -768,20 +768,18 @@ export function getClientStats(): ClientStats {
   };
 }
 
-export function getCreditStatus(clientOrId: Client | string): CreditStatus {
-  const client = typeof clientOrId === 'string' ? getClientById(clientOrId) : clientOrId;
-
-  if (!client) {
+export function getCreditStatus(client: Client): CreditStatus {
+  if (!client || typeof client !== 'object') {
     return {
       available: 0,
       used: 0,
       limit: 0,
       percentUsed: 0,
       status: 'ok',
-      message: 'Cliente no encontrado',
+      message: 'No disponible',
     };
   }
-
+  const creditAvailable = client.creditAvailable ?? 0;
   const percentUsed =
     client.creditLimit > 0
       ? (client.creditUsed / client.creditLimit) * 100
@@ -796,21 +794,21 @@ export function getCreditStatus(clientOrId: Client | string): CreditStatus {
   } else if (client.creditLimit === 0) {
     status = 'ok';
     message = 'Solo contado';
-  } else if ((client.creditAvailable ?? 0) < 0) {
+  } else if (creditAvailable < 0) {
     status = 'exceeded';
-    message = `Excede por $${Math.abs(client.creditAvailable ?? 0).toLocaleString()}`;
+    message = `Excede por $${Math.abs(creditAvailable).toLocaleString()}`;
   } else if (percentUsed >= 80) {
     status = 'warning';
     message = `${percentUsed.toFixed(0)}% utilizado`;
   } else {
     status = 'ok';
-    message = `$${(client.creditAvailable ?? 0).toLocaleString()} disponible`;
+    message = `$${creditAvailable.toLocaleString()} disponible`;
   }
 
   return {
-    available: client.creditAvailable ?? 0,
-    used: client.creditUsed ?? 0,
-    limit: client.creditLimit ?? 0,
+    available: creditAvailable,
+    used: client.creditUsed,
+    limit: client.creditLimit,
     percentUsed,
     status,
     message,
@@ -844,22 +842,20 @@ export function checkCreditForOrder(
     return { allowed: true, message: 'Cliente de contado - no aplica crédito', newBalance: 0 };
   }
 
-  const creditLimit = client.creditLimit ?? 0;
-  const creditUsed = client.creditUsed ?? 0;
-  const newBalance = creditUsed + orderAmount;
-  const wouldExceed = newBalance > creditLimit;
+  const newBalance = client.creditUsed + orderAmount;
+  const wouldExceed = newBalance > client.creditLimit;
 
   if (wouldExceed) {
     return {
       allowed: false,
-      message: `Excedería el límite por $${(newBalance - creditLimit).toLocaleString()}`,
+      message: `Excedería el límite por $${(newBalance - client.creditLimit).toLocaleString()}`,
       newBalance,
     };
   }
 
   return {
     allowed: true,
-    message: `Crédito disponible: $${(creditLimit - newBalance).toLocaleString()}`,
+    message: `Crédito disponible: $${(client.creditLimit - newBalance).toLocaleString()}`,
     newBalance,
   };
 }

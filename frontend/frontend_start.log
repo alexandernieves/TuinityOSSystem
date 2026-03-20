@@ -1,0 +1,35 @@
+
+> evolution-frontend-os@0.1.0 dev
+> next dev --webpack -p 3000
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.123.36:3000
+- Environments: .env
+
+✓ Starting...
+✓ Ready in 1515ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+○ Compiling /login ...
+ GET /login 200 in 7.2s (compile: 3.9s, render: 3.3s)
+ GET /login 200 in 91ms (compile: 54ms, render: 37ms)
+ GET /login 200 in 332ms (compile: 230ms, render: 102ms)
+ GET /login 200 in 1230ms (compile: 1116ms, render: 114ms)
+ GET /login 200 in 407ms (compile: 284ms, render: 123ms)
+ GET /login 200 in 910ms (compile: 230ms, render: 680ms)
+ GET /login 200 in 413ms (compile: 192ms, render: 220ms)
+ GET /login 200 in 658ms (compile: 129ms, render: 529ms)
+ GET /login 200 in 107ms (compile: 31ms, render: 76ms)
+○ Compiling /register ...
+ GET /register 200 in 4.5s (compile: 4.4s, render: 112ms)
+ GET /register 200 in 105ms (compile: 45ms, render: 59ms)
+ GET /pending-validation 200 in 1913ms (compile: 1792ms, render: 120ms)
+ GET /login 200 in 31ms (compile: 16ms, render: 15ms)
+○ Compiling /dashboard ...
+ GET /dashboard 200 in 12.3s (compile: 12.2s, render: 142ms)
+ GET /clientes 200 in 1021ms (compile: 985ms, render: 36ms)
+ GET /configuracion 200 in 645ms (compile: 618ms, render: 27ms)
+ GET /configuracion/usuarios 200 in 1557ms (compile: 1517ms, render: 40ms)
+ GET /configuracion/usuarios 200 in 130ms (compile: 87ms, render: 42ms)
+ GET /configuracion/usuarios 200 in 294ms (compile: 235ms, render: 59ms)
+ GET /configuracion/usuarios 200 in 193ms (compile: 137ms, render: 56ms)

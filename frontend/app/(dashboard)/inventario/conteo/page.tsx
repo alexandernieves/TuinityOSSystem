@@ -2,14 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Button,
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Input,
-} from '@heroui/react';
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Plus,
   Search,
@@ -152,8 +152,8 @@ export default function ConteoPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-            <ClipboardList className="h-5 w-5 text-brand-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+            <ClipboardList className="h-5 w-5 text-blue-600" />
           </div>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Conteo Físico</h1>
@@ -162,11 +162,10 @@ export default function ConteoPage() {
         </div>
         {canCreateCount && (
           <Button
-            color="primary"
-            startContent={<Plus className="h-4 w-4" />}
-            onPress={() => router.push('/inventario/conteo/nuevo')}
-            className="bg-brand-600"
+            onClick={() => router.push('/inventario/conteo/nuevo')}
+            className="bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
           >
+            <Plus className="h-4 w-4" />
             Nueva Sesión
           </Button>
         )}
@@ -193,7 +192,7 @@ export default function ConteoPage() {
                   className={cn(
                     'rounded-full px-2 py-0.5 text-xs',
                     activeTab === tab.key
-                      ? 'bg-brand-100 text-brand-700'
+                      ? 'bg-blue-100 text-blue-700'
                       : 'bg-gray-200 text-gray-600'
                   )}
                 >
@@ -204,14 +203,13 @@ export default function ConteoPage() {
           </div>
 
           {/* Search */}
-          <div className="w-full md:w-80">
+          <div className="w-full md:w-80 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
             <Input
               placeholder="Buscar sesiones..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              startContent={<Search className="h-4 w-4 text-gray-400" />}
-              variant="bordered"
-              classNames={{ inputWrapper: 'bg-white' }}
+              className="pl-9"
             />
           </div>
         </div>
@@ -226,7 +224,7 @@ export default function ConteoPage() {
             return (
               <div
                 key={session.id}
-                className="group rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-brand-200 hover:shadow-md"
+                className="group rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-blue-200 hover:shadow-md"
               >
                 <div className="mb-4 flex items-start justify-between">
                   <div>
@@ -246,39 +244,29 @@ export default function ConteoPage() {
                       <p className="mt-1 text-sm text-gray-500">{session.zone}</p>
                     )}
                   </div>
-                  <Dropdown>
-                    <DropdownTrigger>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 opacity-0 transition-all hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100">
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
-                    </DropdownTrigger>
-                    <DropdownMenu aria-label="Acciones">
-                      <DropdownItem
-                        key="view"
-                        startContent={<Eye className="h-4 w-4" />}
-                        onPress={() => router.push(`/inventario/conteo/${session.id}`)}
-                      >
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => router.push(`/inventario/conteo/${session.id}`)} className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
                         Ver Sesión
-                      </DropdownItem>
-                      {session.status === 'en_progreso' ? (
-                        <DropdownItem
-                          key="continue"
-                          startContent={<ClipboardList className="h-4 w-4" />}
-                          onPress={() => router.push(`/inventario/conteo/${session.id}`)}
-                        >
+                      </DropdownMenuItem>
+                      {session.status === 'en_progreso' && (
+                        <DropdownMenuItem onClick={() => router.push(`/inventario/conteo/${session.id}`)} className="flex items-center gap-2">
+                          <ClipboardList className="h-4 w-4" />
                           Continuar Conteo
-                        </DropdownItem>
-                      ) : null}
-                      <DropdownItem
-                        key="delete"
-                        startContent={<Trash2 className="h-4 w-4" />}
-                        className="text-danger"
-                        color="danger"
-                      >
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem className="flex items-center gap-2 text-red-600">
+                        <Trash2 className="h-4 w-4" />
                         Eliminar
-                      </DropdownItem>
-                    </DropdownMenu>
-                  </Dropdown>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Progress */}
@@ -293,7 +281,7 @@ export default function ConteoPage() {
                     <div
                       className={cn(
                         'h-full rounded-full transition-all',
-                        progress === 100 ? 'bg-green-500' : 'bg-brand-500'
+                        progress === 100 ? 'bg-green-500' : 'bg-blue-500'
                       )}
                       style={{ width: `${progress}%` }}
                     />
@@ -351,13 +339,12 @@ export default function ConteoPage() {
                 {/* Action Button */}
                 <div className="mt-4">
                   <Button
-                    variant={session.status === 'en_progreso' ? 'solid' : 'bordered'}
-                    color={session.status === 'en_progreso' ? 'primary' : 'default'}
+                    variant={session.status === 'en_progreso' ? 'default' : 'outline'}
                     className={cn(
                       'w-full',
-                      session.status === 'en_progreso' && 'bg-brand-600'
+                      session.status === 'en_progreso' && 'bg-blue-600 text-white hover:bg-blue-700'
                     )}
-                    onPress={() => router.push(`/inventario/conteo/${session.id}`)}
+                    onClick={() => router.push(`/inventario/conteo/${session.id}`)}
                   >
                     {session.status === 'en_progreso' ? 'Continuar Conteo' : 'Ver Detalles'}
                   </Button>
@@ -377,11 +364,10 @@ export default function ConteoPage() {
           </p>
           {canCreateCount && !search && (
             <Button
-              color="primary"
-              startContent={<Plus className="h-4 w-4" />}
-              onPress={() => router.push('/inventario/conteo/nuevo')}
-              className="bg-brand-600"
+              onClick={() => router.push('/inventario/conteo/nuevo')}
+              className="bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
             >
+              <Plus className="h-4 w-4" />
               Nueva Sesión
             </Button>
           )}

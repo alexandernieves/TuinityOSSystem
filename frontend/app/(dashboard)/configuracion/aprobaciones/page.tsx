@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
-  Button,
-  Input,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -248,7 +252,7 @@ export default function AprobacionesPage() {
           {canConfigure && (
             <button
               onClick={() => handleOpenModal()}
-              className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+              className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
             >
               <Plus className="h-4 w-4" />
               Nuevo Flujo
@@ -352,35 +356,37 @@ export default function AprobacionesPage() {
       </div>
 
       {/* Flow Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg" scrollable>
-        <CustomModalHeader onClose={() => setIsOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950">
-              <GitBranch className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {editingFlow ? 'Editar Flujo de Aprobacion' : 'Nuevo Flujo de Aprobacion'}
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-[#888888]">
-                {editingFlow ? `Editando ${editingFlow.name}` : 'Definir un nuevo flujo de aprobacion'}
-              </p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950">
+                  <GitBranch className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {editingFlow ? 'Editar Flujo de Aprobacion' : 'Nuevo Flujo de Aprobacion'}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-[#888888] font-normal">
+                    {editingFlow ? `Editando ${editingFlow.name}` : 'Definir un nuevo flujo de aprobacion'}
+                  </p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del Flujo</label>
-              <Input placeholder="Ej: Aprobacion de descuentos especiales" value={flowForm.name} onChange={(e) => setFlowForm({ ...flowForm, name: e.target.value })} variant="bordered" />
+              <Input placeholder="Ej: Aprobacion de descuentos especiales" value={flowForm.name} onChange={(e) => setFlowForm({ ...flowForm, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Descripcion</label>
-              <Input placeholder="Descripcion detallada del flujo" value={flowForm.description} onChange={(e) => setFlowForm({ ...flowForm, description: e.target.value })} variant="bordered" />
+              <Input placeholder="Descripcion detallada del flujo" value={flowForm.description} onChange={(e) => setFlowForm({ ...flowForm, description: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Condicion de Activacion</label>
-              <Input placeholder="Ej: Descuento > 15%" value={flowForm.triggerCondition} onChange={(e) => setFlowForm({ ...flowForm, triggerCondition: e.target.value })} variant="bordered" />
+              <Input placeholder="Ej: Descuento &gt; 15%" value={flowForm.triggerCondition} onChange={(e) => setFlowForm({ ...flowForm, triggerCondition: e.target.value })} />
             </div>
 
             {/* Steps Preview in Modal */}
@@ -440,14 +446,14 @@ export default function AprobacionesPage() {
               )}
             </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
-          <Button color="primary" onPress={handleSaveFlow} className="bg-brand-600">
-            {editingFlow ? 'Guardar Cambios' : 'Crear Flujo'}
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveFlow} className="bg-blue-600 text-white hover:bg-blue-700">
+              {editingFlow ? 'Guardar Cambios' : 'Crear Flujo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

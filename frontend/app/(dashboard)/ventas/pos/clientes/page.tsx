@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import { ArrowLeft, Search, Users, Plus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -91,7 +91,7 @@ export default function ClientesPOSPage() {
             <p className="text-sm text-gray-500 dark:text-[#888888]">Consumidores registrados en punto de venta</p>
           </div>
         </div>
-        <Button variant="bordered" size="sm" onPress={() => setIsOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setIsOpen(true)}>
           <Plus className="h-3.5 w-3.5" /> Nuevo Cliente
         </Button>
       </div>
@@ -250,8 +250,8 @@ export default function ClientesPOSPage() {
             </div>
           </CustomModalBody>
           <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
-            <Button color="success" onPress={handleCreateClient}>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold" onClick={handleCreateClient}>
               <Plus className="h-4 w-4" /> Registrar Cliente
             </Button>
           </CustomModalFooter>

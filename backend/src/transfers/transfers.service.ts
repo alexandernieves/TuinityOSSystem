@@ -1,136 +1,198 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Transfer, TransferDocument } from './schemas/transfer.schema';
+import { PrismaService } from '../services/shared/prisma.service';
 import { StockService } from '../stock/stock.service';
 
 @Injectable()
 export class TransfersService {
     constructor(
-        @InjectModel(Transfer.name) private transferModel: Model<TransferDocument>,
+        private prisma: PrismaService,
         private stockService: StockService,
     ) { }
 
-    async findAll(): Promise<TransferDocument[]> {
-        return this.transferModel.find()
-            .populate('sourceWarehouseId', 'name code type')
-            .populate('destWarehouseId', 'name code type')
-            .populate('createdBy', 'name email')
-            .populate('lines.productId', 'reference description unit prices')
-            .sort({ createdAt: -1 })
-            .exec();
+    async findAll(): Promise<any[]> {
+        return this.prisma.inventoryTransfer.findMany({
+            include: {
+                sourceWarehouse: true,
+                destWarehouse: true,
+                createdByUser: true,
+                receivedByUser: true,
+                lines: { include: { product: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
     }
 
-    async findOne(id: string): Promise<TransferDocument> {
-        const transfer = await this.transferModel.findById(id)
-            .populate('sourceWarehouseId', 'name code type')
-            .populate('destWarehouseId', 'name code type')
-            .populate('createdBy', 'name email')
-            .populate('lines.productId', 'reference description unit prices')
-            .exec();
+    async findOne(id: string): Promise<any> {
+        const transfer = await this.prisma.inventoryTransfer.findUnique({
+            where: { id },
+            include: {
+                sourceWarehouse: true,
+                destWarehouse: true,
+                createdByUser: true,
+                receivedByUser: true,
+                lines: { include: { product: true } }
+            }
+        });
         if (!transfer) throw new NotFoundException('Transfer not found');
         return transfer;
     }
 
-    async create(createDto: any): Promise<TransferDocument> {
-        const count = await this.transferModel.countDocuments();
-        const reference = `TR-${String(count + 1).padStart(5, '0')}`;
+    async create(createDto: any): Promise<any> {
+        return this.prisma.$transaction(async (tx) => {
+            const count = await tx.inventoryTransfer.count();
+            const reference = `TR-${String(count + 1).padStart(5, '0')}`;
 
-        const createdTransfer = new this.transferModel({
-            ...createDto,
-            reference,
-            createdBy: new Types.ObjectId(createDto.createdBy),
-            sourceWarehouseId: new Types.ObjectId(createDto.sourceWarehouseId),
-            destWarehouseId: new Types.ObjectId(createDto.destWarehouseId),
-            status: createDto.status || 'borrador',
+            return tx.inventoryTransfer.create({
+                data: {
+                    reference,
+                    sourceWarehouseId: createDto.sourceWarehouseId,
+                    destWarehouseId: createDto.destWarehouseId,
+                    status: createDto.status || 'DRAFT',
+                    notes: createDto.notes,
+                    createdByUserId: createDto.createdBy,
+                    lines: {
+                        create: createDto.lines.map((l: any) => ({
+                            productId: l.productId || l.product,
+                            quantity: l.quantity || l.resultingUnits,
+                        }))
+                    }
+                },
+                include: { lines: true }
+            });
         });
-
-        return createdTransfer.save();
     }
 
-    async updateStatus(id: string, updateDto: any): Promise<TransferDocument> {
+    async updateStatus(id: string, updateDto: any): Promise<any> {
         const transfer = await this.findOne(id);
         const { status, userId, linesResult } = updateDto;
 
-        if (status === 'enviada') {
-            if (transfer.status !== 'borrador') {
-                throw new BadRequestException('Solo transferencias en borrador pueden ser enviadas');
-            }
-
-            // Reducir el inventario de la bodega origen
-            for (const line of transfer.lines) {
-                const sourceStock = await this.stockService.findOne(
-                    line.productId.toString(),
-                    transfer.sourceWarehouseId.toString()
-                );
-
-                const currentExistence = sourceStock ? sourceStock.existence : 0;
-
-                // Aquí el stock transfiere en `quantityCases` = unidades?
-                // `resultingUnits` es la cantidad total retirada.
-                const qtyToDeduct = line.resultingUnits;
-
-                if (currentExistence < qtyToDeduct) {
-                    throw new BadRequestException(`No hay stock suficiente para ${line.productId.toString().slice(-4)}`);
+        return this.prisma.$transaction(async (tx) => {
+            if (status === 'SENT' || status === 'enviada') {
+                if (transfer.status !== 'DRAFT' && transfer.status !== 'borrador') {
+                    throw new BadRequestException('Solo transferencias en borrador pueden ser enviadas');
                 }
 
-                await this.stockService.updateStock(
-                    line.productId.toString(),
-                    transfer.sourceWarehouseId.toString(),
-                    {
-                        existence: currentExistence - qtyToDeduct,
-                        available: (currentExistence - qtyToDeduct) + (sourceStock ? sourceStock.arriving : 0) - (sourceStock ? sourceStock.reserved : 0)
+                // Reducir el inventario de la bodega origen
+                for (const line of transfer.lines) {
+                    const sourceStock = await this.stockService.findOne(
+                        line.productId,
+                        transfer.sourceWarehouseId
+                    );
+
+                    const currentExistence = sourceStock ? Number(sourceStock.existence) : 0;
+                    const qtyToDeduct = Number(line.quantity);
+
+                    if (currentExistence < qtyToDeduct) {
+                        throw new BadRequestException(`No hay stock suficiente para el producto`);
                     }
-                );
-            }
-            transfer.status = 'enviada';
 
-        } else if (status === 'recibida' || status === 'recibida_discrepancia') {
-            if (transfer.status !== 'enviada') {
-                throw new BadRequestException('Transferencia debe estar enviada para recibirse');
-            }
+                    await this.stockService.updateStock(
+                        line.productId,
+                        transfer.sourceWarehouseId,
+                        {
+                            existence: currentExistence - qtyToDeduct,
+                        }
+                    );
+                    
+                    // Register movement out
+                    await tx.inventoryMovement.create({
+                        data: {
+                            productId: line.productId,
+                            warehouseId: transfer.sourceWarehouseId,
+                            movementType: 'TRANSFER_OUT',
+                            quantity: qtyToDeduct,
+                            referenceType: 'TRANSFER',
+                            referenceId: transfer.reference,
+                            occurredAt: new Date(),
+                            notes: `Transferencia salida ${transfer.reference}`,
+                            createdByUserId: userId || transfer.createdByUserId
+                        }
+                    });
+                }
+                
+                return tx.inventoryTransfer.update({
+                    where: { id },
+                    data: { status: 'SENT' },
+                    include: { lines: true }
+                });
 
-            let hasDiscrepancy = false;
-
-            // Aumentar stock de destino
-            for (let i = 0; i < transfer.lines.length; i++) {
-                const line = transfer.lines[i];
-                let receivedQty = line.resultingUnits; // Default to expected quantity
-
-                if (linesResult && linesResult[i] && linesResult[i].receivedQty !== undefined) {
-                    receivedQty = linesResult[i].receivedQty;
-                    line.receivedQty = receivedQty;
-
-                    if (receivedQty !== line.resultingUnits) {
-                        hasDiscrepancy = true;
-                        line.hasDiscrepancy = true;
-                        line.discrepancyNotes = linesResult[i].notes || '';
-                    }
+            } else if (status === 'RECEIVED' || status === 'recibida' || status === 'RECEIVED_DISCREPANCY' || status === 'recibida_discrepancia') {
+                if (transfer.status !== 'SENT' && transfer.status !== 'enviada') {
+                    throw new BadRequestException('Transferencia debe estar enviada para recibirse');
                 }
 
-                const destStock = await this.stockService.findOne(
-                    line.productId.toString(),
-                    transfer.destWarehouseId.toString()
-                );
+                let hasDiscrepancy = false;
 
-                const currentDestExistence = destStock ? destStock.existence : 0;
+                // Aumentar stock de destino
+                for (let i = 0; i < transfer.lines.length; i++) {
+                    const line = transfer.lines[i];
+                    let receivedQty = Number(line.quantity); // Default to expected quantity
+                    let lineDiscrepancy = false;
+                    let discrepancyNotes = null;
 
-                await this.stockService.updateStock(
-                    line.productId.toString(),
-                    transfer.destWarehouseId.toString(),
-                    {
-                        existence: currentDestExistence + receivedQty,
-                        available: (currentDestExistence + receivedQty) + (destStock ? destStock.arriving : 0) - (destStock ? destStock.reserved : 0)
+                    if (linesResult && linesResult[i] && linesResult[i].receivedQty !== undefined) {
+                        receivedQty = Number(linesResult[i].receivedQty);
+
+                        if (receivedQty !== Number(line.quantity)) {
+                            hasDiscrepancy = true;
+                            lineDiscrepancy = true;
+                            discrepancyNotes = linesResult[i].notes || '';
+                        }
                     }
-                );
+
+                    await tx.inventoryTransferLine.update({
+                        where: { id: line.id },
+                        data: {
+                            receivedQty,
+                            hasDiscrepancy: lineDiscrepancy,
+                            discrepancyNotes
+                        }
+                    });
+
+                    const destStock = await this.stockService.findOne(
+                        line.productId,
+                        transfer.destWarehouseId
+                    );
+
+                    const currentDestExistence = destStock ? Number(destStock.existence) : 0;
+
+                    await this.stockService.updateStock(
+                        line.productId,
+                        transfer.destWarehouseId,
+                        {
+                            existence: currentDestExistence + receivedQty,
+                        }
+                    );
+                    
+                    // Register movement in
+                    await tx.inventoryMovement.create({
+                        data: {
+                            productId: line.productId,
+                            warehouseId: transfer.destWarehouseId,
+                            movementType: 'TRANSFER_IN',
+                            quantity: receivedQty,
+                            referenceType: 'TRANSFER',
+                            referenceId: transfer.reference,
+                            occurredAt: new Date(),
+                            notes: `Transferencia entrada ${transfer.reference}`,
+                            createdByUserId: userId || transfer.createdByUserId
+                        }
+                    });
+                }
+
+                return tx.inventoryTransfer.update({
+                    where: { id },
+                    data: {
+                        status: hasDiscrepancy ? 'RECEIVED_DISCREPANCY' : 'RECEIVED',
+                        hasDiscrepancies: hasDiscrepancy,
+                        receivedByUserId: userId || null,
+                        receivedAt: new Date()
+                    },
+                    include: { lines: true }
+                });
             }
 
-            transfer.status = hasDiscrepancy ? 'recibida_discrepancia' : 'recibida';
-            transfer.hasDiscrepancies = hasDiscrepancy;
-            if (userId) transfer.receivedBy = new Types.ObjectId(userId);
-            transfer.receivedAt = new Date();
-        }
-
-        return transfer.save();
+            return transfer;
+        });
     }
 }

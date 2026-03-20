@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import { ArrowLeft, Search, RotateCcw, Plus, Trash2, Minus, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -501,11 +501,11 @@ export default function DevolucionesPage() {
             </div>
           </CustomModalBody>
           <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
             <Button
-              color="success"
-              onPress={handleSubmitReturn}
-              isDisabled={!selectedOrder || returnTotal === 0}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold"
+              onClick={handleSubmitReturn}
+              disabled={!selectedOrder || returnTotal === 0}
             >
               <RotateCcw className="h-4 w-4" /> Registrar Devolucion
             </Button>

@@ -3,12 +3,20 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Edit,
   Copy,
   ToggleLeft,
+  ToggleRight,
   Trash2,
   Package,
   Barcode,
@@ -24,18 +32,12 @@ import {
   Shield,
   ShieldCheck,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useAlerts } from "@/components/providers/alert-provider";
 import { PRODUCT_GROUPS } from "@/lib/mock-data/products";
 import { api } from "@/lib/services/api";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { printReport } from "@/lib/utils/print-utils";
-import {
-  CustomModal,
-  CustomModalHeader,
-  CustomModalBody,
-  CustomModalFooter,
-} from "@/components/ui/custom-modal";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 // Product images mapping
@@ -80,7 +82,11 @@ export default function ProductDetailPage() {
 
   // F14 - Brand Protection state
   const [brandProtectionEnabled, setBrandProtectionEnabled] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const BRAND_PROTECTION_RATE = 0.05;
+
+  // Alert hooks
+  const { success: alertSuccess, error: alertError } = useAlerts();
 
   const BARCODE_LABEL_OPTIONS = [
     "Caja",
@@ -97,7 +103,7 @@ export default function ProductDetailPage() {
       setProduct(data);
       setBrandProtectionEnabled(data?.brandProtection ?? false);
     } catch (err: any) {
-      toast.error("Error al cargar", { description: err.message });
+      alertError("Error al cargar", err.message);
     } finally {
       setLoading(false);
     }
@@ -119,16 +125,29 @@ export default function ProductDetailPage() {
         <p className="mb-4 text-sm text-muted-foreground">
           El producto {productId} no existe o fue eliminado.
         </p>
-        <Button color="primary" onPress={() => router.push("/productos")}>
+        <Button onClick={() => router.push("/productos")} className="bg-blue-700 text-white hover:bg-blue-800">
           Volver a Productos
         </Button>
       </div>
     );
   }
 
-  const imageUrl = PRODUCT_IMAGES[product.group] || PRODUCT_IMAGES["WHISKY"];
-  const groupLabel =
-    PRODUCT_GROUPS.find((g) => g.id === product.group)?.label || product.group;
+  const getLabel = (value: any) => {
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object') {
+      return value.name || value.label || value.code || 'Desconocido';
+    }
+    return '-';
+  };
+
+  const groupLabel = getLabel(product.group);
+  const brandLabel = getLabel(product.brand);
+  const supplierLabel = getLabel(product.supplier);
+
+  const groupCode = (product.group && typeof product.group === "object")
+    ? ((product.group as any).id || (product.group as any).code || (product.group as any).name)
+    : product.group;
+  const imageUrl = product.image || PRODUCT_IMAGES[groupCode as string];
 
   const getStockStatus = () => {
     if (!product || !product.stock)
@@ -168,38 +187,31 @@ export default function ProductDetailPage() {
   };
 
   const handleDuplicate = () => {
-    toast.success("Producto duplicado", {
-      description: `"${product.description}" ha sido copiado como borrador.`,
-    });
+    alertSuccess("Producto duplicado", `"${product.description}" ha sido copiado como borrador.`);
   };
 
   const handleToggleStatus = async () => {
     try {
-      const newStatus = product.status === "active" ? "inactivo" : "active";
+      const newStatus = product.status === "active" ? "inactive" : "active";
       await api.updateProduct(product.id, { status: newStatus });
-      toast.success(
+      alertSuccess(
         `Producto ${newStatus === "active" ? "activado" : "desactivado"}`,
-        {
-          description: `"${product.description}" ha sido actualizado.`,
-        },
+        `"${product.description}" ha sido actualizado.`,
       );
       fetchProduct();
     } catch (err: any) {
-      toast.error("Error al actualizar estado", { description: err.message });
+      alertError("Error al actualizar estado", err.message);
     }
   };
 
   const handleDelete = async () => {
-    if (confirm("¿Estás seguro de que deseas eliminar este producto?")) {
-      try {
-        await api.deleteProduct(product.id);
-        toast.success("Producto eliminado", {
-          description: `"${product.description}" ha sido eliminado.`,
-        });
-        router.push("/productos");
-      } catch (err: any) {
-        toast.error("Error al eliminar", { description: err.message });
-      }
+    setIsDeleteModalOpen(false);
+    try {
+      await api.deleteProduct(product.id);
+      alertSuccess("Producto eliminado", `"${product.description}" ha sido eliminado.`);
+      router.push("/productos");
+    } catch (err: any) {
+      alertError("Error al eliminar", err.message);
     }
   };
 
@@ -208,17 +220,11 @@ export default function ProductDetailPage() {
     if (!product) return;
     const currentBarcodes = product.barcodes ?? [];
     if (currentBarcodes.length >= 5) {
-      toast.error("Límite alcanzado", {
-        id: "barcode-limit",
-        description: "Solo se permiten hasta 5 códigos de barra por producto.",
-      });
+      alertError("Límite alcanzado", "Solo se permiten hasta 5 códigos de barra por producto.");
       return;
     }
     if (!newBarcodeCode.trim()) {
-      toast.error("Código requerido", {
-        id: "barcode-empty",
-        description: "Ingresa un código de barras válido.",
-      });
+      alertError("Código requerido", "Ingresa un código de barras válido.");
       return;
     }
     try {
@@ -227,16 +233,13 @@ export default function ProductDetailPage() {
         { code: newBarcodeCode.trim(), label: newBarcodeLabel },
       ];
       await api.updateProduct(product.id, { barcodes: updatedBarcodes });
-      toast.success("Código agregado", {
-        id: "barcode-added",
-        description: `${newBarcodeLabel}: ${newBarcodeCode.trim()}`,
-      });
+      alertSuccess("Código agregado", `${newBarcodeLabel}: ${newBarcodeCode.trim()}`);
       setNewBarcodeCode("");
       setNewBarcodeLabel("Caja");
       setIsBarcodeModalOpen(false);
       fetchProduct();
     } catch (err: any) {
-      toast.error("Error al agregar código", { description: err.message });
+      alertError("Error al agregar código", err.message);
     }
   };
 
@@ -250,13 +253,10 @@ export default function ProductDetailPage() {
         (_: any, i: number) => i !== index,
       );
       await api.updateProduct(product.id, { barcodes: updatedBarcodes });
-      toast.success("Código eliminado", {
-        id: "barcode-removed",
-        description: `${removed.label}: ${removed.code}`,
-      });
+      alertSuccess("Código eliminado", `${removed.label}: ${removed.code}`);
       fetchProduct();
     } catch (err: any) {
-      toast.error("Error al eliminar código", { description: err.message });
+      alertError("Error al eliminar código", err.message);
     }
   };
 
@@ -270,22 +270,17 @@ export default function ProductDetailPage() {
         brandProtectionRate: BRAND_PROTECTION_RATE,
       });
       setBrandProtectionEnabled(newValue);
-      toast.success(
+      alertSuccess(
         newValue
           ? "Protección de marca activada"
           : "Protección de marca desactivada",
-        {
-          id: "brand-protection-toggle",
-          description: newValue
-            ? `Tasa aplicada: ${(BRAND_PROTECTION_RATE * 100).toFixed(0)}%`
-            : "El costo CIF ya no incluye protección de marca.",
-        },
+        newValue
+          ? `Tasa aplicada: ${(BRAND_PROTECTION_RATE * 100).toFixed(0)}%`
+          : "El costo CIF ya no incluye protección de marca.",
       );
       fetchProduct();
     } catch (err: any) {
-      toast.error("Error al actualizar protección de marca", {
-        description: err.message,
-      });
+      alertError("Error al actualizar protección de marca", err.message);
     }
   };
 
@@ -301,7 +296,7 @@ export default function ProductDetailPage() {
         { campo: "Referencia", valor: product.reference },
         { campo: "Descripción", valor: product.description },
         { campo: "Categoría", valor: groupLabel },
-        { campo: "Marca", valor: product.brand },
+        { campo: "Marca", valor: brandLabel },
         { campo: "País de Origen", valor: product.country },
         { campo: "Código de Barras", valor: product.barcode || "-" },
         { campo: "Código Arancelario", valor: product.tariffCode },
@@ -319,7 +314,7 @@ export default function ProductDetailPage() {
         { campo: "Precio Nivel E", valor: `$${product.prices?.E || 0}` },
         ...(canViewCosts
           ? [
-            { campo: "Proveedor", valor: product.supplier },
+            { campo: "Proveedor", valor: supplierLabel },
             { campo: "Costo FOB", valor: `$${product.costFOB || 0}` },
             { campo: "Costo CIF", valor: `$${product.costCIF || 0}` },
             {
@@ -338,9 +333,7 @@ export default function ProductDetailPage() {
         },
       ],
     });
-    toast.success("Documento generado", {
-      description: "Ficha de producto lista para imprimir.",
-    });
+    alertSuccess("Documento generado", "Ficha de producto lista para imprimir.");
   };
 
   return (
@@ -398,47 +391,66 @@ export default function ProductDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           {canViewProductAnalytics && (
             <Button
-              variant="bordered"
-              startContent={<BarChart3 className="h-4 w-4" />}
-              onPress={() => router.push(`/productos/${product.id}/analytics`)}
+              variant="outline"
+              onClick={() => router.push(`/productos/${product.id}/analytics`)}
+              className="flex items-center gap-2"
             >
+              <BarChart3 className="h-4 w-4" />
               Analytics
             </Button>
           )}
           <Button
-            variant="bordered"
-            startContent={<Printer className="h-4 w-4" />}
-            onPress={handlePrint}
+            variant="outline"
+            onClick={handlePrint}
+            className="flex items-center gap-2"
           >
+            <Printer className="h-4 w-4" />
             Imprimir
           </Button>
           <Button
-            variant="bordered"
-            startContent={<Edit className="h-4 w-4" />}
-            onPress={handleEdit}
+            variant="outline"
+            onClick={handleEdit}
+            className="flex items-center gap-2"
           >
+            <Edit className="h-4 w-4" />
             Editar
           </Button>
           <Button
-            variant="bordered"
-            startContent={<Copy className="h-4 w-4" />}
-            onPress={handleDuplicate}
+            variant="outline"
+            onClick={handleDuplicate}
+            className="flex items-center gap-2"
           >
+            <Copy className="h-4 w-4" />
             Duplicar
           </Button>
           <Button
-            variant="bordered"
-            startContent={<ToggleLeft className="h-4 w-4" />}
-            onPress={handleToggleStatus}
+            variant="outline"
+            onClick={handleToggleStatus}
+            className={cn(
+              "flex items-center gap-2 transition-all",
+              product.status === "active" 
+                ? "text-amber-600 border-amber-200 hover:bg-amber-50" 
+                : "text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+            )}
           >
-            {product.status === "active" ? "Desactivar" : "Activar"}
+            {product.status === "active" ? (
+              <>
+                <ToggleRight className="h-4 w-4" />
+                Desactivar
+              </>
+            ) : (
+              <>
+                <ToggleLeft className="h-4 w-4" />
+                Activar
+              </>
+            )}
           </Button>
           <Button
-            variant="bordered"
-            color="danger"
-            startContent={<Trash2 className="h-4 w-4" />}
-            onPress={handleDelete}
+            variant="outline"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20"
           >
+            <Trash2 className="h-4 w-4" />
             Eliminar
           </Button>
         </div>
@@ -454,12 +466,19 @@ export default function ProductDetailPage() {
         >
           {/* Product Image */}
           <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="aspect-square w-full overflow-hidden bg-muted">
-              <img
-                src={imageUrl}
-                alt={product.description}
-                className="h-full w-full object-cover"
-              />
+            <div className="aspect-square w-full overflow-hidden bg-gray-50/50 dark:bg-black/20">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={product.description}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center gap-2 opacity-20">
+                  <Package className="h-16 w-16 text-muted-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Sin Imagen</span>
+                </div>
+              )}
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between">
@@ -502,13 +521,13 @@ export default function ProductDetailPage() {
                   Subcategoría
                 </span>
                 <span className="text-sm text-foreground">
-                  {product.subGroup}
+                  {getLabel(product.subGroup)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Marca</span>
                 <span className="text-sm font-medium text-foreground">
-                  {product.brand}
+                  {brandLabel}
                 </span>
               </div>
             </div>
@@ -593,7 +612,7 @@ export default function ProductDetailPage() {
                   key={level}
                   className={cn(
                     "rounded-lg p-4 text-center",
-                    index === 0 ? "bg-brand-500/10" : "bg-muted/50",
+                    index === 0 ? "bg-blue-500/10" : "bg-muted/50",
                   )}
                 >
                   <p className="mb-1 text-xs font-medium text-muted-foreground">
@@ -602,7 +621,7 @@ export default function ProductDetailPage() {
                   <p
                     className={cn(
                       "text-lg font-bold",
-                      index === 0 ? "text-brand-500" : "text-foreground",
+                      index === 0 ? "text-blue-500" : "text-foreground",
                     )}
                   >
                     ${product.prices ? product.prices[level] : 0}
@@ -690,7 +709,7 @@ export default function ProductDetailPage() {
                   {canManageBarcodes && (product.barcodes ?? []).length < 5 && (
                     <button
                       onClick={() => setIsBarcodeModalOpen(true)}
-                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-brand-500 transition-colors hover:bg-brand-500/10"
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-blue-500 transition-colors hover:bg-blue-500/10"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Agregar Código
@@ -801,7 +820,7 @@ export default function ProductDetailPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Proveedor</p>
                   <p className="text-sm font-medium text-foreground">
-                    {product.supplier}
+                    {supplierLabel}
                   </p>
                 </div>
                 <div>
@@ -938,17 +957,17 @@ export default function ProductDetailPage() {
       </div>
 
       {/* F3 - Add Barcode Modal */}
-      <CustomModal
-        isOpen={isBarcodeModalOpen}
-        onClose={() => setIsBarcodeModalOpen(false)}
-        size="sm"
-      >
-        <CustomModalHeader onClose={() => setIsBarcodeModalOpen(false)}>
-          <Barcode className="h-5 w-5 text-muted-foreground" />
-          Agregar Código de Barras
-        </CustomModalHeader>
-        <CustomModalBody>
-          <div className="space-y-4">
+      <Dialog open={isBarcodeModalOpen} onOpenChange={setIsBarcodeModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Barcode className="h-5 w-5 text-muted-foreground" />
+                Agregar Código de Barras
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">
                 Código
@@ -958,7 +977,7 @@ export default function ProductDetailPage() {
                 value={newBarcodeCode}
                 onChange={(e) => setNewBarcodeCode(e.target.value)}
                 placeholder="Ej: 5000267014005"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-[#2a2a2a] dark:bg-[#141414]"
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-[#2a2a2a] dark:bg-[#141414]"
               />
             </div>
             <div>
@@ -968,7 +987,7 @@ export default function ProductDetailPage() {
               <select
                 value={newBarcodeLabel}
                 onChange={(e) => setNewBarcodeLabel(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-foreground focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-[#2a2a2a] dark:bg-[#141414]"
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-[#2a2a2a] dark:bg-[#141414]"
               >
                 {BARCODE_LABEL_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -982,20 +1001,60 @@ export default function ProductDetailPage() {
               {(product?.barcodes ?? []).length}/5
             </p>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            variant="bordered"
-            size="sm"
-            onPress={() => setIsBarcodeModalOpen(false)}
-          >
-            Cancelar
-          </Button>
-          <Button color="primary" size="sm" onPress={handleAddBarcode}>
-            Agregar
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsBarcodeModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddBarcode}
+              className="bg-blue-700 text-white hover:bg-blue-800"
+            >
+              Agregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Eliminar Producto</h3>
+                  <p className="text-sm text-gray-500">Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 dark:text-gray-400 py-2">
+            ¿Estás seguro de que deseas eliminar <span className="font-semibold text-gray-900 dark:text-white">{product.description}</span>?
+            Se perderá todo el historial y stock asociado a este registro.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="h-10 px-6 font-semibold"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleDelete}
+              className="h-10 px-6 font-semibold bg-red-600 hover:bg-red-700 text-white"
+            >
+              Sí, eliminar producto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

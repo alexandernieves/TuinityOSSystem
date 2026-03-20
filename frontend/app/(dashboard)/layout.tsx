@@ -1,69 +1,40 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sidebar } from '@/components/layout/sidebar';
+import { AppSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { KeyboardShortcuts } from '@/components/ui/keyboard-shortcuts';
-import { ChatWidget } from '@/components/chat';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { SidebarProvider, useSidebar } from '@/lib/contexts/sidebar-context';
-import { Spinner } from '@heroui/react';
+import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { NotificationsProvider } from '@/components/notifications/NotificationsProvider';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+import { LoadingScreen } from '@/components/ui/loading-screen';
+
 function DashboardContent({ children }: DashboardLayoutProps) {
-  const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
-  const { sidebarWidth } = useSidebar();
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  // Show loading state while checking auth
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]">
-        <div className="flex flex-col items-center gap-4">
-          <Spinner size="lg" color="primary" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render dashboard if not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
+  const pathname = usePathname();
+  const isPOSRoot = pathname === '/pos';
+  const isPOSModule = pathname.startsWith('/pos');
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#1a1a1a] overflow-hidden">
-      {/* TopBar */}
-      <Header />
-
-      <div className="flex flex-1 relative overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar />
+    <SidebarInset>
+      <div className="flex flex-col h-full">
+        {/* TopBar */}
+        {!isPOSModule && <Header />}
 
         {/* Main Content Area */}
-        <main
-          className="flex-1 h-full overflow-y-auto bg-[#1a1a1a] relative"
-          style={{ borderTopRightRadius: '16px' }}
-        >
+        <main className="flex-1 overflow-y-auto relative">
           <div
-            className="relative bg-[#f1f1f1] min-h-full"
-            style={{ zIndex: 1, borderTopRightRadius: '16px' }}
+            className="relative bg-muted/30 min-h-full"
+            style={{ zIndex: 1 }}
           >
-            <div className="p-5 max-w-[920px] mx-auto min-h-screen">
+            <div className="py-5 px-4 lg:px-6 min-h-screen">
               <Breadcrumbs />
               <AnimatePresence mode="wait">
                 <motion.div
@@ -79,19 +50,55 @@ function DashboardContent({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </main>
-      </div>
 
-      {/* Keyboard Shortcuts & Global Widgets */}
-      <KeyboardShortcuts />
-      <ChatWidget />
-    </div>
+        {/* Keyboard Shortcuts & Global Widgets */}
+        <KeyboardShortcuts />
+      </div>
+    </SidebarInset>
   );
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const isCajero = user?.role === 'pos_cajero';
+  const isPOS = pathname.startsWith('/pos');
+
+  // Security: Redirect Cajero and handle restricted routes
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      if (isCajero && !pathname.startsWith('/pos')) {
+        router.replace('/pos');
+      }
+    }
+  }, [isAuthenticated, isLoading, user, pathname, router, isCajero]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  // If not authenticated, don't show the dashboard layout at all
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  const hideLayout = isPOS || isCajero;
+
   return (
-    <SidebarProvider>
-      <DashboardContent>{children}</DashboardContent>
-    </SidebarProvider>
+    <NotificationsProvider>
+      <SidebarProvider defaultOpen={!hideLayout}>
+        {!hideLayout && <AppSidebar />}
+        <DashboardContent>{children}</DashboardContent>
+      </SidebarProvider>
+    </NotificationsProvider>
   );
 }

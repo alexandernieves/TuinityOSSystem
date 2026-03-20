@@ -4,13 +4,20 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Button,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Search,
   ArrowLeft,
@@ -174,74 +181,62 @@ export default function HistorialEntradasPage() {
             placeholder="Buscar entrada..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Supplier Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  selectedSupplier
-                    ? 'bg-brand-100 text-brand-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedSupplier ? 'default' : 'secondary'}
+                size="sm"
+                className="h-9 gap-2"
               >
                 {selectedSupplier
                   ? suppliers.find((s) => s.id === selectedSupplier)?.name.slice(0, 15) + '...'
                   : 'Proveedor'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedSupplier ? [selectedSupplier] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedSupplier(selected === selectedSupplier ? null : selected);
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               {suppliers.map((supplier: any) => (
-                <DropdownItem key={supplier.id}>{supplier.name}</DropdownItem>
+                <DropdownMenuItem 
+                  key={supplier.id}
+                  onClick={() => setSelectedSupplier(selectedSupplier === supplier.id ? null : supplier.id)}
+                >
+                  {supplier.name}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Bodega Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  selectedBodega
-                    ? 'bg-brand-100 text-brand-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedBodega ? 'default' : 'secondary'}
+                size="sm"
+                className="h-9 gap-2"
               >
                 {selectedBodega
                   ? bodegas.find((b) => b.id === selectedBodega)?.name
                   : 'Bodega'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedBodega ? [selectedBodega] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedBodega(selected === selectedBodega ? null : selected);
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               {bodegas.map((bodega: any) => (
-                <DropdownItem key={bodega.id}>{bodega.name}</DropdownItem>
+                <DropdownMenuItem 
+                  key={bodega.id}
+                  onClick={() => setSelectedBodega(selectedBodega === bodega.id ? null : bodega.id)}
+                >
+                  {bodega.name}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Clear Filters */}
           {hasActiveFilters && (
@@ -316,7 +311,7 @@ export default function HistorialEntradasPage() {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => router.push(`/compras/${entry.purchaseOrderId}`)}
-                      className="font-mono text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                      className="font-mono text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
                     >
                       {entry.purchaseOrderNumber}
                     </button>
@@ -393,162 +388,165 @@ export default function HistorialEntradasPage() {
       )}
 
       {/* Entry Detail Modal */}
-      <CustomModal isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} size="3xl" scrollable>
-        <CustomModalHeader onClose={() => setIsDetailOpen(false)}>
-          <PackageCheck className="h-5 w-5 text-emerald-600" />
-          Detalle de Entrada
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          {selectedEntry && (
-            <div className="space-y-6">
-              {/* Entry Info */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Proveedor:</span>
-                  <span className="ml-2 font-medium text-gray-900">{selectedEntry.supplierName}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Factura:</span>
-                  <span className="ml-2 font-mono font-medium text-gray-900">
-                    {selectedEntry.supplierInvoice}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Bodega:</span>
-                  <span className="ml-2 font-medium text-gray-900">{selectedEntry.bodegaName}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Tipo:</span>
-                  <span
-                    className={cn(
-                      'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                      selectedEntry.receptionType === 'completa'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700'
-                    )}
-                  >
-                    {selectedEntry.receptionType === 'completa' ? 'Completa' : 'Parcial'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Lines Table */}
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                        Producto
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                        Cantidad
-                      </th>
-                      {canViewCosts && (
-                        <>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                            Costo FOB
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                            Costo CIF
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                            Costo Prom.
-                          </th>
-                        </>
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-emerald-600" />
+              Detalle de Entrada
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            {selectedEntry && (
+              <div className="space-y-6">
+                {/* Entry Info */}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Proveedor:</span>
+                    <span className="ml-2 font-medium text-gray-900">{selectedEntry.supplierName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Factura:</span>
+                    <span className="ml-2 font-mono font-medium text-gray-900">
+                      {selectedEntry.supplierInvoice}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Bodega:</span>
+                    <span className="ml-2 font-medium text-gray-900">{selectedEntry.bodegaName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Tipo:</span>
+                    <span
+                      className={cn(
+                        'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                        selectedEntry.receptionType === 'completa'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-amber-50 text-amber-700'
                       )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {selectedEntry.lines.map((line: any) => (
-                      <tr key={line.productId}>
-                        <td className="px-3 py-2">
-                          <div>
-                            <p className="text-sm text-gray-900">{line.productDescription}</p>
-                            <p className="text-xs text-gray-500">{line.productReference}</p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <span className="text-sm font-medium text-gray-900">{line.quantityReceived}</span>
-                        </td>
+                    >
+                      {selectedEntry.receptionType === 'completa' ? 'Completa' : 'Parcial'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Lines Table */}
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                          Producto
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                          Cantidad
+                        </th>
                         {canViewCosts && (
                           <>
-                            <td className="px-3 py-2 text-right">
-                              <span className="font-mono text-sm text-gray-900">
-                                {formatCurrency(line.unitCostFOB)}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <span className="font-mono text-sm text-gray-900">
-                                {formatCurrency(line.unitCostCIF)}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <div>
-                                <span className="font-mono text-sm font-medium text-gray-900">
-                                  {formatCurrency(line.newCostAvg)}
-                                </span>
-                                {line.newCostAvg > line.previousCostAvg && (
-                                  <span className="ml-1 text-xs text-red-500">
-                                    +{((line.newCostAvg - line.previousCostAvg) / line.previousCostAvg * 100).toFixed(1)}%
-                                  </span>
-                                )}
-                                {line.newCostAvg < line.previousCostAvg && (
-                                  <span className="ml-1 text-xs text-emerald-500">
-                                    {((line.newCostAvg - line.previousCostAvg) / line.previousCostAvg * 100).toFixed(1)}%
-                                  </span>
-                                )}
-                              </div>
-                            </td>
+                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                              Costo FOB
+                            </th>
+                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                              Costo CIF
+                            </th>
+                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
+                              Costo Prom.
+                            </th>
                           </>
                         )}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Totals */}
-              {canViewCosts && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-xs text-gray-500">Total FOB</p>
-                    <p className="font-mono text-lg font-bold text-gray-900">
-                      {formatCurrency(selectedEntry.totalFOB)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-xs text-gray-500">% Gastos</p>
-                    <p className="font-mono text-lg font-bold text-gray-900">
-                      {selectedEntry.expensePercentage}%
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                    <p className="text-xs text-emerald-700">Total CIF</p>
-                    <p className="font-mono text-lg font-bold text-emerald-700">
-                      {formatCurrency(selectedEntry.totalCIF)}
-                    </p>
-                  </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {selectedEntry.lines.map((line: any) => (
+                        <tr key={line.productId}>
+                          <td className="px-3 py-2">
+                            <div>
+                              <p className="text-sm text-gray-900">{line.productDescription}</p>
+                              <p className="text-xs text-gray-500">{line.productReference}</p>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="text-sm font-medium text-gray-900">{line.quantityReceived}</span>
+                          </td>
+                          {canViewCosts && (
+                            <>
+                              <td className="px-3 py-2 text-right">
+                                <span className="font-mono text-sm text-gray-900">
+                                  {formatCurrency(line.unitCostFOB)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <span className="font-mono text-sm text-gray-900">
+                                  {formatCurrency(line.unitCostCIF)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <div>
+                                  <span className="font-mono text-sm font-medium text-gray-900">
+                                    {formatCurrency(line.newCostAvg)}
+                                  </span>
+                                  {line.newCostAvg > line.previousCostAvg && (
+                                    <span className="ml-1 text-xs text-red-500">
+                                      +{((line.newCostAvg - line.previousCostAvg) / line.previousCostAvg * 100).toFixed(1)}%
+                                    </span>
+                                  )}
+                                  {line.newCostAvg < line.previousCostAvg && (
+                                    <span className="ml-1 text-xs text-emerald-500">
+                                      {((line.newCostAvg - line.previousCostAvg) / line.previousCostAvg * 100).toFixed(1)}%
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
-          )}
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsDetailOpen(false)}>
-            Cerrar
-          </Button>
-          <Button
-            color="primary"
-            onPress={() => {
-              setIsDetailOpen(false);
-              router.push(`/compras/${selectedEntry?.purchaseOrderId}`);
-            }}
-            className="bg-brand-600"
-          >
-            Ver Orden Completa
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+
+                {/* Totals */}
+                {canViewCosts && (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-xs text-gray-500">Total FOB</p>
+                      <p className="font-mono text-lg font-bold text-gray-900">
+                        {formatCurrency(selectedEntry.totalFOB)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <p className="text-xs text-gray-500">% Gastos</p>
+                      <p className="font-mono text-lg font-bold text-gray-900">
+                        {selectedEntry.expensePercentage}%
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-xs text-emerald-700">Total CIF</p>
+                      <p className="font-mono text-lg font-bold text-emerald-700">
+                        {formatCurrency(selectedEntry.totalCIF)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="p-6 pt-2 gap-2 border-t mt-auto">
+            <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
+              Cerrar
+            </Button>
+            <Button
+              onClick={() => {
+                setIsDetailOpen(false);
+                router.push(`/compras/${selectedEntry?.purchaseOrderId}`);
+              }}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Ver Orden Completa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

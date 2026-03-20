@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
 import {
   ArrowLeft,
@@ -87,7 +87,7 @@ export default function InventarioPage() {
             <p className="text-sm text-gray-500 dark:text-[#888888]">Stock disponible para venta B2C</p>
           </div>
         </div>
-        <Button variant="bordered" size="sm" onPress={() => setIsOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setIsOpen(true)}>
           <PackagePlus className="h-3.5 w-3.5" /> Solicitar Reposicion
         </Button>
       </div>
@@ -241,8 +241,8 @@ export default function InventarioPage() {
             </div>
           </CustomModalBody>
           <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
-            <Button color="primary" onPress={handleRequestReplenishment} isDisabled={lowStockItems.length === 0}>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button variant="default" onClick={handleRequestReplenishment} disabled={lowStockItems.length === 0}>
               Enviar Solicitud
             </Button>
           </CustomModalFooter>

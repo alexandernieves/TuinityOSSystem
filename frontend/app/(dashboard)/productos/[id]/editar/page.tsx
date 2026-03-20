@@ -1,92 +1,105 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Button, Input, Select, SelectItem } from "@heroui/react";
+import { useRouter, useParams } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Package, ImagePlus } from "lucide-react";
+import { ArrowLeft, Package, ImagePlus, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import { PRODUCT_GROUPS } from "@/lib/mock-data/products";
 import { api } from "@/lib/services/api";
-import { MOCK_SUPPLIERS } from "@/lib/mock-data/purchase-orders";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
+
+
+const initialFormState = {
+  description: "",
+  brand: "",
+  categoryId: "",
+  barcode: "",
+  reference: "",
+  supplier: "",
+  unit: "CAJA",
+  minimumQty: "10",
+  tariffCode: "",
+  priceA: "",
+  priceB: "",
+  priceC: "",
+  priceD: "",
+  priceE: "",
+  status: true,
+};
+
 export default function EditarProductoPage() {
-  const params = useParams();
   const router = useRouter();
+  const params = useParams();
   const productId = params.id as string;
-  const [product, setProduct] = useState<any>(null);
+  
+  const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<any>({});
+  const [categories, setCategories] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.getProductById(productId);
-        setProduct(data);
-        const supplierMatch = MOCK_SUPPLIERS.find(
-          (s) => s.name === data.supplier,
-        );
-        setFormData({
-          description: data.description || "",
-          brand: data.brand || "",
-          group: data.group || "",
-          subGroup: data.subGroup || "",
-          barcode: data.barcode || "",
-          reference: data.reference || "",
-          supplier: supplierMatch?.id || data.supplier || "",
-          country: data.country || "",
-          unit: data.unit || "CJA",
-          unitsPerCase: data.unitsPerCase?.toString() || "12",
-          minimumQty: data.minimumQty?.toString() || "10",
-          tariffCode: data.tariffCode || "",
-          priceA: data.prices?.A?.toString() || "",
-          priceB: data.prices?.B?.toString() || "",
-          priceC: data.prices?.C?.toString() || "",
-          priceD: data.prices?.D?.toString() || "",
-          priceE: data.prices?.E?.toString() || "",
-          costFOB: data.costFOB?.toString() || "",
-          costCIF: data.costCIF?.toString() || "",
-          status: data.status === "active",
-        });
+        setLoading(true);
+        const [cats, sups, productData] = await Promise.all([
+          api.getCategories(),
+          api.getSuppliers(),
+          api.getProductById(productId)
+        ]);
+        
+        setCategories(cats);
+        setSuppliers(sups);
+
+        if (productData) {
+          const supplierId = sups.find((s: any) => s.legalName === productData.supplier)?.id || productData.supplier;
+          
+          setFormData({
+            description: productData.description || "",
+            brand: productData.brand || "",
+            categoryId: productData.categoryId || "",
+            barcode: productData.barcode || "",
+            reference: productData.sku || productData.reference || "",
+            supplier: supplierId || "",
+            unit: productData.unit || "CAJA",
+            minimumQty: productData.minimumQty?.toString() || "10",
+            tariffCode: productData.tariffCode || "",
+            priceA: productData.prices?.A?.toString() || "",
+            priceB: productData.prices?.B?.toString() || "",
+            priceC: productData.prices?.C?.toString() || "",
+            priceD: productData.prices?.D?.toString() || "",
+            priceE: productData.prices?.E?.toString() || "",
+            status: productData.isActive || productData.status === "active",
+          });
+        }
       } catch (err: any) {
-        toast.error("Error al cargar producto");
+        toast.error("Error al cargar producto", {
+          description: err.message,
+        });
+        router.push("/productos");
       } finally {
         setLoading(false);
       }
     };
-    fetchProduct();
-  }, [productId]);
 
-  if (loading) return <SkeletonDashboard />;
-
-  if (!product) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Package className="mb-4 h-12 w-12 text-muted-foreground" />
-        <h2 className="mb-2 text-lg font-medium text-foreground">
-          Producto no encontrado
-        </h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          El producto {productId} no existe o fue eliminado.
-        </p>
-        <Button color="primary" onPress={() => router.push("/productos")}>
-          Volver a Productos
-        </Button>
-      </div>
-    );
-  }
+    if (productId) {
+      fetchData();
+    }
+  }, [productId, router]);
 
   const handleFormChange = (field: string, value: string | boolean) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value };
+      return newData;
+    });
   };
 
-  const handleSaveProduct = async () => {
+  const handleUpdateProduct = async () => {
     if (
       !formData.description ||
       !formData.brand ||
-      !formData.group ||
+      !formData.categoryId ||
       !formData.supplier
     ) {
       toast.error("Campos requeridos", {
@@ -96,41 +109,39 @@ export default function EditarProductoPage() {
     }
 
     const supplierName =
-      MOCK_SUPPLIERS.find((s) => s.id === formData.supplier)?.name ||
+      suppliers.find((s) => s.id === formData.supplier)?.legalName ||
       formData.supplier;
+
+    const updatedProduct = {
+      description: formData.description,
+      brand: formData.brand,
+      categoryId: formData.categoryId,
+      subcategoryId: null,
+      supplier: supplierName,
+      barcode: formData.barcode,
+      reference: formData.reference,
+      tariffCode: formData.tariffCode,
+      unit: formData.unit,
+      minimumQty: parseInt(formData.minimumQty) || 10,
+      prices: {
+        A: parseFloat(formData.priceA) || 0,
+        B: parseFloat(formData.priceB) || 0,
+        C: parseFloat(formData.priceC) || 0,
+        D: parseFloat(formData.priceD) || 0,
+        E: parseFloat(formData.priceE) || 0,
+      },
+      status: formData.status ? "active" : "inactive",
+    };
 
     setSaving(true);
     try {
-      await api.updateProduct(productId, {
-        description: formData.description,
-        brand: formData.brand,
-        group: formData.group,
-        subGroup: formData.subGroup,
-        barcode: formData.barcode,
-        reference: formData.reference,
-        supplier: supplierName,
-        country: formData.country,
-        unit: formData.unit,
-        unitsPerCase: parseInt(formData.unitsPerCase) || product.unitsPerCase,
-        minimumQty: parseInt(formData.minimumQty) || product.minimumQty,
-        tariffCode: formData.tariffCode,
-        prices: {
-          A: parseFloat(formData.priceA) || product.prices?.A || 0,
-          B: parseFloat(formData.priceB) || product.prices?.B || 0,
-          C: parseFloat(formData.priceC) || product.prices?.C || 0,
-          D: parseFloat(formData.priceD) || product.prices?.D || 0,
-          E: parseFloat(formData.priceE) || product.prices?.E || 0,
-        },
-        costFOB: parseFloat(formData.costFOB) || product.costFOB || 0,
-        costCIF: parseFloat(formData.costCIF) || product.costCIF || 0,
-        status: formData.status ? "active" : "inactive",
-      });
+      await api.updateProduct(productId, updatedProduct);
 
       toast.success("Producto actualizado", {
-        description: `Los cambios en "${formData.description}" han sido guardados`,
+        description: `${formData.description} ha sido guardado correctamente`,
       });
 
-      router.push(`/productos/${product.id}`);
+      router.push(`/productos/${productId}`);
     } catch (err: any) {
       toast.error("Error al actualizar el producto", {
         description: err.message,
@@ -139,6 +150,12 @@ export default function EditarProductoPage() {
       setSaving(false);
     }
   };
+
+  const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all dark:bg-[#1a1a1a] dark:border-[#2a2a2a] dark:text-white dark:placeholder:text-[#555]";
+  const labelStyle = { fontWeight: 600 };
+  const labelClass = "block text-[13px] text-[#1a1a1a] mb-1.5 dark:text-gray-300";
+
+  if (loading) return <SkeletonDashboard />;
 
   return (
     <div className="space-y-6">
@@ -151,15 +168,15 @@ export default function EditarProductoPage() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900">
-            <Package className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
+            <Package className="h-5 w-5 text-blue-600" />
           </div>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
               Editar Producto
             </h1>
-            <p className="font-mono text-sm text-gray-500 dark:text-[#888888]">
-              {product.reference}
+            <p className="text-sm text-gray-500 dark:text-[#888888]">
+              ID: {productId}
             </p>
           </div>
         </div>
@@ -171,59 +188,59 @@ export default function EditarProductoPage() {
           <div className="space-y-6">
             {/* Main Info */}
             <div className="flex gap-4">
-              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-brand-400 cursor-pointer">
-                <ImagePlus className="h-6 w-6 text-gray-400" />
-                <span className="text-[10px] text-gray-500 mt-1">Imagen</span>
+              <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-[#008060] cursor-pointer group">
+                <ImagePlus className="h-6 w-6 text-gray-400 group-hover:text-[#008060]" />
+                <span className="text-[10px] text-gray-500 mt-1 group-hover:text-[#008060]">Cargar Foto</span>
               </div>
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className={labelClass} style={labelStyle}>
                     Descripción <span className="text-red-500">*</span>
                   </label>
-                  <Input
-                    placeholder="WHISKY JOHNNIE WALKER BLACK 12YRS 750ML"
+                  <input
+                    type="text"
+                    placeholder="Descripción del producto"
                     value={formData.description}
                     onChange={(e) =>
                       handleFormChange("description", e.target.value)
                     }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
+                    className={inputClass}
+                    required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className={labelClass} style={labelStyle}>
                       Marca <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      placeholder="JOHNNIE WALKER"
+                    <input
+                      type="text"
+                      placeholder="Marca"
                       value={formData.brand}
                       onChange={(e) =>
                         handleFormChange("brand", e.target.value)
                       }
-                      variant="bordered"
-                      classNames={{
-                        inputWrapper: "bg-white dark:bg-[#1a1a1a]",
-                      }}
+                      className={inputClass}
+                      required
                     />
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className={labelClass} style={labelStyle}>
                       Categoría <span className="text-red-500">*</span>
                     </label>
-                    <Select
-                      placeholder="Seleccionar"
-                      selectedKeys={formData.group ? [formData.group] : []}
+                    <select
+                      value={formData.categoryId}
                       onChange={(e) =>
-                        handleFormChange("group", e.target.value)
+                        handleFormChange("categoryId", e.target.value)
                       }
-                      variant="bordered"
-                      classNames={{ trigger: "bg-white dark:bg-[#1a1a1a]" }}
+                      className={inputClass}
+                      required
                     >
-                      {PRODUCT_GROUPS.map((group) => (
-                        <SelectItem key={group.id}>{group.label}</SelectItem>
+                      <option value="">Seleccionar Categoría</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
-                    </Select>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -236,45 +253,47 @@ export default function EditarProductoPage() {
               </h3>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Referencia
-                  </label>
-                  <Input
-                    placeholder="EVL-00001"
-                    value={formData.reference}
-                    onChange={(e) =>
-                      handleFormChange("reference", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className={labelClass} style={labelStyle}>
                     Código de barras
                   </label>
-                  <Input
-                    placeholder="7501050439022"
+                  <input
+                    type="text"
+                    placeholder="Código de barras"
                     value={formData.barcode}
                     onChange={(e) =>
                       handleFormChange("barcode", e.target.value)
                     }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className={labelClass} style={labelStyle}>
+                    Referencia
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Referencia"
+                    value={formData.reference}
+                    onChange={(e) =>
+                      handleFormChange("reference", e.target.value)
+                    }
+                    className={inputClass}
+                    disabled
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">La referencia no puede ser editada</p>
+                </div>
+                <div>
+                  <label className={labelClass} style={labelStyle}>
                     Cod. arancelario
                   </label>
-                  <Input
-                    placeholder="2208.30.00"
+                  <input
+                    type="text"
+                    placeholder="Código arancelario"
                     value={formData.tariffCode}
                     onChange={(e) =>
                       handleFormChange("tariffCode", e.target.value)
                     }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -285,86 +304,54 @@ export default function EditarProductoPage() {
               <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Proveedor y Unidad
               </h3>
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className={labelClass} style={labelStyle}>
                     Proveedor <span className="text-red-500">*</span>
                   </label>
-                  <Select
-                    placeholder="Seleccionar"
-                    selectedKeys={formData.supplier ? [formData.supplier] : []}
+                  <select
+                    value={formData.supplier}
                     onChange={(e) =>
                       handleFormChange("supplier", e.target.value)
                     }
-                    variant="bordered"
-                    classNames={{ trigger: "bg-white dark:bg-[#1a1a1a]" }}
+                    className={inputClass}
+                    required
                   >
-                    {MOCK_SUPPLIERS.map((supplier) => (
-                      <SelectItem key={supplier.id}>{supplier.name}</SelectItem>
+                    <option value="">Seleccionar</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.legalName}</option>
                     ))}
-                  </Select>
+                  </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    País de origen
-                  </label>
-                  <Input
-                    placeholder="ESCOCIA"
-                    value={formData.country}
-                    onChange={(e) =>
-                      handleFormChange("country", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className={labelClass} style={labelStyle}>
                     Unidad
                   </label>
-                  <Select
-                    selectedKeys={[formData.unit]}
+                  <select
+                    value={formData.unit}
                     onChange={(e) => handleFormChange("unit", e.target.value)}
-                    variant="bordered"
-                    classNames={{ trigger: "bg-white dark:bg-[#1a1a1a]" }}
+                    className={inputClass}
                   >
-                    <SelectItem key="CJA">Caja</SelectItem>
-                    <SelectItem key="UND">Unidad</SelectItem>
-                    <SelectItem key="BOT">Botella</SelectItem>
-                    <SelectItem key="PAQ">Paquete</SelectItem>
-                  </Select>
+                    <option value="CAJA">Caja</option>
+                    <option value="UNIDAD">Unidad</option>
+                    <option value="BOTELLA">Botella</option>
+                    <option value="PAQUETE">Paquete</option>
+                  </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Unidades por caja
+                  <label className={labelClass} style={labelStyle}>
+                    Cantidad mínima
                   </label>
-                  <Input
+                  <input
                     type="number"
-                    placeholder="12"
-                    value={formData.unitsPerCase}
+                    placeholder="10"
+                    value={formData.minimumQty}
                     onChange={(e) =>
-                      handleFormChange("unitsPerCase", e.target.value)
+                      handleFormChange("minimumQty", e.target.value)
                     }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
+                    className={inputClass}
                   />
                 </div>
-              </div>
-              <div className="mt-4">
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Cantidad mínima de pedido
-                </label>
-                <Input
-                  type="number"
-                  placeholder="10"
-                  value={formData.minimumQty}
-                  onChange={(e) =>
-                    handleFormChange("minimumQty", e.target.value)
-                  }
-                  variant="bordered"
-                  className="max-w-xs"
-                  classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                />
               </div>
             </div>
 
@@ -374,131 +361,23 @@ export default function EditarProductoPage() {
                 Precios por nivel de cliente
               </h3>
               <div className="grid grid-cols-5 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    A (Mayor)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceA}
-                    onChange={(e) => handleFormChange("priceA", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    B (Distr)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceB}
-                    onChange={(e) => handleFormChange("priceB", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    C (Detal)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceC}
-                    onChange={(e) => handleFormChange("priceC", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    D (Espec)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceD}
-                    onChange={(e) => handleFormChange("priceD", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    E (Públ)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.priceE}
-                    onChange={(e) => handleFormChange("priceE", e.target.value)}
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Costs Section */}
-            <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Costos
-              </h3>
-              <div className="grid grid-cols-2 gap-4 max-w-md">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Costo FOB
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.costFOB}
-                    onChange={(e) =>
-                      handleFormChange("costFOB", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Costo CIF
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    startContent={
-                      <span className="text-xs text-gray-400">$</span>
-                    }
-                    value={formData.costCIF}
-                    onChange={(e) =>
-                      handleFormChange("costCIF", e.target.value)
-                    }
-                    variant="bordered"
-                    classNames={{ inputWrapper: "bg-white dark:bg-[#1a1a1a]" }}
-                  />
-                </div>
+                {(['A', 'B', 'C', 'D', 'E'] as const).map((level) => (
+                  <div key={level}>
+                    <label className={labelClass} style={labelStyle}>
+                      Nivel {level}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#8c9196]">$</span>
+                      <input
+                        type="number"
+                        placeholder="0.00"
+                        value={String(formData[`price${level}` as keyof typeof formData])}
+                        onChange={(e) => handleFormChange(`price${level}`, e.target.value)}
+                        className={inputClass + " pl-6"}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -527,17 +406,27 @@ export default function EditarProductoPage() {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-gray-200 dark:border-[#2a2a2a] px-6 py-4">
-          <Button variant="light" onPress={() => router.back()}>
-            Cancelar
-          </Button>
-          <Button
-            color="primary"
-            onPress={handleSaveProduct}
-            isLoading={saving}
-            className="bg-brand-600"
+          <button
+            onClick={() => router.back()}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
           >
-            {saving ? "Guardando..." : "Guardar Cambios"}
-          </Button>
+            Cancelar
+          </button>
+          <button
+            onClick={handleUpdateProduct}
+            disabled={saving}
+            className="flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#008060] text-white font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#006e52] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Guardar Cambios
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

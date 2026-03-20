@@ -3,14 +3,20 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 import {
-  Button,
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Award,
   Search,
@@ -181,13 +187,13 @@ export default function CertificadosPage() {
           </div>
 
           {canCreate && (
-            <button
+            <Button
               onClick={handleOpenModal}
-              className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+              className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
             >
               <Plus className="h-4 w-4" />
               Nuevo Certificado
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -206,11 +212,11 @@ export default function CertificadosPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Dropdown>
-            <DropdownTrigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
                 className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
+                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors outline-none',
                   typeFilter !== 'all'
                     ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                     : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
@@ -219,26 +225,25 @@ export default function CertificadosPage() {
                 {typeFilter !== 'all' ? CERTIFICATE_TYPE_LABELS[typeFilter] : 'Tipo'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={typeFilter !== 'all' ? [typeFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setTypeFilter(selected === typeFilter ? 'all' : (selected as TypeFilter));
-              }}
-            >
-              <DropdownItem key="libre_venta">Libre Venta</DropdownItem>
-              <DropdownItem key="origen">Origen</DropdownItem>
-              <DropdownItem key="fitosanitario">Fitosanitario</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'libre_venta' ? 'all' : 'libre_venta')}>
+                Libre Venta
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'origen' ? 'all' : 'origen')}>
+                Origen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'fitosanitario' ? 'all' : 'fitosanitario')}>
+                Fitosanitario
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <Dropdown>
-            <DropdownTrigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
                 className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
+                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors outline-none',
                   statusFilter !== 'all'
                     ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                     : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
@@ -251,19 +256,16 @@ export default function CertificadosPage() {
                   : 'Estado'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={statusFilter !== 'all' ? [statusFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setStatusFilter(selected === statusFilter ? 'all' : (selected as StatusFilter));
-              }}
-            >
-              <DropdownItem key="borrador">Borrador</DropdownItem>
-              <DropdownItem key="completado">Completado</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setStatusFilter(statusFilter === 'borrador' ? 'all' : 'borrador')}>
+                Borrador
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter(statusFilter === 'completado' ? 'all' : 'completado')}>
+                Completado
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {hasActiveFilters && (
             <button
@@ -400,13 +402,16 @@ export default function CertificadosPage() {
         </div>
       )}
 
-      {/* New Certificate Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg" scrollable>
-          <CustomModalHeader onClose={() => setIsOpen(false)}>
-            <Award className="h-5 w-5 text-amber-600" />
-            Nuevo Certificado
-          </CustomModalHeader>
-          <CustomModalBody className="space-y-4">
+      {/* New Certificate Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-amber-600" />
+              Nuevo Certificado
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
               {/* Certificate type */}
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-[#888888]">
@@ -452,7 +457,7 @@ export default function CertificadosPage() {
                     type="text"
                     value={certDestination}
                     onChange={(e) => setCertDestination(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] px-4 text-sm text-gray-700 dark:text-gray-300"
+                    className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] px-4 text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
                     readOnly
                   />
                 </div>
@@ -464,7 +469,7 @@ export default function CertificadosPage() {
                     type="text"
                     value={certInvoice}
                     onChange={(e) => setCertInvoice(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] px-4 text-sm text-gray-700 dark:text-gray-300"
+                    className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] px-4 text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
                     readOnly
                   />
                 </div>
@@ -478,7 +483,7 @@ export default function CertificadosPage() {
                 <input
                   type="text"
                   value="Evolution Zona Libre S.A."
-                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] px-4 text-sm text-gray-700 dark:text-gray-300"
+                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#0a0a0a] px-4 text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
                   readOnly
                 />
               </div>
@@ -529,18 +534,19 @@ export default function CertificadosPage() {
                   ))}
                 </div>
               </div>
-          </CustomModalBody>
-          <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
             <Button
-              className="bg-amber-600 text-white"
-              onPress={handleSubmitCertificate}
-              isDisabled={!certExpedient}
+              className="bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-2"
+              onClick={handleSubmitCertificate}
+              disabled={!certExpedient}
             >
               <Award className="h-4 w-4" /> Crear Certificado
             </Button>
-          </CustomModalFooter>
-      </CustomModal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
