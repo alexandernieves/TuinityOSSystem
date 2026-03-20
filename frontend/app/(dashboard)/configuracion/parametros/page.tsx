@@ -80,7 +80,7 @@ export default function ParametrosPage() {
   const handleSaveDoc = async () => {
     if (editingDoc) {
       try {
-        await api.updateDocumentNumbering(editingDoc._id, {
+        await api.updateDocumentNumbering(editingDoc.id, {
           prefix: docForm.prefix,
           paddingLength: parseInt(docForm.paddingLength) || 5
         });
@@ -413,7 +413,7 @@ export default function ParametrosPage() {
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
                               {documentNumbering.map((doc: any) => (
-                                <tr key={doc._id} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
+                                <tr key={doc.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
                                   <td className="px-4 py-3">
                                     <span className="text-sm font-medium text-gray-900 dark:text-white">{doc.documentLabel}</span>
                                   </td>

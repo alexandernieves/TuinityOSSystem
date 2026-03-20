@@ -172,15 +172,15 @@ export default function CajaPage() {
           </div>
           <div className="flex gap-2">
             {!isCashOpen ? (
-              <Button color="success" className="font-bold" onPress={() => setIsOpenCashOpen(true)}>
+              <Button className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold" onClick={() => setIsOpenCashOpen(true)}>
                 <Unlock className="h-4 w-4" /> Abrir Caja
               </Button>
             ) : (
               <>
-                <Button variant="bordered" size="sm" onPress={() => setIsMovOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setIsMovOpen(true)}>
                   <Plus className="h-3.5 w-3.5" /> Nuevo Movimiento
                 </Button>
-                <Button color="danger" variant="flat" size="sm" onPress={() => setIsCloseOpen(true)}>
+                <Button variant="destructive" size="sm" onClick={() => setIsCloseOpen(true)}>
                   <Lock className="h-3.5 w-3.5" /> Cerrar Caja
                 </Button>
               </>
@@ -339,8 +339,8 @@ export default function CajaPage() {
           </div>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" size="sm" onPress={() => setIsOpenCashOpen(false)}>Cancelar</Button>
-          <Button color="success" size="sm" onPress={handleOpenCash}>Abrir Caja</Button>
+          <Button variant="ghost" size="sm" onClick={() => setIsOpenCashOpen(false)}>Cancelar</Button>
+          <Button className="bg-emerald-600 text-white hover:bg-emerald-700" size="sm" onClick={handleOpenCash}>Abrir Caja</Button>
         </CustomModalFooter>
       </CustomModal>
 
@@ -376,8 +376,8 @@ export default function CajaPage() {
           </div>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" size="sm" onPress={() => setIsMovOpen(false)}>Cancelar</Button>
-          <Button color="primary" size="sm" onPress={handleNewMovement}>Registrar</Button>
+          <Button variant="ghost" size="sm" onClick={() => setIsMovOpen(false)}>Cancelar</Button>
+          <Button variant="default" size="sm" onClick={handleNewMovement}>Registrar</Button>
         </CustomModalFooter>
       </CustomModal>
 
@@ -443,8 +443,8 @@ export default function CajaPage() {
           </div>
         </CustomModalBody>
         <CustomModalFooter>
-          <Button variant="light" size="sm" onPress={() => setIsCloseOpen(false)}>Cancelar</Button>
-          <Button color="danger" size="sm" onPress={handleCloseCash} isDisabled={!actualCash}>
+          <Button variant="ghost" size="sm" onClick={() => setIsCloseOpen(false)}>Cancelar</Button>
+          <Button variant="destructive" size="sm" onClick={handleCloseCash} disabled={!actualCash}>
             <Lock className="h-4 w-4" /> Confirmar Cierre
           </Button>
         </CustomModalFooter>

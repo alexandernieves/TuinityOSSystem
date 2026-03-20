@@ -168,6 +168,7 @@ export function getInventoryItems(filters?: InventoryFilters): InventoryItem[] {
       lastPurchaseDate: extData.lastPurchaseDate,
       lastSaleDate: extData.lastSaleDate,
       costCIF: product.costCIF,
+      price: product.priceB2C || 0,
       stockValue: product.stock.existence * product.costCIF,
       alerts,
     };

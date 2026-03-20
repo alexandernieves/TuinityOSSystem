@@ -432,9 +432,11 @@ export default function EmpresaPage() {
                     <td className="px-4 py-3">
                       <span className="rounded bg-gray-100 dark:bg-[#2a2a2a] px-2 py-0.5 font-mono text-xs text-gray-700 dark:text-gray-300">{branch.code}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{BRANCH_TYPES[branch.type]}</span>
-                    </td>
+                     <td className="px-4 py-3">
+                       <span className="text-sm text-gray-600 dark:text-gray-400">
+                         {BRANCH_TYPES[branch.type as keyof typeof BRANCH_TYPES] || branch.type}
+                       </span>
+                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
                         <MapPin className="h-3.5 w-3.5" />

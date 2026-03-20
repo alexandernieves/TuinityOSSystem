@@ -390,7 +390,7 @@ export default function HistorialCostosPage() {
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            {Math.abs(costChange).toFixed(1)}%
+                            {window.Math.abs(costChange).toFixed(1)}%
                           </span>
                         )}
                       </div>

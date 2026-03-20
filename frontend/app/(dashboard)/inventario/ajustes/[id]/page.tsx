@@ -398,7 +398,7 @@ export default function AjusteDetallePage() {
                           )}
                         >
                           {adjustment.type === "positivo" ? "+" : "-"}
-                          {Math.abs(line.adjustmentQty)}
+                          {window.Math.abs(line.adjustmentQty)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">

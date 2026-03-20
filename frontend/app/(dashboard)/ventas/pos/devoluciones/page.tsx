@@ -501,11 +501,11 @@ export default function DevolucionesPage() {
             </div>
           </CustomModalBody>
           <CustomModalFooter>
-            <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
             <Button
-              color="success"
-              onPress={handleSubmitReturn}
-              isDisabled={!selectedOrder || returnTotal === 0}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold"
+              onClick={handleSubmitReturn}
+              disabled={!selectedOrder || returnTotal === 0}
             >
               <RotateCcw className="h-4 w-4" /> Registrar Devolucion
             </Button>

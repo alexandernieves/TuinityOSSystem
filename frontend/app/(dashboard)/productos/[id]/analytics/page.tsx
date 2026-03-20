@@ -31,7 +31,7 @@ function seededRandom(seed: string, index: number): number {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash + char) | 0;
   }
-  return Math.abs(hash % 1000) / 1000;
+  return window.Math.abs(hash % 1000) / 1000;
 }
 
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];

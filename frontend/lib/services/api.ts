@@ -411,10 +411,27 @@ export const api = {
     getReportsInventory: () => fetcher('/erp/reports/inventory'),
 
     // Warehouses
-    getWarehouses: async () => {
-        const warehouses = await fetcher('/warehouses');
-        return (warehouses || []).map((w: any) => ({ ...w, id: w.id }));
-    },
+    getWarehouses: () => fetcher('/warehouses'),
+    createWarehouse: (data: any) => fetcher('/warehouses', { method: 'POST', body: JSON.stringify(data) }),
+    updateWarehouse: (id: string, data: any) => fetcher(`/warehouses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteWarehouse: (id: string) => fetcher(`/warehouses/${id}`, { method: 'DELETE' }),
+    setMainBranch: (id: string) => fetcher(`/warehouses/${id}/set-main`, { method: 'POST' }),
+
+    // Settings
+    getCommercialParams: () => fetcher('/settings/commercial-params'),
+    updateCommercialParams: (data: any) => fetcher('/settings/commercial-params', { method: 'PUT', body: JSON.stringify(data) }),
+    getDocumentNumbering: () => fetcher('/settings/document-numbering'),
+    updateDocumentNumbering: (id: string, data: any) => fetcher(`/settings/document-numbering/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+    // POS
+    getPOSInvoices: () => fetcher('/pos/invoices'),
+    createPOSInvoice: (data: any) => fetcher('/pos/invoices', { method: 'POST', body: JSON.stringify(data) }),
+    getPOSClients: () => fetcher('/pos/clients'),
+    getPOSProducts: () => fetcher('/pos/products'),
+    getCashRegisterStatus: () => fetcher('/pos/cash-register/status'),
+    openCashRegister: (data: any) => fetcher('/pos/cash-register/open', { method: 'POST', body: JSON.stringify(data) }),
+    closeCashRegister: (data: any) => fetcher('/pos/cash-register/close', { method: 'POST', body: JSON.stringify(data) }),
+    addCashMovement: (data: any) => fetcher('/pos/cash-register/movement', { method: 'POST', body: JSON.stringify(data) }),
 
     // Stock
     getStocks: (warehouseId?: string) => fetcher(`/stock${warehouseId ? `?warehouseId=${warehouseId}` : ''}`),
@@ -473,10 +490,6 @@ export const api = {
     prefillDMC: (expedientId: string) => fetcher(`/traffic/expedients/${expedientId}/prefill-dmc`, { method: 'POST' }),
     createBL: (data: any) => fetcher('/traffic/bl', { method: 'POST', body: JSON.stringify(data) }),
     prefillBL: (expedientId: string) => fetcher(`/traffic/expedients/${expedientId}/prefill-bl`, { method: 'POST' }),
-
-    // Settings
-    getCommercialParams: () => fetcher('/settings/commercial-params'),
-    getDocumentNumbering: () => fetcher('/settings/document-numbering'),
 
     // POS
     posStartSession: (data: { userId: string; openingAmount: number }) =>
@@ -602,5 +615,12 @@ export const api = {
     // Auth Sessions
     getSessions: () => fetcher('/auth/sessions'),
     logoutSession: (id: string) => fetcher(`/auth/logout/${id}`, { method: 'POST' }),
+
+    // Generic REST methods
+    get: (endpoint: string) => fetcher(endpoint),
+    post: (endpoint: string, body?: any) => fetcher(endpoint, { method: 'POST', body: JSON.stringify(body) }),
+    patch: (endpoint: string, body?: any) => fetcher(endpoint, { method: 'PATCH', body: JSON.stringify(body) }),
+    put: (endpoint: string, body?: any) => fetcher(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (endpoint: string) => fetcher(endpoint, { method: 'DELETE' }),
 };
 

@@ -181,11 +181,11 @@ export default function NuevoAjustePage() {
 
   // Calculate totals
   const totalItems = lines.reduce(
-    (sum, l) => sum + Math.abs(l.adjustmentQty),
+    (sum, l) => sum + window.Math.abs(l.adjustmentQty),
     0,
   );
   const totalValue = lines.reduce(
-    (sum, l) => sum + Math.abs(l.adjustmentQty) * l.costCIF,
+    (sum, l) => sum + window.Math.abs(l.adjustmentQty) * l.costCIF,
     0,
   );
 

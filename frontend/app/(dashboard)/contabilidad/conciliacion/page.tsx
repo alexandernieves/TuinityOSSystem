@@ -227,7 +227,7 @@ export default function ConciliacionPage() {
                                     </td>
                                     <td className="px-6 py-4 font-mono font-bold">{fmt(rec.statementBalance)}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`font-mono font-bold ${Math.abs(rec.difference) > 0.01 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                        <span className={`font-mono font-bold ${window.Math.abs(rec.difference) > 0.01 ? 'text-red-500' : 'text-emerald-600'}`}>
                                             {fmt(rec.difference)}
                                         </span>
                                     </td>
