@@ -4,11 +4,15 @@ import { InventoryService } from '../services/inventory/inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../services/shared/prisma.service';
 
+import { LotsService } from '../services/inventory/lots.service';
+import { Post } from '@nestjs/common';
+
 @Controller('erp/inventory')
 @UseGuards(JwtAuthGuard)
 export class InventoryPrismaController {
   constructor(
     private readonly inventoryService: InventoryService,
+    private readonly lotsService: LotsService,
     private readonly prisma: PrismaService
   ) {}
 
@@ -91,5 +95,25 @@ export class InventoryPrismaController {
   @Get('summary')
   async getSummary(@Query('warehouseId') warehouseId: string) {
     return this.inventoryService.getWarehouseInventorySummary(warehouseId);
+  }
+
+  @Post('lots')
+  async createLot(@Body() body: any) {
+    return this.lotsService.recordLotEntry({
+      productId: body.productId,
+      warehouseId: body.warehouseId,
+      lotNumber: body.lotNumber,
+      expirationDate: body.expirationDate ? new Date(body.expirationDate) : null,
+      quantity: Number(body.quantity || 0),
+    });
+  }
+
+  @Post('lots/consume-fefo')
+  async consumeLotFEFO(@Body() body: any) {
+    return this.lotsService.consumeFEFO({
+      productId: body.productId,
+      warehouseId: body.warehouseId,
+      quantity: Number(body.quantity),
+    });
   }
 }

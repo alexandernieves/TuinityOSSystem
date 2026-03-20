@@ -19,6 +19,7 @@ import {
   Prisma
 } from '@prisma/client';
 import { InventoryService, SelectedLot } from '../inventory/inventory.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 export interface CreateQuotationData {
   customerId: string;
@@ -76,7 +77,8 @@ export interface ApplyReceiptData {
 export class SalesService extends BaseService {
   constructor(
     prisma: PrismaService,
-    private readonly inventoryService: InventoryService
+    private readonly inventoryService: InventoryService,
+    private readonly notificationsService: NotificationsService
   ) {
     super(prisma);
   }
@@ -127,6 +129,27 @@ export class SalesService extends BaseService {
         where: { id: quotation.id },
         data: { subtotal, total: subtotal },
         include: { lines: true, customer: true },
+      });
+
+      const needsApproval = Number(updatedQuotation.total) > 5000;
+      if (needsApproval) {
+        await prisma.quotation.update({
+          where: { id: updatedQuotation.id },
+          data: { status: QuotationStatus.PENDING_APPROVAL }
+        });
+      }
+
+      await this.notificationsService.notifyRole('GERENCIA', {
+        type: needsApproval ? 'QUOTATION_NEEDS_APPROVAL' : 'QUOTATION_CREATED',
+        title: needsApproval ? 'Cotización REQUIERE APROBACIÓN' : 'Nueva Cotización',
+        message: needsApproval 
+          ? `La cotización ${updatedQuotation.number} para ${updatedQuotation.customer.legalName} excede el límite de $5,000 (${Number(updatedQuotation.total).toLocaleString('es-PA', { style: 'currency', currency: 'USD' })}) y requiere aprobación.`
+          : `Se ha creado la cotización ${updatedQuotation.number} para ${updatedQuotation.customer.legalName} por ${Number(updatedQuotation.total).toLocaleString('es-PA', { style: 'currency', currency: 'USD' })}.`,
+        module: 'SALES',
+        entityType: 'Quotation',
+        entityId: updatedQuotation.id,
+        severity: needsApproval ? 'WARNING' : 'INFO',
+        actionUrl: `/ventas/cotizaciones/${updatedQuotation.id}`,
       });
 
       return updatedQuotation;
@@ -428,10 +451,23 @@ export class SalesService extends BaseService {
       // This will be implemented when integrating with inventory service
       // await this.inventoryService.createInventoryMovement({...})
 
-      return prisma.invoice.findUnique({
+      const finalInvoice = await prisma.invoice.findUnique({
         where: { id: invoice.id },
         include: { lines: true, customer: true, salesOrder: true },
-      }) as Promise<Invoice>;
+      }) as Invoice;
+
+      await this.notificationsService.notifyRole('CONTADURIA', {
+        type: 'INVOICE_ISSUED',
+        title: 'Nueva Factura Generada',
+        message: `Se ha emitido la factura ${finalInvoice.number} para ${(finalInvoice as any).customer.legalName} por ${Number(finalInvoice.total).toLocaleString('es-PA', { style: 'currency', currency: 'USD' })}.`,
+        module: 'SALES',
+        entityType: 'Invoice',
+        entityId: finalInvoice.id,
+        severity: 'SUCCESS',
+        actionUrl: `/ventas/facturas/${finalInvoice.id}`,
+      });
+
+      return finalInvoice;
     });
   }
 
@@ -441,7 +477,7 @@ export class SalesService extends BaseService {
   async createReceipt(data: CreateReceiptData): Promise<Receipt> {
     const number = this.generateNumber('RCP');
     
-    return this.prisma.receipt.create({
+    const receipt = await this.prisma.receipt.create({
       data: {
         number,
         customerId: data.customerId,
@@ -455,6 +491,19 @@ export class SalesService extends BaseService {
       },
       include: { customer: true },
     });
+
+    await this.notificationsService.notifyRole('CONTADURIA', {
+      type: 'RECEIPT_CREATED',
+      title: 'Nuevo Pago Recibido',
+      message: `Se ha registrado un pago de ${(receipt as any).customer.legalName} por ${Number(receipt.amount).toLocaleString('es-PA', { style: 'currency', currency: 'USD' })} (Ref: ${receipt.reference || 'N/A'}).`,
+      module: 'SALES',
+      entityType: 'Receipt',
+      entityId: receipt.id,
+      severity: 'SUCCESS',
+      actionUrl: `/ventas/cobros`,
+    });
+
+    return receipt;
   }
 
   /**

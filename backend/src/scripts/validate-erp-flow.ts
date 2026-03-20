@@ -8,8 +8,9 @@ import { PrismaService } from '../services/shared/prisma.service';
 async function runTest() {
   const prismaRaw = new PrismaClient();
   const prismaService = new PrismaService();
-  const inventoryService = new InventoryService(prismaService);
-  const salesService = new SalesService(prismaService, inventoryService);
+  const notificationsService = {} as any;
+  const inventoryService = new InventoryService(prismaService, notificationsService);
+  const salesService = new SalesService(prismaService, inventoryService, notificationsService);
 
   console.log('🧪 Starting ERP Technical Test...');
 

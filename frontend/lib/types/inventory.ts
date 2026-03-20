@@ -54,6 +54,7 @@ export interface InventoryItem {
   lastPurchaseDate?: string;
   lastSaleDate?: string;
   costCIF: number;          // Role-restricted
+  price: number;            // Selling price
   stockValue: number;       // existence * costCIF, role-restricted
   productImage?: string;
   alerts: InventoryAlert[];

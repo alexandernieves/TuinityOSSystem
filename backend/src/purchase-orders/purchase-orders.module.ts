@@ -5,6 +5,7 @@ import { ProductsModule } from '../products/products.module';
 import { SuppliersModule } from '../suppliers/suppliers.module';
 import { StockModule } from '../stock/stock.module';
 import { AccountingModule } from '../accounting/accounting.module';
+import { InventoryPrismaModule } from '../inventory-prisma/inventory-prisma.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AccountingModule } from '../accounting/accounting.module';
     SuppliersModule,
     StockModule,
     AccountingModule,
+    InventoryPrismaModule,
   ],
   controllers: [PurchaseOrdersController],
   providers: [PurchaseOrdersService],

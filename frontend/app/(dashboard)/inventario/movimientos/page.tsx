@@ -46,21 +46,33 @@ export default function MovimientosPage() {
   };
 
   const getMovementTypeInfo = (type: string) => {
-    switch(type) {
-      case 'SALE': 
+    switch (type) {
+      case 'SALE':
+      case 'SALE_OUT':
+      case 'B2B_PACKING_OUT':
         return { label: 'Venta', icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-100' };
       case 'PURCHASE_RECEIPT': 
         return { label: 'Compra', icon: ArrowDownLeft, color: 'text-emerald-600', bg: 'bg-emerald-100' };
-      case 'ADJUSTMENT': 
-        return { label: 'Ajuste', icon: RefreshCcw, color: 'text-amber-600', bg: 'bg-amber-100' };
+      case 'INVENTORY_ADJUSTMENT_POSITIVE': 
+      case 'ADJUSTMENT':
+        return { label: 'Ajuste (+)', icon: RefreshCcw, color: 'text-emerald-700', bg: 'bg-emerald-50' };
+      case 'INVENTORY_ADJUSTMENT_NEGATIVE': 
+        return { label: 'Ajuste (-)', icon: RefreshCcw, color: 'text-red-700', bg: 'bg-red-50' };
       case 'TRANSFER_IN':
+        return { label: 'Transf. (Ent)', icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-100' };
       case 'TRANSFER_OUT':
-        return { label: 'Transferencia', icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-100' };
+        return { label: 'Transf. (Sal)', icon: ArrowRightLeft, color: 'text-indigo-600', bg: 'bg-indigo-100' };
       case 'DAMAGE':
         return { label: 'Avería', icon: AlertOctagon, color: 'text-red-600', bg: 'bg-red-100' };
+      case 'POS_SALE':
+        return { label: 'POS Venta', icon: ShoppingBag, color: 'text-pink-600', bg: 'bg-pink-100' };
       default:
-        return { label: type, icon: History, color: 'text-gray-600', bg: 'bg-gray-100' };
+        return { label: type.split('_').join(' '), icon: History, color: 'text-gray-600', bg: 'bg-gray-100' };
     }
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   };
 
   const filteredMovements = movements.filter(m => {
@@ -123,8 +135,11 @@ export default function MovimientosPage() {
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Fecha / Hora</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Tipo</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Producto</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Lote</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Cant.</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Costo Unit.</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Valor Mov.</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Saldo Cant.</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Saldo Valor</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Notas</th>
               </tr>
             </thead>
@@ -162,25 +177,34 @@ export default function MovimientosPage() {
                         })}
                       </td>
                       <td className="px-6 py-4">
-                        <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase", info.bg, info.color)}>
+                        <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap", info.bg, info.color)}>
                           <info.icon className="h-3 w-3" />
                           {info.label}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm font-semibold text-gray-900">{move.product?.name}</div>
+                        <div className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">{move.product?.name}</div>
                         <div className="text-[10px] text-gray-400">{move.product?.sku}</div>
                       </td>
-                      <td className="px-6 py-4 text-sm font-mono text-gray-500">
-                        {move.productLot?.lotNumber || '-'}
-                      </td>
                       <td className={cn("px-6 py-4 text-right font-bold", 
-                        ['SALE', 'TRANSFER_OUT', 'DAMAGE'].includes(move.movementType) ? 'text-red-500' : 'text-emerald-600'
+                        ['SALE', 'TRANSFER_OUT', 'DAMAGE', 'INVENTORY_ADJUSTMENT_NEGATIVE'].includes(move.movementType) ? 'text-red-500' : 'text-emerald-600'
                       )}>
-                        {['SALE', 'TRANSFER_OUT', 'DAMAGE'].includes(move.movementType) ? '-' : '+'}{move.quantity}
+                        {['SALE', 'TRANSFER_OUT', 'DAMAGE', 'INVENTORY_ADJUSTMENT_NEGATIVE'].includes(move.movementType) ? '-' : '+'}{move.quantity}
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs text-gray-600">
+                        {formatCurrency(Number(move.unitCost || 0))}
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs font-semibold text-gray-700">
+                        {formatCurrency(Number(move.totalCost || 0))}
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs font-medium text-gray-900">
+                        {move.balanceQuantity || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs font-bold text-gray-900">
+                        {formatCurrency(Number(move.balanceValue || 0))}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500 max-w-[200px] truncate" title={move.notes}>
-                        {move.notes || '-'}
+                        {move.notes || move.referenceId || '-'}
                       </td>
                     </motion.tr>
                   );

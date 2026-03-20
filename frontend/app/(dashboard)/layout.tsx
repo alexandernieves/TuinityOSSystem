@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
@@ -9,6 +9,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { KeyboardShortcuts } from '@/components/ui/keyboard-shortcuts';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { NotificationsProvider } from '@/components/notifications/NotificationsProvider';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,11 +18,15 @@ interface DashboardLayoutProps {
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 function DashboardContent({ children }: DashboardLayoutProps) {
+  const pathname = usePathname();
+  const isPOSRoot = pathname === '/pos';
+  const isPOSModule = pathname.startsWith('/pos');
+
   return (
     <SidebarInset>
       <div className="flex flex-col h-full">
         {/* TopBar */}
-        <Header />
+        {!isPOSModule && <Header />}
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto relative">
@@ -55,7 +60,19 @@ function DashboardContent({ children }: DashboardLayoutProps) {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const isCajero = user?.role === 'pos_cajero';
+  const isPOS = pathname.startsWith('/pos');
+
+  // Security: Redirect Cajero and handle restricted routes
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      if (isCajero && !pathname.startsWith('/pos')) {
+        router.replace('/pos');
+      }
+    }
+  }, [isAuthenticated, isLoading, user, pathname, router, isCajero]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -74,10 +91,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return null;
   }
 
+  const hideLayout = isPOS || isCajero;
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <DashboardContent>{children}</DashboardContent>
-    </SidebarProvider>
+    <NotificationsProvider>
+      <SidebarProvider defaultOpen={!hideLayout}>
+        {!hideLayout && <AppSidebar />}
+        <DashboardContent>{children}</DashboardContent>
+      </SidebarProvider>
+    </NotificationsProvider>
   );
 }

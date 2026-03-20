@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { AuditService } from '../services/audit/audit.service';
 import { PrismaService } from '../services/shared/prisma.service';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ export class AuthService {
         private jwtService: JwtService,
         private configService: ConfigService,
         private prisma: PrismaService,
+        private auditService: AuditService,
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {
@@ -57,6 +59,16 @@ export class AuthService {
                 userAgent: userAgent,
                 isActive: true,
             }
+        });
+
+        // Log successful login
+        await this.auditService.logAuditEvent({
+            userId: user.id,
+            action: 'LOGIN',
+            entity: 'Session',
+            entityId: session.id,
+            ipAddress: ip,
+            userAgent: userAgent,
         });
 
         const payload = {

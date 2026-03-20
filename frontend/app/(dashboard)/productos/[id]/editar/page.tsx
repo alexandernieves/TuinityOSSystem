@@ -5,21 +5,15 @@ import { useRouter, useParams } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Package, ImagePlus, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import { PRODUCT_GROUPS } from "@/lib/mock-data/products";
 import { api } from "@/lib/services/api";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
-const MOCK_SUPPLIERS = [
-  { id: "1", name: "GLOBAL BRANDS, S.A." },
-  { id: "2", name: "TRIPLE DOUBLE LIMITED" },
-  { id: "3", name: "DIAGEO PANAMA" },
-  { id: "4", name: "PERNOD RICARD" },
-];
+
 
 const initialFormState = {
   description: "",
   brand: "",
-  group: "",
+  categoryId: "",
   barcode: "",
   reference: "",
   supplier: "",
@@ -42,31 +36,41 @@ export default function EditarProductoPage() {
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await api.getProductById(productId);
-        if (data) {
-          const supplierId = MOCK_SUPPLIERS.find(s => s.name === data.supplier)?.id || data.supplier;
+        const [cats, sups, productData] = await Promise.all([
+          api.getCategories(),
+          api.getSuppliers(),
+          api.getProductById(productId)
+        ]);
+        
+        setCategories(cats);
+        setSuppliers(sups);
+
+        if (productData) {
+          const supplierId = sups.find((s: any) => s.legalName === productData.supplier)?.id || productData.supplier;
           
           setFormData({
-            description: data.description || "",
-            brand: data.brand || "",
-            group: (typeof data.group === 'object' ? data.group?.id || data.group?.code : data.group) || "",
-            barcode: data.barcode || "",
-            reference: data.reference || "",
+            description: productData.description || "",
+            brand: productData.brand || "",
+            categoryId: productData.categoryId || "",
+            barcode: productData.barcode || "",
+            reference: productData.sku || productData.reference || "",
             supplier: supplierId || "",
-            unit: data.unit || "CAJA",
-            minimumQty: data.minimumQty?.toString() || "10",
-            tariffCode: data.tariffCode || "",
-            priceA: data.prices?.A?.toString() || "",
-            priceB: data.prices?.B?.toString() || "",
-            priceC: data.prices?.C?.toString() || "",
-            priceD: data.prices?.D?.toString() || "",
-            priceE: data.prices?.E?.toString() || "",
-            status: data.status === "active",
+            unit: productData.unit || "CAJA",
+            minimumQty: productData.minimumQty?.toString() || "10",
+            tariffCode: productData.tariffCode || "",
+            priceA: productData.prices?.A?.toString() || "",
+            priceB: productData.prices?.B?.toString() || "",
+            priceC: productData.prices?.C?.toString() || "",
+            priceD: productData.prices?.D?.toString() || "",
+            priceE: productData.prices?.E?.toString() || "",
+            status: productData.isActive || productData.status === "active",
           });
         }
       } catch (err: any) {
@@ -80,19 +84,22 @@ export default function EditarProductoPage() {
     };
 
     if (productId) {
-      fetchProduct();
+      fetchData();
     }
   }, [productId, router]);
 
   const handleFormChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value };
+      return newData;
+    });
   };
 
   const handleUpdateProduct = async () => {
     if (
       !formData.description ||
       !formData.brand ||
-      !formData.group ||
+      !formData.categoryId ||
       !formData.supplier
     ) {
       toast.error("Campos requeridos", {
@@ -102,14 +109,14 @@ export default function EditarProductoPage() {
     }
 
     const supplierName =
-      MOCK_SUPPLIERS.find((s) => s.id === formData.supplier)?.name ||
+      suppliers.find((s) => s.id === formData.supplier)?.legalName ||
       formData.supplier;
 
     const updatedProduct = {
       description: formData.description,
       brand: formData.brand,
-      group: formData.group,
-      subGroup: formData.group,
+      categoryId: formData.categoryId,
+      subcategoryId: null,
       supplier: supplierName,
       barcode: formData.barcode,
       reference: formData.reference,
@@ -222,16 +229,16 @@ export default function EditarProductoPage() {
                       Categoría <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={formData.group}
+                      value={formData.categoryId}
                       onChange={(e) =>
-                        handleFormChange("group", e.target.value)
+                        handleFormChange("categoryId", e.target.value)
                       }
                       className={inputClass}
                       required
                     >
-                      <option value="">Seleccionar</option>
-                      {PRODUCT_GROUPS.map((group) => (
-                        <option key={group.id} value={group.id}>{group.label}</option>
+                      <option value="">Seleccionar Categoría</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
                   </div>
@@ -311,8 +318,8 @@ export default function EditarProductoPage() {
                     required
                   >
                     <option value="">Seleccionar</option>
-                    {MOCK_SUPPLIERS.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.legalName}</option>
                     ))}
                   </select>
                 </div>
@@ -364,7 +371,7 @@ export default function EditarProductoPage() {
                       <input
                         type="number"
                         placeholder="0.00"
-                        value={formData[`price${level}` as keyof typeof formData]}
+                        value={String(formData[`price${level}` as keyof typeof formData])}
                         onChange={(e) => handleFormChange(`price${level}`, e.target.value)}
                         className={inputClass + " pl-6"}
                       />

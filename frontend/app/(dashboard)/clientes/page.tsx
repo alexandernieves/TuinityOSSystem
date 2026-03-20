@@ -236,10 +236,18 @@ export default function ClientsPage() {
 
       for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
         const row = jsonData[i];
-        if (row && Array.isArray(row) && row.some((v: any) => v?.toString().trim().toLowerCase().includes('codigo') || v?.toString().trim().toLowerCase().includes('código'))) {
-          headerRowIndex = i;
-          headers = row.map((v: any) => v?.toString().trim());
-          break;
+        if (row && Array.isArray(row)) {
+          const match = row.some((v: any) => {
+            if (!v) return false;
+            const lower = v.toString().trim().toLowerCase();
+            const clean = lower.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return clean.includes('codigo') || clean.includes('nombre') || lower.includes('código') || lower.includes('cã³digo') || clean.includes('ca³digo') || clean.includes('identificacion') || clean.includes('email') || clean.includes('correo');
+          });
+          if (match) {
+            headerRowIndex = i;
+            headers = row.map((v: any) => v?.toString().trim());
+            break;
+          }
         }
       }
 
@@ -250,13 +258,15 @@ export default function ClientsPage() {
       const colMap: any = {};
       headers.forEach((h, i) => {
         if (!h) return;
-        const lower = h.toLowerCase();
-        if (lower.includes('codigo') || lower.includes('código')) colMap.code = i;
-        if (lower.includes('nombre') || lower.includes('razon') || lower.includes('razón')) colMap.name = i;
-        if (lower.includes('identificacion') || lower.includes('identificación') || lower.includes('ruc')) colMap.taxId = i;
-        if (lower.includes('telefono') || lower.includes('teléfono')) colMap.phone = i;
-        if (lower.includes('celular') || lower.includes('movil') || lower.includes('móvil')) colMap.mobile = i;
-        if (lower.includes('correo') || lower.includes('email')) colMap.email = i;
+        const lower = h.toString().trim().toLowerCase();
+        const clean = lower.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        if (colMap.code === undefined && (clean.includes('codigo') || clean === 'cod' || clean === 'code' || clean.includes('referencia') || lower.includes('cã³digo') || lower.includes('código') || clean.includes('ca³digo'))) colMap.code = i;
+        if (colMap.name === undefined && (clean === 'nombre' || clean === 'cliente' || clean.includes('nombre legal') || clean.includes('razon social') || clean === 'name' || clean === 'nombre completo' || (clean.includes('nombre') && !clean.includes('comercial') && !clean.includes('contacto')))) colMap.name = i;
+        if (colMap.taxId === undefined && (clean.includes('identifi') || clean.includes('ruc') || clean.includes('nit') || clean.includes('tax') || clean.includes('cedula'))) colMap.taxId = i;
+        if (colMap.phone === undefined && (clean === 'telefono' || clean === 'tel' || clean === 'phone' || clean.includes('telefono local'))) colMap.phone = i;
+        if (colMap.mobile === undefined && (clean.includes('celular') || clean.includes('movil') || clean === 'mobile' || clean === 'whatsapp')) colMap.mobile = i;
+        if (colMap.email === undefined && (clean.includes('correo') || clean.includes('email') || clean === 'mail')) colMap.email = i;
       });
 
       const missing: string[] = [];
@@ -685,41 +695,33 @@ export default function ClientsPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl border flex items-center gap-4 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50">
-                  <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
-                    <FileCheck2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className={cn("p-4 rounded-xl border flex gap-4", importResults.errors?.length > 0 ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200")}>
+                  <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", importResults.errors?.length > 0 ? "bg-rose-100" : "bg-emerald-100")}>
+                    {importResults.errors?.length > 0 ? (
+                        <AlertCircle className="h-5 w-5 text-rose-600" />
+                    ) : (
+                        <FileCheck2 className="h-5 w-5 text-emerald-600" />
+                    )}
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                      Importación Finalizada
+                    <h4 className={cn("text-sm font-semibold", importResults.errors?.length > 0 ? "text-rose-900" : "text-emerald-900")}>
+                      {importResults.errors?.length > 0 ? "Importación con Errores" : "Importación Exitosa"}
                     </h4>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                      Se han procesado {importResults.success + importResults.failed} registros.
+                    <p className={cn("text-xs mt-0.5", importResults.errors?.length > 0 ? "text-rose-700" : "text-emerald-700")}>
+                      {importResults.errors?.length > 0 ? "Ocurrieron problemas en algunas filas del archivo." : "Los clientes han sido procesados correctamente."}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] text-center">
-                    <div className="text-2xl font-bold text-emerald-600">{importResults.success}</div>
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mt-1">Exitosos</div>
-                  </div>
-                  <div className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] text-center">
-                    <div className="text-2xl font-bold text-red-600">{importResults.failed}</div>
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mt-1">Fallidos</div>
-                  </div>
-                </div>
-
                 {importResults.errors?.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-red-500" />
-                      Detalle de Errores ({importResults.errors.length})
+                  <div className="mt-4 max-h-[250px] overflow-y-auto p-4 rounded-xl bg-rose-50/50 border border-rose-100">
+                    <h4 className="text-[12px] font-bold text-rose-800 flex items-center gap-2 mb-3 uppercase tracking-wider">
+                      ERRORES DETECTADOS ({importResults.errors.length}):
                     </h4>
-                    <div className="max-h-[150px] overflow-y-auto p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-xs text-red-600 dark:text-red-400 space-y-1">
+                    <div className="space-y-2">
                       {importResults.errors.map((err: string, idx: number) => (
-                        <div key={idx} className="flex gap-2">
-                          <span className="opacity-50">•</span>
+                        <div key={idx} className="flex gap-2 text-[12px] text-rose-600 bg-white p-2 rounded-lg border border-rose-100/60 shadow-sm">
+                          <span className="opacity-50 mt-0.5 shrink-0">•</span>
                           <span>{err}</span>
                         </div>
                       ))}

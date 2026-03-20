@@ -9,6 +9,8 @@ import { ClientsService } from '../clients/clients.service';
 import { AccountsReceivableService } from '../services/accounts-receivable/accounts-receivable.service';
 import { TrafficService } from '../traffic/traffic.service';
 import { AccountsReceivableEntryType } from '@prisma/client';
+import { CommissionsService } from './commissions.service';
+import { LotsService } from '../services/inventory/lots.service';
 
 @Injectable()
 export class SalesService {
@@ -22,6 +24,8 @@ export class SalesService {
         private clientsService: ClientsService,
         private arService: AccountsReceivableService,
         private trafficService: TrafficService,
+        private commissionsService: CommissionsService,
+        private lotsService: LotsService,
     ) { }
 
     async getActiveRegister(userId: string): Promise<any | null> {
@@ -113,6 +117,72 @@ export class SalesService {
                     ...(paymentMethod === 'transferencia' ? { transferSales: { increment: total } } : {}),
                 }
             });
+
+            // Registrar movimientos en Kardex y actualizar Stock POS
+            for (const l of createSaleDto.lines) {
+                const product = await tx.product.findUnique({ where: { id: l.productId } });
+                const unitCost = Number(product?.costAvgWeighted || product?.costCIF || 0);
+
+                // --- INVENTORY IMPACT (FEFO) ---
+                // 1. Descontar de Lotes usando FEFO
+                const affectedLots = await this.lotsService.consumeFEFO({
+                    productId: l.productId,
+                    warehouseId: warehouseId,
+                    quantity: Number(l.quantity),
+                    tx
+                });
+
+                // 2. Registrar movimientos en Kardex
+                const stock = await tx.inventoryExistence.findUnique({
+                    where: {
+                        productId_warehouseId: {
+                            productId: l.productId,
+                            warehouseId: warehouseId
+                        }
+                    }
+                });
+                const currentExistence = stock ? Number(stock.existence) : 0;
+                const newExistence = currentExistence - Number(l.quantity);
+                const mainLotId = affectedLots.length > 0 ? affectedLots[0].lotId : null;
+
+                await tx.inventoryMovement.create({
+                    data: {
+                        productId: l.productId,
+                        warehouseId: warehouseId,
+                        productLotId: mainLotId,
+                        movementType: 'POS_SALE',
+                        quantity: Number(l.quantity) * -1,
+                        unitCost: unitCost,
+                        totalCost: unitCost * Number(l.quantity),
+                        balanceQuantity: newExistence,
+                        balanceValue: newExistence * unitCost,
+                        referenceType: 'pos_sale',
+                        referenceId: sale.number,
+                        occurredAt: new Date(),
+                        notes: `Venta POS ${sale.number}${mainLotId ? ' - FEFO Auto: ' + affectedLots.length : ''}`
+                    }
+                });
+
+                // 3. Actualizar existencia global
+                await tx.inventoryExistence.upsert({
+                    where: {
+                        productId_warehouseId: {
+                            productId: l.productId,
+                            warehouseId: warehouseId
+                        }
+                    },
+                    create: {
+                        productId: l.productId,
+                        warehouseId: warehouseId,
+                        existence: newExistence,
+                        available: newExistence
+                    },
+                    update: {
+                        existence: newExistence,
+                        available: newExistence
+                    }
+                });
+            }
 
             return sale;
         });
@@ -575,20 +645,7 @@ export class SalesService {
                     data: { quantityDispatched: { increment: line.quantityPacked } }
                 });
 
-                // 2. Registrar movimiento en Kardex
-                await tx.inventoryMovement.create({
-                    data: {
-                        productId: line.productId,
-                        warehouseId: packing.salesOrder.warehouseId!,
-                        productLotId: line.productLotId,
-                        movementType: 'SALE',
-                        quantity: Number(line.quantityPacked) * -1,
-                        referenceType: 'packing_list',
-                        referenceId: packing.id,
-                        occurredAt: new Date()
-                    }
-                });
-
+                const product = await tx.product.findUnique({ where: { id: line.productId } });
                 const stock = await tx.inventoryExistence.findUnique({
                     where: { 
                         productId_warehouseId: { 
@@ -598,9 +655,48 @@ export class SalesService {
                     }
                 });
 
-                if (!stock || Number(stock.existence) < Number(line.quantityPacked)) {
-                    throw new BadRequestException(`Stock físico insuficiente para producto ${line.productId}. Disponible: ${stock?.existence || 0}`);
+                const unitCost = Number(product?.costAvgWeighted || product?.costCIF || 0);
+
+                // 2. Registrar movimiento en Kardex Valorizado usando FEFO
+                // Si la línea ya trae un lote específico (productLotId), lo respetamos, 
+                // si no, usamos FEFO automático.
+                let affectedLots: any[] = [];
+                if (!line.productLotId) {
+                    affectedLots = await this.lotsService.consumeFEFO({
+                        productId: line.productId,
+                        warehouseId: packing.salesOrder.warehouseId!,
+                        quantity: Number(line.quantityPacked),
+                        tx
+                    });
+                } else {
+                    // Si ya tiene lote, lo consumimos directamente
+                    await tx.productLot.update({
+                        where: { id: line.productLotId },
+                        data: { availableQuantity: { decrement: Number(line.quantityPacked) } }
+                    });
+                    affectedLots = [{ lotId: line.productLotId, quantity: Number(line.quantityPacked) }];
                 }
+
+                const mainLotId = affectedLots.length > 0 ? affectedLots[0].lotId : line.productLotId;
+                const newExistence = stock ? Number(stock.existence) - Number(line.quantityPacked) : 0;
+                
+                await tx.inventoryMovement.create({
+                    data: {
+                        productId: line.productId,
+                        warehouseId: packing.salesOrder.warehouseId!,
+                        productLotId: mainLotId,
+                        movementType: 'SALE',
+                        quantity: Number(line.quantityPacked) * -1,
+                        unitCost: unitCost,
+                        totalCost: unitCost * Number(line.quantityPacked),
+                        balanceQuantity: newExistence,
+                        balanceValue: newExistence * unitCost,
+                        referenceType: 'packing_list',
+                        referenceId: packing.number,
+                        occurredAt: new Date(),
+                        notes: `Venta B2B OC: ${packing.salesOrder.number} (Packing: ${packing.number})${mainLotId ? ' - Lote: ' + mainLotId : ''}`
+                    }
+                });
 
                 if (stock) {
                     await tx.inventoryExistence.update({
@@ -608,7 +704,6 @@ export class SalesService {
                         data: {
                             existence: { decrement: line.quantityPacked },
                             reserved: { decrement: line.quantityPacked },
-                            // available no cambia porque bajaron existence y reserved el mismo monto
                         }
                     });
                 }
@@ -719,6 +814,11 @@ export class SalesService {
                 console.error('Error creating accounting entry for invoice:', err);
             });
 
+            // Generate initial Commission Record based on gross margin >= 10%
+            this.commissionsService.calculateInitialCommission(invoice.id).catch(err => {
+                console.error('Error creating commission record for invoice:', err);
+            });
+
             return invoice;
         } catch (error: any) {
             console.error('INVOICE ERROR:', error);
@@ -797,65 +897,29 @@ export class SalesService {
 
     private async createAccountingEntryForInvoice(invoice: any, order: any) {
         try {
-            const accounts = await this.accountingService.findAllAccounts();
-            const cxc = accounts.find(a => a.code === '1020.01');
-            const ventas = accounts.find(a => a.code === '4010.01');
-            const inventario = accounts.find(a => a.code === '1030.01');
-            const costoVentas = accounts.find(a => a.code === '5010.01');
+            await this.accountingService.generateAutoEntry({
+                operationType: 'B2B_INVOICE',
+                referenceId: invoice.id,
+                amount: Number(invoice.total),
+                memo: `Factura B2B ${invoice.number}`,
+                userId: invoice.createdByUserId
+            });
 
-            if (!cxc || !ventas || !inventario || !costoVentas) {
-                console.warn('Accounting accounts not found for invoice entry');
-                return;
-            }
-
-            const totalAmount = Number(invoice.total);
             let totalCost = 0;
-
             for (const line of order.lines) {
                 const cost = Number(line.product.costAvgWeighted || line.product.costCIF || 0);
                 totalCost += cost * Number(line.quantityOrdered);
             }
 
-            const lines = [
-                // 1. Sale record (Revenue & Receivables)
-                {
-                    accountId: cxc.id,
-                    debit: totalAmount,
-                    credit: 0,
-                    memo: `Factura ${invoice.number} - ${invoice.customer?.legalName || 'Cliente'}`
-                },
-                {
-                    accountId: ventas.id,
-                    debit: 0,
-                    credit: totalAmount,
-                    memo: `Ingreso por venta Factura ${invoice.number}`
-                }
-            ];
-
             if (totalCost > 0) {
-                // 2. Cost of Sales record (Expense & Asset)
-                lines.push({
-                    accountId: costoVentas.id,
-                    debit: totalCost,
-                    credit: 0,
-                    memo: `Costo de Venta Factura ${invoice.number}`
-                });
-                lines.push({
-                    accountId: inventario.id,
-                    debit: 0,
-                    credit: totalCost,
-                    memo: `Salida de Inventario Factura ${invoice.number}`
+                await this.accountingService.generateAutoEntry({
+                    operationType: 'B2B_INVOICE_COST',
+                    referenceId: invoice.id,
+                    amount: totalCost,
+                    memo: `Costo de Factura B2B ${invoice.number}`,
+                    userId: invoice.createdByUserId
                 });
             }
-
-            await this.accountingService.createEntry({
-                date: new Date(),
-                description: `Contabilización Factura de Venta ${invoice.number}`,
-                sourceType: 'invoice',
-                sourceId: invoice.id,
-                createdByUserId: invoice.createdByUserId,
-                lines
-            });
         } catch (error) {
             console.error('Error generating accounting entry for invoice:', error);
         }

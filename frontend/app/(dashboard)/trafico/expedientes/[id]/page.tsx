@@ -237,7 +237,7 @@ export default function ExpedientDetailPage() {
               </div>
               <p className="text-sm text-gray-500 flex items-center gap-2 mt-0.5">
                 <Globe className="h-3.5 w-3.5" />
-                {expedient.counterpartName} ({expedient.counterpartCountry})
+                {expedient.invoice?.customer?.name || expedient.counterpartName} ({expedient.counterpartCountry})
               </p>
             </div>
           </div>

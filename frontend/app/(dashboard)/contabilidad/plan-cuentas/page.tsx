@@ -1,498 +1,220 @@
 'use client';
-
-import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { api } from '@/lib/services/api'; import {
-  Scale,
-  ChevronRight,
-  ChevronDown,
-  Plus,
-  Activity,
-  Search,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/services/api';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/contexts/auth-context';
-import { cn } from '@/lib/utils/cn';
-import {
-  formatCurrencyAccounting,
-} from '@/lib/mock-data/accounting';
-import { motion } from 'framer-motion';
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  ACCOUNT_TYPE_LABELS,
-  ACCOUNT_TYPE_COLORS,
-  ACCOUNT_NATURE_LABELS,
-} from '@/lib/types/accounting';
-import type { Account, AccountType, AccountNature } from '@/lib/types/accounting';
+import { Search, Plus, Edit2, ToggleLeft, ToggleRight, RefreshCw, ChevronRight, ChevronDown } from 'lucide-react';
 
-function AccountRow({
-  account,
-  expanded,
-  onToggle,
-  searchQuery,
-}: {
-  account: Account;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
-  searchQuery: string;
-}) {
-  const hasChildren = account.children && account.children.length > 0;
-  const isExpanded = expanded.has(account.id);
+const TYPE_COLORS: Record<string, string> = {
+  ASSET: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  LIABILITY: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  EQUITY: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  REVENUE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  EXPENSE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+};
 
-  const typeColor = ACCOUNT_TYPE_COLORS[account.type as AccountType] || { bg: 'bg-gray-100', text: 'text-gray-700' };
-  const indent = (account.level - 1) * 24;
-
-  return (
-    <>
-      <tr
-        className={cn(
-          'group transition-colors',
-          account.level === 1
-            ? 'bg-gray-50 dark:bg-[#1a1a1a] font-semibold'
-            : 'hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-        )}
-      >
-        <td className="px-4 py-2.5" style={{ paddingLeft: `${16 + indent}px` }}>
-          <div className="flex items-center gap-2">
-            {hasChildren ? (
-              <button
-                onClick={() => onToggle(account.id)}
-                className="flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-gray-200 dark:hover:bg-[#2a2a2a]"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
-                )}
-              </button>
-            ) : (
-              <span className="w-5" />
-            )}
-            <span
-              className={cn(
-                'font-mono text-sm',
-                account.level === 1
-                  ? 'font-bold text-gray-900 dark:text-white'
-                  : 'text-gray-600 dark:text-gray-400'
-              )}
-            >
-              {account.code}
-            </span>
-          </div>
-        </td>
-        <td className="px-4 py-2.5">
-          <span
-            className={cn(
-              'text-sm',
-              account.level === 1
-                ? 'font-bold text-gray-900 dark:text-white'
-                : account.level === 2
-                  ? 'font-medium text-gray-800 dark:text-gray-200'
-                  : 'text-gray-700 dark:text-gray-300'
-            )}
-          >
-            {account.name}
-          </span>
-          {account.balance !== 0 && (
-            <Activity className="ml-1.5 inline h-3 w-3 text-emerald-500" />
-          )}
-        </td>
-        <td className="px-4 py-2.5 text-center">
-          <span
-            className={cn(
-              'inline-flex rounded-md px-2 py-0.5 text-xs font-medium',
-              typeColor.bg,
-              typeColor.text
-            )}
-          >
-            {ACCOUNT_TYPE_LABELS[account.type as AccountType]}
-          </span>
-        </td>
-        <td className="px-4 py-2.5 text-center">
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            {ACCOUNT_NATURE_LABELS[account.nature as AccountNature]}
-          </span>
-        </td>
-        <td className="px-4 py-2.5 text-center">
-          <span
-            className={cn(
-              'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-              account.isActive
-                ? 'bg-emerald-500/10 text-emerald-500'
-                : 'bg-gray-500/10 text-gray-500'
-            )}
-          >
-            {account.isActive ? 'Activa' : 'Inactiva'}
-          </span>
-        </td>
-        <td className="px-4 py-2.5 text-right">
-          <span
-            className={cn(
-              'font-mono text-sm',
-              account.level === 1
-                ? 'font-bold text-gray-900 dark:text-white'
-                : 'text-gray-700 dark:text-gray-300',
-              account.balance < 0 && 'text-red-600 dark:text-red-400'
-            )}
-          >
-            {formatCurrencyAccounting(account.balance)}
-          </span>
-        </td>
-      </tr>
-      {isExpanded &&
-        account.children?.map((child: any) => (
-          <AccountRow
-            key={child.id}
-            account={child}
-            expanded={expanded}
-            onToggle={onToggle}
-            searchQuery={searchQuery}
-          />
-        ))}
-    </>
-  );
-}
+const TYPE_LABELS: Record<string, string> = {
+  ASSET: 'Activo', LIABILITY: 'Pasivo', EQUITY: 'Capital', REVENUE: 'Ingreso', EXPENSE: 'Gasto'
+};
 
 export default function PlanCuentasPage() {
-  const router = useRouter();
-  const { checkPermission } = useAuth();
-  const canCreateManualEntries = checkPermission('canCreateManualEntries');
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editAcc, setEditAcc] = useState<any>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState({ code: '', name: '', type: 'ASSET', parentId: '', isActive: true });
 
-  const [realAccounts, setRealAccounts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchAccounts = async () => {
+  const loadAccounts = async () => {
+    setLoading(true);
     try {
       const data = await api.getAccounts();
-      setRealAccounts(data);
-    } catch (err) {
-      toast.error('Error cargando cuentas');
-    } finally {
-      setIsLoading(false);
-    }
+      setAccounts(data);
+    } catch { toast.error('Error cargando cuentas'); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
+  useEffect(() => { loadAccounts(); }, []);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  const [isOpen, setIsOpen] = useState(false);
-
-  // New account form
-  const [newCode, setNewCode] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState<string>('asset');
-  const [newNature, setNewNature] = useState<string>('deudora');
-  const [newParent, setNewParent] = useState<string>('');
-
-  const accountTree = useMemo(() => {
-    const list = realAccounts.map(a => ({
-      ...a,
-      id: a._id,
-      nature: (a.type === 'asset' || a.type === 'expense') ? 'deudora' : 'acreedora',
-      level: a.code.split('.').length,
-    }));
-
-    const buildTree = (parentId: string | null = null): any[] => {
-      return list
-        .filter((a) => a.parentId === (parentId ? list.find(l => l.id === parentId)?.code : null))
-        .map((a) => ({
-          ...a,
-          children: buildTree(a.id),
-        }))
-        .sort((a, b) => a.code.localeCompare(b.code));
-    };
-
-    return buildTree(null);
-  }, [realAccounts]);
-
-  const parentAccounts = useMemo(
-    () => realAccounts.filter((a) => a.isGroup),
-    [realAccounts]
+  const filtered = accounts.filter(a =>
+    !search || a.code.toLowerCase().includes(search.toLowerCase()) || a.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Build hierarchy
+  const buildTree = (items: any[], parentId: string | null = null): any[] =>
+    items.filter(a => a.parentAccountId === parentId)
+         .map(a => ({ ...a, children: buildTree(items, a.id) }));
+
+  const tree = buildTree(filtered.length < accounts.length ? filtered : accounts);
+
   const toggleExpand = (id: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
+    setExpanded(prev => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
     });
   };
 
-  const expandAll = () => {
-    setExpanded(new Set(realAccounts.map((a) => a._id)));
+  const openCreate = () => {
+    setEditAcc(null);
+    setForm({ code: '', name: '', type: 'ASSET', parentId: '', isActive: true });
+    setShowModal(true);
   };
 
-  const collapseAll = () => {
-    setExpanded(new Set());
+  const openEdit = (acc: any) => {
+    setEditAcc(acc);
+    setForm({ code: acc.code, name: acc.name, type: acc.type, parentId: acc.parentAccountId || '', isActive: acc.isActive });
+    setShowModal(true);
   };
 
-  const handleSaveAccount = async () => {
-    if (!newCode.trim() || !newName.trim()) {
-      toast.error('Debe ingresar código y nombre de la cuenta');
-      return;
-    }
+  const handleSave = async () => {
     try {
-      const parentAcc = newParent ? realAccounts.find((a) => a._id === newParent) : null;
-      await api.createAccount({
-        code: newCode,
-        name: newName,
-        type: newType,
-        parentId: parentAcc ? parentAcc.code : null,
-        isGroup: false, // Default to leaf for now
-      });
-      toast.success('Cuenta creada exitosamente');
-      setIsOpen(false);
-      setNewCode('');
-      setNewName('');
-      fetchAccounts();
-    } catch (err: any) {
-      toast.error('Error', { description: err.message });
-    }
+      if (editAcc) {
+        await api.updateAccount(editAcc.id, { ...form });
+        toast.success('Cuenta actualizada');
+      } else {
+        await api.createAccount({ ...form });
+        toast.success('Cuenta creada');
+      }
+      setShowModal(false);
+      loadAccounts();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleToggle = async (acc: any) => {
+    try {
+      await api.updateAccount(acc.id, { ...acc, isActive: !acc.isActive });
+      toast.success(!acc.isActive ? 'Cuenta activada' : 'Cuenta desactivada');
+      loadAccounts();
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleSeed = async () => {
     try {
-      await api.seedCOA();
-      toast.success('COA generado');
-      fetchAccounts();
-    } catch (err) {
-      toast.error('Error al generar COA');
-    }
+      await api.seedAccountingCOA();
+      toast.success('Plan de cuentas y mapeos inicializados');
+      loadAccounts();
+    } catch (e: any) { toast.error(e.message); }
   };
 
+  const renderTree = (nodes: any[], depth = 0) =>
+    nodes.map(node => (
+      <div key={node.id}>
+        <div className={`flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${!node.isActive ? 'opacity-40' : ''}`}
+             style={{ paddingLeft: `${16 + depth * 24}px` }}>
+          <button onClick={() => toggleExpand(node.id)} className="w-5 h-5 flex items-center justify-center text-gray-400 flex-shrink-0">
+            {node.children.length > 0 ? (expanded.has(node.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <span className="w-3.5" />}
+          </button>
+          <span className="font-mono text-xs text-gray-400 w-20 flex-shrink-0">{node.code}</span>
+          <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white">{node.name}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[node.type]}`}>{TYPE_LABELS[node.type]}</span>
+          <button onClick={() => openEdit(node)} className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors">
+            <Edit2 className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={() => handleToggle(node)} className="p-1.5 text-gray-400 hover:text-emerald-500 transition-colors">
+            {node.isActive ? <ToggleRight className="h-4 w-4 text-emerald-500" /> : <ToggleLeft className="h-4 w-4" />}
+          </button>
+        </div>
+        {node.children.length > 0 && expanded.has(node.id) && renderTree(node.children, depth + 1)}
+      </div>
+    ));
+
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/contabilidad')}
-            className="text-sm text-gray-500 dark:text-[#888888] hover:text-gray-700 dark:hover:text-white"
-          >
-            Contabilidad
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Plan de Cuentas</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Catálogo maestro de cuentas contables</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={handleSeed} className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/10 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors">
+            <RefreshCw className="h-4 w-4" /> Inicializar
           </button>
-          <ChevronRight className="h-4 w-4 text-gray-400" />
-          <div className="flex items-center gap-2">
-            <Scale className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Plan de Cuentas</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSeed}
-            className="h-9 px-4 text-sm font-medium"
-          >
-            Generar catálogo base
-          </Button>
-          {canCreateManualEntries && (
-            <Button
-              onClick={() => setIsOpen(true)}
-              className="flex h-9 items-center gap-2 rounded-lg bg-purple-600 px-4 text-sm font-medium text-white transition-colors hover:bg-purple-700"
-            >
-              <Plus className="h-4 w-4" />
-              Nueva Cuenta
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Search + Controls */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar cuenta..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={expandAll}
-            className="rounded-lg bg-gray-100 dark:bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]"
-          >
-            Expandir todo
-          </button>
-          <button
-            onClick={collapseAll}
-            className="rounded-lg bg-gray-100 dark:bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]"
-          >
-            Colapsar todo
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors">
+            <Plus className="h-4 w-4" /> Nueva Cuenta
           </button>
         </div>
       </div>
 
-      {/* Account Tree Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                  Código
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                  Nombre
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                  Tipo
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                  Naturaleza
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                  Estado
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                  Saldo
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-              {accountTree.map((account) => (
-                <AccountRow
-                  key={account.id}
-                  account={account}
-                  expanded={expanded}
-                  onToggle={toggleExpand}
-                  searchQuery={searchQuery}
-                />
-              ))}
-            </tbody>
-          </table>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input type="text" placeholder="Buscar por código o nombre..." value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+        />
+      </div>
+
+      {/* Accounts table */}
+      <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+        <div className="flex items-center gap-4 px-4 py-3 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+          <span className="w-5" />
+          <span className="w-20">Código</span>
+          <span className="flex-1">Nombre</span>
+          <span className="w-24">Tipo</span>
+          <span className="w-16">Acciones</span>
         </div>
-      </div>
-
-      <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
-        {realAccounts.length} cuentas en el plan contable
-      </div>
-
-      {/* New Account Modal */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              <div className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                Nueva Cuenta
+        {loading ? (
+          <div className="p-12 text-center text-gray-400">Cargando...</div>
+        ) : (
+          search ? (
+            filtered.map(acc => (
+              <div key={acc.id} className={`flex items-center gap-4 px-4 py-2.5 border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 ${!acc.isActive ? 'opacity-40' : ''}`}>
+                <span className="w-5" />
+                <span className="font-mono text-xs text-gray-400 w-20">{acc.code}</span>
+                <span className="flex-1 text-sm font-medium">{acc.name}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[acc.type]}`}>{TYPE_LABELS[acc.type]}</span>
+                <div className="flex gap-1 w-16">
+                  <button onClick={() => openEdit(acc)} className="p-1.5 text-gray-400 hover:text-blue-500"><Edit2 className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => handleToggle(acc)} className="p-1.5 text-gray-400 hover:text-emerald-500">
+                    {acc.isActive ? <ToggleRight className="h-4 w-4 text-emerald-500" /> : <ToggleLeft className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Código (XXXX-YYY)
-                </label>
-                <input
-                  type="text"
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value)}
-                  placeholder="1100-006"
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 font-mono text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
+            ))
+          ) : renderTree(tree)
+        )}
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-lg font-bold">{editAcc ? 'Editar Cuenta' : 'Nueva Cuenta'}</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Código *</label>
+                <input value={form.code} onChange={e => setForm({...form, code: e.target.value})}
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                  placeholder="Ej: 1010.03" />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Nombre de la cuenta"
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Tipo *</label>
+                <select value={form.type} onChange={e => setForm({...form, type: e.target.value})}
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                  {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
-                <Select
-                  value={newType}
-                  onValueChange={setNewType}
-                >
-                  <SelectTrigger className="h-10 w-full bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-[#2a2a2a]">
-                    <SelectValue placeholder="Seleccionar tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(ACCOUNT_TYPE_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Naturaleza</label>
-                <Select
-                  value={newNature}
-                  onValueChange={setNewNature}
-                >
-                  <SelectTrigger className="h-10 w-full bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-[#2a2a2a]">
-                    <SelectValue placeholder="Seleccionar naturaleza" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(ACCOUNT_NATURE_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Nombre *</label>
+              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                placeholder="Nombre de la cuenta" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cuenta Padre</label>
-              <Select
-                value={newParent || "root"}
-                onValueChange={(val) => setNewParent(val === "root" ? "" : val)}
-              >
-                <SelectTrigger className="h-10 w-full bg-white dark:bg-[#1a1a1a] border-gray-300 dark:border-[#2a2a2a]">
-                  <SelectValue placeholder="Sin cuenta padre" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="root">Sin cuenta padre (nivel 1)</SelectItem>
-                  {parentAccounts.map((acc) => (
-                    <SelectItem key={acc._id} value={acc._id}>
-                      {acc.code} - {acc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Cuenta Padre (código, opcional)</label>
+              <input value={form.parentId} onChange={e => setForm({...form, parentId: e.target.value})}
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                placeholder="Ej: 1010" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 bg-gray-100 dark:bg-white/10 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition-colors">Cancelar</button>
+              <button onClick={handleSave} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors">Guardar</button>
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveAccount} className="bg-purple-600 text-white hover:bg-purple-700">
-              Crear Cuenta
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }

@@ -47,7 +47,6 @@ export class ClientsService {
 
         return customers.map(c => ({
             ...c,
-            _id: c.id,
             name: c.legalName,
             status: c.isActive ? 'active' : 'inactive',
             currentBalance: c.creditProfile?.currentBalance || 0
@@ -62,10 +61,39 @@ export class ClientsService {
         if (!client) throw new NotFoundException(`Cliente ${id} no encontrado`);
         return {
             ...client,
-            _id: client.id,
             name: client.legalName,
             status: client.isActive ? 'active' : 'inactive',
             currentBalance: client.creditProfile?.currentBalance || 0
+        };
+    }
+
+    async getPosHistory(id: string): Promise<any> {
+        const client = await this.prisma.customer.findUnique({ where: { id } });
+        if (!client) throw new NotFoundException(`Cliente ${id} no encontrado`);
+
+        const sales = await this.prisma.pOSSale.findMany({
+            where: { customerId: id },
+            include: {
+                createdByUser: { select: { name: true } },
+                cashRegister: { select: { userName: true } },
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const validSales = sales.filter(s => s.status !== 'VOIDED');
+        const totalSpent = validSales.reduce((sum, s) => sum + Number(s.total), 0);
+        const count = validSales.length;
+        const avgTicket = count > 0 ? totalSpent / count : 0;
+        const lastPurchase = validSales.length > 0 ? validSales[0].createdAt : null;
+
+        return {
+            summary: {
+                totalSpent,
+                count,
+                avgTicket,
+                lastPurchase
+            },
+            sales
         };
     }
 

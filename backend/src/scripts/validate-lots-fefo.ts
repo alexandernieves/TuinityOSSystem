@@ -4,7 +4,8 @@ import { InventoryService } from '../services/inventory/inventory.service';
 
 async function runTest() {
   const prisma = new PrismaClient();
-  const inventoryService = new InventoryService(prisma as any);
+  const notificationsService = {} as any;
+  const inventoryService = new InventoryService(prisma as any, notificationsService);
 
   console.log('--- Starting Functional Test: Lots & FEFO ---');
 

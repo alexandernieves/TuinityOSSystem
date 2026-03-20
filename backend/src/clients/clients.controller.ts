@@ -70,6 +70,11 @@ export class ClientsController {
         });
     }
 
+    @Get(':id/pos-history')
+    getPosHistory(@Param('id') id: string) {
+        return this.clientsService.getPosHistory(id);
+    }
+
     @Patch(':id')
     update(@Param('id') id: string, @Body() updateClientDto: any) {
         return this.clientsService.update(id, updateClientDto);

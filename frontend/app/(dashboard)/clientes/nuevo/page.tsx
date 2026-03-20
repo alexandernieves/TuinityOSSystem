@@ -20,7 +20,9 @@ export default function NuevoClientePage() {
     const data = {
       reference: formData.get('reference') as string,
       name: formData.get('name') as string,
-      documentId: formData.get('documentId') as string,
+      taxId: formData.get('documentId') as string,
+      taxDv: formData.get('taxDv') as string,
+      country: formData.get('country') as string || 'PA',
       type: clientType,
       contactName: formData.get('contactName') as string,
       email: formData.get('email') as string,
@@ -103,9 +105,24 @@ export default function NuevoClientePage() {
                 <label className={labelClass}>Nombre</label>
                 <input type="text" name="name" required placeholder={clientType === 'b2b' ? 'Nombre de la empresa' : 'Nombre de la persona'} className={inputClass} />
              </div>
+             <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                    <label className={labelClass}>RUC / Cédula</label>
+                    <input type="text" name="documentId" required placeholder="Número de identificación" className={inputClass} />
+                </div>
+                <div>
+                    <label className={labelClass}>DV</label>
+                    <input type="text" name="taxDv" maxLength={4} placeholder="00" className={inputClass} />
+                </div>
+             </div>
              <div>
-                <label className={labelClass}>Identificación</label>
-                <input type="text" name="documentId" required placeholder="Número de identificación" className={inputClass} />
+                <label className={labelClass}>País</label>
+                <select name="country" defaultValue="PA" className={inputClass}>
+                    <option value="PA">Panamá</option>
+                    <option value="CR">Costa Rica</option>
+                    <option value="US">USA</option>
+                    <option value="OTHER">Otro</option>
+                </select>
              </div>
              <div>
                 <label className={labelClass}>E-Mail</label>

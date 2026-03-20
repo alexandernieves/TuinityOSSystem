@@ -11,6 +11,12 @@ export class SuppliersController {
         private readonly apService: AccountsPayableService
     ) { }
 
+    @Post('batch-import-json')
+    async importSuppliersBatch(@Body() body: { batch: any[] }) {
+        console.log(`[SuppliersController] Received batch import with ${body?.batch?.length} items`);
+        return this.suppliersService.importSuppliersBatch(body.batch);
+    }
+
     @Get('cxp/summary')
     getSummary(@Query('asOf') asOf: string) {
         return this.apService.getAccountsPayableSummary(asOf ? new Date(asOf) : undefined);

@@ -5,7 +5,8 @@ import { AuditService } from '../services/audit/audit.service';
 
 async function runStressTest() {
   const prisma = new PrismaClient();
-  const inventoryService = new InventoryService(prisma as any);
+  const notificationsService = {} as any;
+  const inventoryService = new InventoryService(prisma as any, notificationsService);
   const auditService = new AuditService(prisma as any);
 
   console.log('🚀 Starting EvolutionOS Inventory Stress Test');

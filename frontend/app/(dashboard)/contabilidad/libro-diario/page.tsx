@@ -1,618 +1,204 @@
 'use client';
-
-import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { api } from '@/lib/services/api'; import {
-  BookOpen,
-  Search,
-  Plus,
-  ChevronDown,
-  ChevronRight,
-  X,
-  Trash2,
-  AlertCircle,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/services/api';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/contexts/auth-context';
-import { cn } from '@/lib/utils/cn';
-import {
-  formatCurrencyAccounting,
-} from '@/lib/mock-data/accounting';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  JOURNAL_SOURCE_LABELS,
-  JOURNAL_SOURCE_COLORS,
-  JOURNAL_STATUS_LABELS,
-  JOURNAL_STATUS_CONFIG,
-} from '@/lib/types/accounting';
-import type { JournalEntrySource, JournalEntryStatus } from '@/lib/types/accounting';
-import { SkeletonTable } from '@/components/ui/skeleton-table';
+import { Search, Filter, ChevronLeft, ChevronRight, Eye, RotateCcw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-interface NewEntryLine {
-  accountId: string;
-  description: string;
-  debit: string;
-  credit: string;
-}
+const SOURCE_LABELS: Record<string, string> = {
+  B2B_INVOICE: 'Factura B2B', B2B_INVOICE_COST: 'Costo Factura B2B', B2B_COLLECTION: 'Cobro Cliente',
+  POS_SALE: 'Venta POS', POS_SALE_COST: 'Costo Venta POS', POS_RETURN: 'Devolución POS', POS_RETURN_COST: 'Costo Dev. POS',
+  PURCHASE_RECEIPT: 'Recepción Compra', SUPPLIER_PAYMENT: 'Pago Proveedor', REVERSAL: 'Reverso', manual: 'Manual',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  POSTED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  DRAFT: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  REVERSED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+};
+
+const fmt = (n: number) => n.toLocaleString('es-PA', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-PA', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export default function LibroDiarioPage() {
   const router = useRouter();
-  const { checkPermission } = useAuth();
-  const canCreateManualEntries = checkPermission('canCreateManualEntries');
-
-  const [realEntries, setRealEntries] = useState<any[]>([]);
-  const [realAccounts, setRealAccounts] = useState<any[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ startDate: '', endDate: '', status: '', sourceType: '' });
+  const [selected, setSelected] = useState<any>(null);
+  const [reverseModal, setReverseModal] = useState<string | null>(null);
+  const [reverseReason, setReverseReason] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
-  const fetchData = async () => {
+  const load = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [entriesData, accountsData] = await Promise.all([
-        api.getJournalEntries(),
-        api.getAccounts()
-      ]);
-      setRealEntries(entriesData);
-      setRealAccounts(accountsData);
-    } catch (err) {
-      toast.error('Error cargando datos contables');
-    } finally {
-      setLoading(false);
-    }
+      const f: any = {};
+      if (filters.startDate) f.startDate = filters.startDate;
+      if (filters.endDate) f.endDate = filters.endDate;
+      if (filters.status) f.status = filters.status;
+      if (filters.sourceType) f.sourceType = filters.sourceType;
+      const data = await api.getJournalEntries(f);
+      setEntries(data);
+    } catch { toast.error('Error cargando asientos'); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const paged = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(entries.length / PAGE_SIZE);
 
-  // Expandable rows
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
-
-  // New entry modal
-  const [isOpen, setIsOpen] = useState(false);
-  const [newDate, setNewDate] = useState('2026-02-26');
-  const [newDescription, setNewDescription] = useState('');
-  const [newLines, setNewLines] = useState<NewEntryLine[]>([
-    { accountId: '', description: '', debit: '', credit: '' },
-    { accountId: '', description: '', debit: '', credit: '' },
-  ]);
-
-  const leafAccounts = useMemo(
-    () => realAccounts.filter((a) => !a.isGroup && a.isActive),
-    [realAccounts]
-  );
-
-  const entries = useMemo(() => {
-    return realEntries.filter((entry) => {
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch =
-        !searchQuery ||
-        entry.reference.toLowerCase().includes(searchLower) ||
-        entry.description.toLowerCase().includes(searchLower);
-
-      const matchesSource = sourceFilter === 'all' || entry.sourceType === sourceFilter;
-      const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
-
-      let matchesDate = true;
-      if (dateFrom) matchesDate = matchesDate && new Date(entry.date) >= new Date(dateFrom);
-      if (dateTo) matchesDate = matchesDate && new Date(entry.date) <= new Date(dateTo);
-
-      return matchesSearch && matchesSource && matchesStatus && matchesDate;
-    });
-  }, [realEntries, searchQuery, sourceFilter, statusFilter, dateFrom, dateTo]);
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-PA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-    });
-  };
-
-  const addLine = () => {
-    setNewLines([...newLines, { accountId: '', description: '', debit: '', credit: '' }]);
-  };
-
-  const removeLine = (index: number) => {
-    if (newLines.length <= 2) return;
-    setNewLines(newLines.filter((_, i) => i !== index));
-  };
-
-  const updateLine = (index: number, field: keyof NewEntryLine, value: string) => {
-    const updated = [...newLines];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewLines(updated);
-  };
-
-  const totalDebit = newLines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
-  const totalCredit = newLines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
-
-  const handleSaveEntry = async () => {
-    if (!newDescription.trim()) {
-      toast.error('Debe ingresar una descripción');
-      return;
-    }
-    if (!isBalanced) {
-      toast.error('El asiento no está balanceado');
-      return;
-    }
+  const handleReverse = async () => {
+    if (!reverseModal) return;
     try {
-      const lines = newLines
-        .filter((l) => l.accountId)
-        .map((l) => {
-          const acc = realAccounts.find((a) => a._id === l.accountId);
-          return {
-            accountId: l.accountId,
-            accountCode: acc?.code || '',
-            accountName: acc?.name || '',
-            debit: parseFloat(l.debit) || 0,
-            credit: parseFloat(l.credit) || 0,
-            memo: l.description,
-          };
-        });
-
-      await api.createJournalEntry({
-        date: new Date(newDate).toISOString(),
-        description: newDescription,
-        lines,
-        sourceType: 'manual',
-      });
-
-      toast.success('Asiento registrado exitosamente');
-      setIsOpen(false);
-      setNewDescription('');
-      setNewLines([
-        { accountId: '', description: '', debit: '', credit: '' },
-        { accountId: '', description: '', debit: '', credit: '' },
-      ]);
-      fetchData();
-    } catch (err: any) {
-      toast.error('Error', { description: err.message });
-    }
+      await api.reverseJournalEntry(reverseModal, reverseReason || 'Reverso manual');
+      toast.success('Asiento revertido');
+      setReverseModal(null);
+      load();
+    } catch (e: any) { toast.error(e.message); }
   };
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSourceFilter('all');
-    setStatusFilter('all');
-    setDateFrom('');
-    setDateTo('');
-  };
-
-  const hasActiveFilters = searchQuery || sourceFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo;
-
-  const sourceTypes: { key: string; label: string }[] = [
-    { key: 'all', label: 'Todos' },
-    { key: 'venta', label: 'Venta' },
-    { key: 'compra', label: 'Compra' },
-    { key: 'cobro', label: 'Cobro' },
-    { key: 'pago', label: 'Pago' },
-    { key: 'manual', label: 'Manual' },
-    { key: 'ajuste_inventario', label: 'Ajuste Inv.' },
-  ];
-
-  const statusTypes: { key: string; label: string }[] = [
-    { key: 'all', label: 'Todos' },
-    { key: 'borrador', label: 'Borrador' },
-    { key: 'registrado', label: 'Registrado' },
-    { key: 'aprobado', label: 'Aprobado' },
-    { key: 'anulado', label: 'Anulado' },
-  ];
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/contabilidad')}
-            className="text-sm text-gray-500 dark:text-[#888888] hover:text-gray-700 dark:hover:text-white"
-          >
-            Contabilidad
-          </button>
-          <ChevronRight className="h-4 w-4 text-gray-400" />
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Libro Diario</h1>
-          </div>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Libro Diario</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Registro cronológico de asientos contables</p>
         </div>
-        {canCreateManualEntries && (
-          <Button
-            onClick={() => setIsOpen(true)}
-            className="flex h-9 items-center gap-2 rounded-lg bg-purple-600 px-4 text-sm font-medium text-white transition-colors hover:bg-purple-700"
-          >
-            <Plus className="h-4 w-4" />
-            Nuevo Asiento Manual
-          </Button>
-        )}
+        <span className="text-xs text-gray-400 bg-gray-100 dark:bg-white/10 px-3 py-1.5 rounded-lg">{entries.length} asientos</span>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-        <div className="relative w-full sm:w-56">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar asientos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {sourceTypes.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setSourceFilter(s.key)}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                sourceFilter === s.key
-                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-                  : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-          >
-            <SelectTrigger className="h-9 w-[130px] rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:ring-purple-500">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              {statusTypes.map((s) => (
-                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="h-9 w-[130px] rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-            placeholder="Desde"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="h-9 w-[130px] rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-            placeholder="Hasta"
-          />
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="flex h-9 items-center gap-1 px-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
-              <X className="h-3.5 w-3.5" /> Limpiar
-            </button>
-          )}
-        </div>
+      <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex flex-wrap gap-3">
+        <input type="date" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})}
+          className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        <input type="date" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})}
+          className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" />
+        <select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}
+          className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="">Todos los estados</option>
+          <option value="POSTED">Contabilizado</option>
+          <option value="DRAFT">Borrador</option>
+          <option value="REVERSED">Revertido</option>
+        </select>
+        <select value={filters.sourceType} onChange={e => setFilters({...filters, sourceType: e.target.value})}
+          className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="">Todos los módulos</option>
+          {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <button onClick={load} className="ml-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors">
+          <Filter className="h-4 w-4 inline mr-1.5" />Filtrar
+        </button>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
+      <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+        <div className="grid grid-cols-12 px-4 py-3 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 text-xs font-bold text-gray-500 uppercase tracking-wider gap-2">
+          <span className="col-span-1">Fecha</span>
+          <span className="col-span-2">Número</span>
+          <span className="col-span-2">Módulo</span>
+          <span className="col-span-3">Descripción</span>
+          <span className="col-span-1 text-right">Débito</span>
+          <span className="col-span-1 text-right">Crédito</span>
+          <span className="col-span-1">Estado</span>
+          <span className="col-span-1 text-center">·</span>
+        </div>
         {loading ? (
-          <SkeletonTable rows={5} columns={8} hasHeader={true} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                  <th className="w-8 px-2 py-3" />
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Número</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Descripción</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Origen</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Debe</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Haber</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                {entries.map((entry, index) => {
-                  const statusConfig = (JOURNAL_STATUS_CONFIG as any)[entry.status] || JOURNAL_STATUS_CONFIG.borrador;
-                  const isExpanded = expandedRow === entry.id;
-
-                  return (<>
-                    <tr
-                      key={entry.id}
-                      className="group cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-                      onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
-                    >
-                      <td className="px-2 py-3 text-center">
-                        <ChevronDown
-                          className={cn(
-                            'h-4 w-4 text-gray-400 transition-transform',
-                            isExpanded && 'rotate-180'
-                          )}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
-                          {entry.reference}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">{formatDate(entry.date)}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-gray-900 dark:text-white">{entry.description}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
-                            (JOURNAL_SOURCE_COLORS as any)[entry.sourceType || 'manual']?.bg || 'bg-gray-100',
-                            (JOURNAL_SOURCE_COLORS as any)[entry.sourceType || 'manual']?.text || 'text-gray-700'
-                          )}
-                        >
-                          {(JOURNAL_SOURCE_LABELS as any)[entry.sourceType || 'manual']}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="font-mono text-sm text-gray-900 dark:text-white">
-                          {formatCurrencyAccounting(entry.lines.reduce((s: number, l: any) => s + (l.debit || 0), 0))}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="font-mono text-sm text-gray-900 dark:text-white">
-                          {formatCurrencyAccounting(entry.lines.reduce((s: number, l: any) => s + (l.credit || 0), 0))}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                            statusConfig.bg,
-                            statusConfig.text
-                          )}
-                        >
-                          <span className={cn('h-1.5 w-1.5 rounded-full', statusConfig.dot)} />
-                          {(JOURNAL_STATUS_LABELS as any)[entry.status]}
-                        </span>
-                      </td>
-                    </tr>
-                    {/* Expanded detail */}
-                    {isExpanded && (
-                      <tr key={`${entry.id}-detail`}>
-                        <td colSpan={8} className="bg-gray-50 dark:bg-[#0a0a0a] px-8 py-3">
-                          <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
-                            <table className="w-full">
-                              <thead>
-                                <tr className="bg-gray-100 dark:bg-[#1a1a1a]">
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-[#888888]">Codigo</th>
-                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-[#888888]">Cuenta</th>
-                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-[#888888]">Debe</th>
-                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-[#888888]">Haber</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                                {entry.lines.map((line: any) => (
-                                  <tr key={line.id} className="bg-white dark:bg-[#141414]">
-                                    <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-400">
-                                      {line.accountCode}
-                                    </td>
-                                    <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                                      {line.accountName}
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono text-sm text-gray-900 dark:text-white">
-                                      {line.debit > 0 ? formatCurrencyAccounting(line.debit) : ''}
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono text-sm text-gray-900 dark:text-white">
-                                      {line.credit > 0 ? formatCurrencyAccounting(line.credit) : ''}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          {entry.notes && (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-[#888888] italic">
-                              Nota: {entry.notes}
-                            </p>
-                          )}
-                          <p className="mt-1 text-xs text-gray-400 dark:text-[#666666]">
-                            Creado por {entry.createdBy?.name || 'Sistema'} el {formatDate(entry.createdAt)}
-                          </p>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          <div className="p-12 text-center text-gray-400">Cargando asientos...</div>
+        ) : paged.length === 0 ? (
+          <div className="p-12 text-center text-gray-400">No hay asientos registrados</div>
+        ) : paged.map(entry => {
+          const totalDebit = entry.lines?.reduce((s: number, l: any) => s + Number(l.debit), 0) || 0;
+          const totalCredit = entry.lines?.reduce((s: number, l: any) => s + Number(l.credit), 0) || 0;
+          return (
+            <div key={entry.id}
+              onClick={() => setSelected(selected?.id === entry.id ? null : entry)}
+              className="grid grid-cols-12 px-4 py-3 border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer gap-2 items-center">
+              <span className="col-span-1 text-xs text-gray-500">{fmtDate(entry.entryDate)}</span>
+              <span className="col-span-2 text-xs font-mono text-gray-700 dark:text-gray-300">{entry.number}</span>
+              <span className="col-span-2 text-xs text-gray-600 dark:text-gray-400">{SOURCE_LABELS[entry.referenceType || ''] || entry.referenceType || '—'}</span>
+              <span className="col-span-3 text-xs text-gray-800 dark:text-gray-200 truncate">{entry.memo || '—'}</span>
+              <span className="col-span-1 text-xs font-mono text-right text-blue-600">{fmt(totalDebit)}</span>
+              <span className="col-span-1 text-xs font-mono text-right text-emerald-600">{fmt(totalCredit)}</span>
+              <span className="col-span-1">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[entry.status]}`}>
+                  {entry.status === 'POSTED' ? 'Cont.' : entry.status === 'REVERSED' ? 'Rev.' : 'Bor.'}
+                </span>
+              </span>
+              <div className="col-span-1 flex gap-1 justify-center">
+                {entry.status === 'POSTED' && (
+                  <button onClick={e => { e.stopPropagation(); setReverseModal(entry.id); setReverseReason(''); }}
+                    className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Revertir">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {
-        !loading && entries.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
-            <BookOpen className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
-            <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">No se encontraron asientos</h3>
-            <p className="text-sm text-gray-500 dark:text-[#888888]">Ajusta los filtros o crea un nuevo asiento manual</p>
+      {/* Expanded Lines */}
+      {selected && (
+        <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-white/5 font-bold text-sm flex justify-between items-center">
+            <span>Detalle: {selected.number}</span>
+            <span className="text-xs text-gray-400">{selected.memo}</span>
           </div>
-        )
-      }
-
-      {!loading && entries.length > 0 && (
-        <div className="text-center text-sm text-gray-500 dark:text-[#888888]">
-          Mostrando {entries.length} asientos contables
+          <table className="w-full">
+            <thead>
+              <tr className="text-xs text-gray-500 bg-gray-50 dark:bg-white/5">
+                <th className="text-left px-4 py-2">Cuenta</th>
+                <th className="text-right px-4 py-2">Nombre</th>
+                <th className="text-right px-4 py-2">Débito</th>
+                <th className="text-right px-4 py-2">Crédito</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selected.lines?.map((l: any) => (
+                <tr key={l.id} className="border-t border-gray-100 dark:border-white/5 text-sm">
+                  <td className="px-4 py-2 font-mono text-xs text-gray-500">{l.account?.code}</td>
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{l.account?.name}</td>
+                  <td className="px-4 py-2 text-right font-mono text-blue-600">{Number(l.debit) > 0 ? fmt(Number(l.debit)) : '—'}</td>
+                  <td className="px-4 py-2 text-right font-mono text-emerald-600">{Number(l.credit) > 0 ? fmt(Number(l.credit)) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* New Entry Modal */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="p-6 pb-2">
-            <DialogTitle>
-              <div className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                Nuevo Asiento Manual
-              </div>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-6 pt-2">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha</label>
-                  <input
-                    type="date"
-                    value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
-                  <input
-                    type="text"
-                    value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Descripción del asiento..."
-                    className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2">
+          <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg bg-gray-100 dark:bg-white/10 disabled:opacity-30 hover:bg-gray-200">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="px-4 py-2 text-sm">Página {page} de {totalPages}</span>
+          <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg bg-gray-100 dark:bg-white/10 disabled:opacity-30 hover:bg-gray-200">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
-              {/* Lines */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Líneas del asiento</label>
-                  <button
-                    onClick={addLine}
-                    className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:underline"
-                  >
-                    <Plus className="h-3 w-3" /> Agregar línea
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {newLines.map((line, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <select
-                        value={line.accountId}
-                        onChange={(e) => updateLine(idx, 'accountId', e.target.value)}
-                        className="h-9 flex-1 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-xs text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                      >
-                        <option value="">Seleccionar cuenta...</option>
-                        {leafAccounts.map((acc) => (
-                          <option key={acc._id} value={acc._id}>
-                            {acc.code} - {acc.name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Descripción"
-                        value={line.description}
-                        onChange={(e) => updateLine(idx, 'description', e.target.value)}
-                        className="h-9 w-32 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-xs text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Debe"
-                        value={line.debit}
-                        onChange={(e) => updateLine(idx, 'debit', e.target.value)}
-                        className="h-9 w-28 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-right font-mono text-xs text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Haber"
-                        value={line.credit}
-                        onChange={(e) => updateLine(idx, 'credit', e.target.value)}
-                        className="h-9 w-28 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-2 text-right font-mono text-xs text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => removeLine(idx)}
-                        disabled={newLines.length <= 2}
-                        className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
-                          newLines.length <= 2
-                            ? 'text-gray-300 dark:text-[#444444] cursor-not-allowed'
-                            : 'text-red-400 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600'
-                        )}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Balance check */}
-              <div
-                className={cn(
-                  'flex items-center justify-between rounded-lg border p-3',
-                  isBalanced
-                    ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30'
-                    : 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30'
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {!isBalanced && <AlertCircle className="h-4 w-4 text-red-500" />}
-                  <span className={cn('text-sm font-medium', isBalanced ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300')}>
-                    {isBalanced ? 'Asiento balanceado' : 'Asiento no balanceado'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 font-mono text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Debe: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyAccounting(totalDebit)}</span>
-                  </span>
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Haber: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyAccounting(totalCredit)}</span>
-                  </span>
-                  {!isBalanced && totalDebit > 0 && (
-                    <span className="text-red-600 dark:text-red-400">
-                      Dif: {formatCurrencyAccounting(Math.abs(totalDebit - totalCredit))}
-                    </span>
-                  )}
-                </div>
-              </div>
+      {/* Reverse Modal */}
+      {reverseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-lg font-bold text-red-600">Revertir Asiento</h2>
+            <p className="text-sm text-gray-500">Se creará un asiento de contrapartida. No se podrá deshacer.</p>
+            <textarea value={reverseReason} onChange={e => setReverseReason(e.target.value)}
+              placeholder="Motivo del reverso (obligatorio)..."
+              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500 h-24 resize-none" />
+            <div className="flex gap-3">
+              <button onClick={() => setReverseModal(null)} className="flex-1 py-2.5 bg-gray-100 dark:bg-white/10 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/20">Cancelar</button>
+              <button onClick={handleReverse} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold">Revertir</button>
             </div>
           </div>
-          <DialogFooter className="p-6 pt-2 border-t mt-auto gap-2">
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveEntry}
-              disabled={!isBalanced}
-              className="bg-purple-600 text-white hover:bg-purple-700"
-            >
-              Guardar Asiento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div >
+        </div>
+      )}
+    </div>
   );
 }

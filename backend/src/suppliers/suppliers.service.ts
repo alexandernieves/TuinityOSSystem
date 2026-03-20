@@ -73,5 +73,91 @@ export class SuppliersService {
             }
         });
     }
+
+    async importSuppliersBatch(batch: any[]): Promise<any> {
+        const results = { success: 0, failed: 0, errors: [] as string[] };
+
+        for (const s of batch) {
+            try {
+                const { legalName, code, tradeName, taxId, email, phone, country, address, city, paymentTerms, rowNumber } = s;
+                
+                // Detailed logging for debugging
+                console.log(`[SupplierImport] Processing row ${rowNumber}:`, { legalName, code, taxId });
+
+                if (!legalName || legalName === 'N/A') {
+                    results.failed++;
+                    results.errors.push(`Fila ${rowNumber || 'N/A'}: El Nombre Legal es obligatorio.`);
+                    continue;
+                }
+
+                // Look for existing supplier
+                let existing: any = null;
+                
+                // 1. Search by code (only if present)
+                if (code && code.trim() !== '') {
+                    existing = await this.prisma.supplier.findUnique({ 
+                        where: { code: code.trim() } 
+                    });
+                }
+                
+                // 2. Search by taxId (only if present and no existing yet)
+                if (!existing && taxId && taxId.trim() !== '') {
+                    existing = await this.prisma.supplier.findFirst({ 
+                        where: { taxId: taxId.trim() } 
+                    });
+                }
+
+                // 3. Search by legalName (as last resort)
+                if (!existing) {
+                    existing = await this.prisma.supplier.findFirst({ 
+                        where: { legalName: legalName.trim() } 
+                    });
+                }
+
+                if (existing) {
+                    // Update existing
+                    await this.prisma.supplier.update({
+                        where: { id: existing.id },
+                        data: {
+                            legalName: legalName.trim(),
+                            tradeName: tradeName || existing.tradeName,
+                            taxId: taxId || existing.taxId,
+                            email: email || existing.email,
+                            phone: phone || existing.phone,
+                            country: country || existing.country,
+                            address: address || existing.address,
+                            city: city || existing.city,
+                            paymentTerms: (paymentTerms !== undefined && paymentTerms !== null) ? Number(paymentTerms) : existing.paymentTerms,
+                        }
+                    });
+                } else {
+                    // Create new
+                    await this.prisma.supplier.create({
+                        data: {
+                            code: (code && code.trim() !== '') ? code.trim() : `SUP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                            legalName: legalName.trim(),
+                            tradeName: tradeName || null,
+                            taxId: taxId || null,
+                            email: email || null,
+                            phone: phone || null,
+                            country: country || 'General',
+                            address: address || null,
+                            city: city || null,
+                            paymentTerms: (paymentTerms !== undefined && paymentTerms !== null) ? Number(paymentTerms) : 0,
+                            isActive: true,
+                            currentBalance: 0
+                        }
+                    });
+                }
+                results.success++;
+            } catch (err: any) {
+                results.failed++;
+                const errorMessage = err.message || 'Error desconocido';
+                results.errors.push(`Fila ${s.rowNumber || 'N/A'}: ${errorMessage}`);
+                console.error(`[SupplierImport] Critical error in row ${s.rowNumber}:`, err);
+            }
+        }
+        return { success: true, details: results };
+    }
 }
 

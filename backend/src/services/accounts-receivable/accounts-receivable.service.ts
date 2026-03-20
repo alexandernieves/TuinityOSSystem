@@ -27,9 +27,14 @@ export interface GetCustomerBalanceData {
   asOfDate?: Date;
 }
 
+import { NotificationsService } from '../../notifications/notifications.service';
+
 @Injectable()
 export class AccountsReceivableService extends BaseService {
-  constructor(prisma: PrismaService) {
+  constructor(
+    prisma: PrismaService,
+    private readonly notificationsService: NotificationsService
+  ) {
     super(prisma);
   }
 
@@ -178,6 +183,21 @@ export class AccountsReceivableService extends BaseService {
       }
     }
 
+    // Trigger notification if overdue is significant
+    const totalOverdue = aging.days30 + aging.days60 + aging.days90 + aging.days90Plus;
+    if (totalOverdue > 1000) {
+        await this.notificationsService.notifyRole('GERENCIA', {
+            type: 'CUSTOMER_OVERDUE',
+            title: 'Cliente con Saldo Vencido Crítico',
+            message: `El cliente con ID ${customerId} tiene un saldo vencido de ${totalOverdue.toLocaleString('es-PA', { style: 'currency', currency: 'USD' })}.`,
+            module: 'SALES',
+            entityType: 'Customer',
+            entityId: customerId,
+            severity: 'CRITICAL',
+            actionUrl: `/clientes/${customerId}`,
+        });
+    }
+
     return aging;
   }
 
@@ -275,6 +295,17 @@ export class AccountsReceivableService extends BaseService {
         amount: appliedAmount,
         notes: `Payment applied to invoice ${invoice.number}`,
         createdByUserId,
+      });
+
+      await this.notificationsService.notifyRole('CONTADURIA', {
+        type: 'PAYMENT_APPLIED',
+        title: 'Cobro Aplicado',
+        message: `Se ha aplicado un pago de ${appliedAmount.toLocaleString('es-PA', { style: 'currency', currency: 'USD' })} a la factura ${invoice.number}.`,
+        module: 'SALES',
+        entityType: 'Invoice',
+        entityId: invoiceId,
+        severity: 'SUCCESS',
+        actionUrl: `/clientes/cxc/${receipt.customerId}`,
       });
 
       // Update invoice status

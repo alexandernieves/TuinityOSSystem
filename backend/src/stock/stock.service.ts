@@ -78,18 +78,46 @@ export class StockService {
     }
 
     async getInventoryItems(): Promise<any[]> {
-        const existences = await this.prisma.inventoryExistence.findMany({
-            include: { product: true }
+        const products = await this.prisma.product.findMany({
+            include: {
+                existences: true,
+                group: true,
+                brand: true,
+                subgroup: true,
+                category: true,
+                subcategory: true,
+                prices: true,
+            }
         });
 
-        return existences.map(e => ({
-            _id: e.productId, // Match legacy expecting product ID as main identifier here
-            product: e.product,
-            existence: Number(e.existence),
-            available: Number(e.available),
-            reserved: Number(e.reserved),
-            arriving: Number(e.arriving)
-        }));
+        return products.map(p => {
+            const existence = p.existences.reduce((sum, e) => sum + Number(e.existence), 0);
+            const available = p.existences.reduce((sum, e) => sum + Number(e.available), 0);
+            const reserved = p.existences.reduce((sum, e) => sum + Number(e.reserved), 0);
+            const arriving = p.existences.reduce((sum, e) => sum + Number(e.arriving), 0);
+
+            // Map prices array to object { A, B, C... }
+            const pricesObj: any = {};
+            p.prices.forEach(pr => {
+                pricesObj[pr.level] = Number(pr.price);
+            });
+
+            return {
+                productId: p.id,
+                id: p.id,
+                product: {
+                    ...p,
+                    prices: pricesObj,
+                    costAvgWeighted: Number(p.costAvgWeighted || 0),
+                    costCIF: Number(p.costCIF || 0),
+                    costFOB: Number(p.costFOB || 0),
+                },
+                existence,
+                available,
+                reserved,
+                arriving
+            };
+        });
     }
 
     async reserveStock(productId: string, warehouseId: string, quantity: number): Promise<any> {

@@ -5,6 +5,8 @@ import { StockService } from '../stock/stock.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { AccountsPayableService } from '../services/accounts-payable/accounts-payable.service';
 import { AccountsPayableEntryType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
+import { LotsService } from '../services/inventory/lots.service';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -14,6 +16,8 @@ export class PurchaseOrdersService {
         private stockService: StockService,
         private accountingService: AccountingService,
         private apService: AccountsPayableService,
+        private notificationsService: NotificationsService,
+        private lotsService: LotsService,
     ) { }
 
     async findAll(filters: any = {}): Promise<any[]> {
@@ -58,7 +62,7 @@ export class PurchaseOrdersService {
                     supplierId: createPoDto.supplierId,
                     warehouseId: createPoDto.bodegaId,
                     orderDate: createPoDto.date ? new Date(createPoDto.date) : new Date(),
-                    expectedArrivalDate: createPoDto.expectedDate ? new Date(createPoDto.expectedDate) : null,
+                    expectedArrivalDate: (createPoDto.expectedArrivalDate || createPoDto.expectedDate) ? new Date(createPoDto.expectedArrivalDate || createPoDto.expectedDate) : null,
                     status: 'CONFIRMED',
                     notes: createPoDto.notes,
                     subtotal: createPoDto.subtotal || 0,
@@ -86,6 +90,17 @@ export class PurchaseOrdersService {
                     arriving: newArriving,
                 });
             }
+
+            await this.notificationsService.notifyRole('COMPRAS', {
+                type: 'PO_CREATED',
+                title: 'Nueva Orden de Compra',
+                message: `Se ha generado la OC ${orderNumber} por un total de ${Number(savedPo.total).toLocaleString('es-PA', { style: 'currency', currency: 'USD' })}.`,
+                module: 'PURCHASING',
+                entityType: 'PurchaseOrder',
+                entityId: savedPo.id,
+                severity: 'INFO',
+                actionUrl: `/compras/ordenes/${savedPo.id}`,
+            });
 
             return savedPo;
         } catch (error: any) {
@@ -122,21 +137,75 @@ export class PurchaseOrdersService {
 
     async receive(id: string, receptionData: any): Promise<any> {
         const po = await this.findOne(id);
-
         if (po.status === 'COMPLETED' || po.status === 'CANCELED') {
             throw new BadRequestException('Esta orden ya no puede recibir mercancía');
         }
 
         const linesToUpdate = receptionData.lines || [];
+        const receiptNumber = `REC-${Date.now()}`;
 
         return this.prisma.$transaction(async (tx) => {
+            // 1. Crear el registro de Recepción de Compra
+            const purchaseReceipt = await tx.purchaseReceipt.create({
+                data: {
+                    number: receiptNumber,
+                    purchaseOrderId: po.id,
+                    supplierId: po.supplierId,
+                    warehouseId: po.warehouseId,
+                    receiptDate: new Date(),
+                    supplierInvoiceNumber: receptionData.supplierInvoiceNumber,
+                    notes: receptionData.notes || `Recepción de la OC ${po.number}`,
+                    status: 'CONFIRMED',
+                    createdByUserId: receptionData.userId
+                }
+            });
+
             for (const data of linesToUpdate) {
                 const line = po.lines.find(l => l.productId === data.productId);
                 if (!line) continue;
 
                 const qtyReceived = Number(data.quantityReceived);
+                const unitCostCIF = Number(data.unitCostCIF || line.unitCost || 0);
 
-                // Update stock existence and arriving
+                // 2. Crear línea de recepción
+                const receiptLine = await tx.purchaseReceiptLine.create({
+                    data: {
+                        purchaseReceiptId: purchaseReceipt.id,
+                        purchaseOrderLineId: line.id,
+                        productId: data.productId,
+                        quantityReceived: qtyReceived,
+                        unitCost: unitCostCIF,
+                        lineTotal: unitCostCIF * qtyReceived,
+                    }
+                });
+
+                // 3. Manejo de Lotes (FEFO)
+                let lotId = null;
+                if (data.lotNumber) {
+                    const lot = await this.lotsService.recordLotEntry({
+                        productId: data.productId,
+                        warehouseId: po.warehouseId,
+                        lotNumber: data.lotNumber,
+                        expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+                        quantity: qtyReceived,
+                        purchaseReceiptLineId: receiptLine.id,
+                        tx
+                    });
+                    lotId = lot.id;
+
+                    // Registrar en PurchaseReceiptLineLot para trazabilidad
+                    await tx.purchaseReceiptLineLot.create({
+                        data: {
+                            purchaseReceiptLineId: receiptLine.id,
+                            productLotId: lotId,
+                            lotNumber: data.lotNumber,
+                            expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+                            quantityReceived: qtyReceived
+                        }
+                    });
+                }
+
+                // 4. Update stock existence and arriving
                 const stock = await tx.inventoryExistence.findUnique({
                     where: {
                         productId_warehouseId: {
@@ -175,42 +244,58 @@ export class PurchaseOrdersService {
                     }
                 });
 
-                // Update PO Line
+                // 5. Registrar Movimiento en Kardex con referencia al Lote
+                await tx.inventoryMovement.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: po.warehouseId,
+                        productLotId: lotId, // REFERENCIA AL LOTE
+                        movementType: 'PURCHASE_RECEIPT',
+                        quantity: qtyReceived,
+                        unitCost: unitCostCIF,
+                        totalCost: unitCostCIF * qtyReceived,
+                        balanceQuantity: newExistence,
+                        balanceValue: newExistence * unitCostCIF,
+                        referenceType: 'PURCHASE_RECEIPT',
+                        referenceId: purchaseReceipt.number,
+                        occurredAt: new Date(),
+                        notes: `Recepción OC ${po.number}${data.lotNumber ? ' - Lote: ' + data.lotNumber : ''}`
+                    }
+                });
+
+                // 6. Update PO Line
                 await tx.purchaseOrderLine.update({
                     where: { id: line.id },
                     data: {
                         quantityReceived: { increment: qtyReceived },
-                        unitCost: data.unitCostCIF || Number(line.unitCost),
-                        lineTotal: (Number(line.quantityReceived) + qtyReceived) * (data.unitCostCIF || Number(line.unitCost))
+                        unitCost: unitCostCIF,
+                        lineTotal: (Number(line.quantityReceived) + qtyReceived) * unitCostCIF
                     }
                 });
 
-                // Update product weighted average cost
-                if (data.unitCostCIF) {
-                    // This could be moved to ProductsService or kept here as transaction
-                    const product: any = await tx.product.findUnique({ where: { id: data.productId } });
-                    const aggregate = await tx.inventoryExistence.aggregate({
-                        where: { productId: data.productId },
-                        _sum: { existence: true }
-                    });
+                // 7. Update product weighted average cost
+                const product: any = await tx.product.findUnique({ where: { id: data.productId } });
+                const aggregate = await tx.inventoryExistence.aggregate({
+                    where: { productId: data.productId },
+                    _sum: { existence: true }
+                });
 
-                    const totalExistence = Number(aggregate._sum.existence || 0);
-                    const previousExistence = totalExistence - qtyReceived;
-                    const previousCost = Number(product?.costAvgWeighted || product?.costCIF || 0);
+                const totalExistence = Number(aggregate._sum.existence || 0);
+                const previousExistence = totalExistence - qtyReceived;
+                const previousCost = Number(product?.costAvgWeighted || product?.costCIF || 0);
 
-                    const newWeightedAvg = totalExistence > 0
-                        ? ((previousExistence * previousCost) + (qtyReceived * Number(data.unitCostCIF))) / totalExistence
-                        : Number(data.unitCostCIF);
+                const newWeightedAvg = totalExistence > 0
+                    ? ((previousExistence * previousCost) + (qtyReceived * unitCostCIF)) / totalExistence
+                    : unitCostCIF;
 
-                    await tx.product.update({
-                        where: { id: data.productId },
-                        data: {
-                            costAvgWeighted: newWeightedAvg,
-                            costCIF: data.unitCostCIF,
-                            costFOB: data.unitCostFOB || product?.costFOB
-                        }
-                    });
-                }
+                await tx.product.update({
+                    where: { id: data.productId },
+                    data: {
+                        costAvgWeighted: newWeightedAvg,
+                        costCIF: unitCostCIF,
+                        costFOB: data.unitCostFOB || product?.costFOB
+                    }
+                });
             }
 
             // Reload PO to check completion
@@ -244,45 +329,47 @@ export class PurchaseOrdersService {
                 });
             }
 
+            await this.notificationsService.notifyRole('COMPRAS', {
+                type: 'GOODS_RECEIVED',
+                title: 'Mercancía Recibida',
+                message: `Se ha registrado la recepción de mercancía para la OC ${savedPo.number}. Estado: ${finalStatus}.`,
+                module: 'PURCHASING',
+                entityType: 'PurchaseOrder',
+                entityId: savedPo.id,
+                severity: finalStatus === 'RECEIVED' ? 'SUCCESS' : 'WARNING',
+                actionUrl: `/compras/ordenes/${savedPo.id}`,
+            });
+
+            // If there's a difference, notify Gerencia
+            const totalOrdered = savedPo.lines.reduce((sum, l) => sum + Number(l.quantityOrdered), 0);
+            const totalReceived = savedPo.lines.reduce((sum, l) => sum + Number(l.quantityReceived), 0);
+            if (totalReceived < totalOrdered && finalStatus === 'RECEIVED') {
+                await this.notificationsService.notifyRole('GERENCIA', {
+                    type: 'PO_DISCREPANCY',
+                    title: 'Diferencia en Recepción de OC',
+                    message: `La OC ${savedPo.number} se marcó como recibida pero con diferencias en las cantidades.`,
+                    module: 'PURCHASING',
+                    entityType: 'PurchaseOrder',
+                    entityId: savedPo.id,
+                    severity: 'CRITICAL',
+                    actionUrl: `/compras/ordenes/${savedPo.id}`,
+                });
+            }
+
             return savedPo;
         });
     }
 
     private async createAccountingEntryForReception(po: any, receivedLines: any[]) {
         try {
-            const accounts = await this.accountingService.findAllAccounts();
-            const inventario = accounts.find(a => a.code === '1030.01');
-            const proveedores = accounts.find(a => a.code === '2010.01');
-
-            if (!inventario || !proveedores) return;
-
-            const totalValue = receivedLines.reduce((sum, l) => sum + (Number(l.quantityReceived) * Number(l.unitCostCIF || 0)), 0);
-
+            const totalValue = receivedLines.reduce((sum: number, l: any) => sum + (Number(l.quantityReceived) * Number(l.unitCostCIF || l.unitCost || 0)), 0);
             if (totalValue <= 0) return;
 
-            await this.accountingService.createEntry({
-                date: new Date(),
-                description: `Recepción Mercancía - OC: ${po.orderNumber}`,
-                sourceType: 'purchase_order',
-                sourceId: po.id,
-                lines: [
-                    {
-                        accountId: inventario.id,
-                        accountCode: inventario.code,
-                        accountName: inventario.name,
-                        debit: totalValue,
-                        credit: 0,
-                        memo: `Entrada stock OC ${po.orderNumber}`
-                    },
-                    {
-                        accountId: proveedores.id,
-                        accountCode: proveedores.code,
-                        accountName: proveedores.name,
-                        debit: 0,
-                        credit: totalValue,
-                        memo: `Obligación con proveedor por OC ${po.orderNumber}`
-                    }
-                ]
+            await this.accountingService.generateAutoEntry({
+                operationType: 'PURCHASE_RECEIPT',
+                referenceId: po.id,
+                amount: totalValue,
+                memo: `Recepción Mercancía - OC: ${po.number}`,
             });
         } catch (e) {
             console.error('Error automatically creating accounting entry for PO reception:', e);

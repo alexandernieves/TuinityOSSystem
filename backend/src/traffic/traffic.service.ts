@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../services/shared/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TrafficService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private notificationsService: NotificationsService,
+    ) { }
 
     // Expedients
     async findAllExpedients(): Promise<any[]> {
@@ -37,7 +41,25 @@ export class TrafficService {
                 }
             }
         });
+
         if (!expedient) throw new NotFoundException('Expedient not found');
+
+        // Manual inclusion of source document logic since relation is dynamic in schema
+        if (expedient.sourceDocumentType === 'invoice') {
+            const invoice = await this.prisma.invoice.findUnique({
+                where: { id: expedient.sourceDocumentId },
+                include: {
+                    customer: true,
+                    salesOrder: {
+                        include: {
+                            packingLists: true
+                        }
+                    }
+                }
+            });
+            (expedient as any).invoice = invoice;
+        }
+
         return expedient;
     }
 
@@ -46,21 +68,25 @@ export class TrafficService {
         const year = new Date().getFullYear();
         const reference = `EXP-${year}-${String(count + 1).padStart(4, '0')}`;
 
-        const expedient = await this.prisma.expedient.create({
+        const expResult = await this.prisma.expedient.create({
             data: {
                 ...createDto,
                 reference,
             },
         } as any);
 
-        await this.registerTimelineEvent({
-            expedientId: expedient.id,
-            action: 'expediente_creado',
-            description: `Expediente ${reference} iniciado desde ${createDto.sourceDocumentType} ${createDto.sourceDocumentId}`,
-            userId: createDto.createdByUserId
+        await this.notificationsService.notifyRole('TRAFICO', {
+            type: 'EXPEDIENT_CREATED',
+            title: 'Nuevo Expediente de Tráfico',
+            message: `Se ha abierto el expediente ${reference} para ${createDto.sourceDocumentType} ${createDto.sourceDocumentId}.`,
+            module: 'TRAFFIC',
+            entityType: 'Expedient',
+            entityId: expResult.id,
+            severity: 'INFO',
+            actionUrl: `/trafico/expedientes/${expResult.id}`,
         });
 
-        return expedient;
+        return expResult;
     }
 
     async updateExpedientStatus(id: string, status: string, userId?: string): Promise<any> {
@@ -111,6 +137,17 @@ export class TrafficService {
             userId: createDto.createdByUserId
         });
 
+        await this.notificationsService.notifyRole('TRAFICO', {
+            type: 'DMC_GENERATED',
+            title: 'DMC Generada',
+            message: `El documento DMC ${reference} ha sido generado para el expediente ${createDto.expedientId}.`,
+            module: 'TRAFFIC',
+            entityType: 'DMC',
+            entityId: dmc.id,
+            severity: 'SUCCESS',
+            actionUrl: `/trafico/expedientes/${createDto.expedientId}`,
+        });
+
         return dmc;
     }
 
@@ -132,6 +169,17 @@ export class TrafficService {
             action: 'bl_generado',
             description: `Documento Bill of Lading ${reference} creado`,
             userId: createDto.createdByUserId
+        });
+
+        await this.notificationsService.notifyRole('TRAFICO', {
+            type: 'BL_GENERATED',
+            title: 'Bill of Lading Generado',
+            message: `Se ha generado el BL ${reference} para el expediente ${createDto.expedientId}.`,
+            module: 'TRAFFIC',
+            entityType: 'BillOfLading',
+            entityId: bl.id,
+            severity: 'SUCCESS',
+            actionUrl: `/trafico/expedientes/${createDto.expedientId}`,
         });
 
         return bl;
@@ -327,7 +375,7 @@ export class TrafficService {
             });
         }
 
-        return this.createDMC({
+        const dmc = await this.createDMC({
             expedientId: exp.id,
             type: 'salida',
             status: 'borrador',
@@ -338,6 +386,21 @@ export class TrafficService {
             totals: exp.totals,
             createdByUserId: userId
         });
+
+        if (existingDmc) {
+            await this.notificationsService.notifyRole('GERENCIA', {
+               type: 'TRAFFIC_AMENDMENT',
+               title: 'Enmienda de Tráfico Detectada',
+               message: `Se ha re-generado el pre-llenado para el expediente ${exp.reference}. Por favor revise el impacto aduanal.`,
+               module: 'TRAFFIC',
+               entityType: 'Expedient',
+               entityId: exp.id,
+               severity: 'WARNING',
+               actionUrl: `/trafico/expedientes/${exp.id}`,
+            });
+        }
+
+        return dmc;
     }
 
     /**

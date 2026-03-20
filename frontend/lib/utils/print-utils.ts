@@ -512,8 +512,8 @@ export function printPurchaseOrder(
     quantity: line.quantity,
     received: line.quantityReceived,
     pending: line.quantity - line.quantityReceived,
-    unitCost: line.unitCostFOB ? `$${line.unitCostFOB.toFixed(2)}` : '-',
-    totalCost: line.totalFOB ? `$${line.totalFOB.toFixed(2)}` : '-',
+    unitCost: line.unitCostFOB ? `$${Number(line.unitCostFOB).toFixed(2)}` : '-',
+    totalCost: line.totalFOB ? `$${Number(line.totalFOB).toFixed(2)}` : '-',
   }));
 
   const metadata = [
@@ -532,12 +532,12 @@ export function printPurchaseOrder(
 
   const summary: { label: string; value: string }[] = [];
   if (showCosts && order.totalFOB) {
-    summary.push({ label: 'Total FOB', value: `$${order.totalFOB.toFixed(2)}` });
+    summary.push({ label: 'Total FOB', value: `$${Number(order.totalFOB).toFixed(2)}` });
     if (order.expensePercentage) {
       summary.push({ label: 'Gastos (%)', value: `${order.expensePercentage}%` });
     }
     if (order.totalCIF) {
-      summary.push({ label: 'Total CIF', value: `$${order.totalCIF.toFixed(2)}` });
+      summary.push({ label: 'Total CIF', value: `$${Number(order.totalCIF).toFixed(2)}` });
     }
   }
 
@@ -603,8 +603,8 @@ export function printSalesOrder(
     description: line.productDescription,
     brand: line.productBrand || '-',
     quantity: line.quantity,
-    unitPrice: line.unitPrice ? `$${line.unitPrice.toFixed(2)}` : '-',
-    total: line.total ? `$${line.total.toFixed(2)}` : '-',
+    unitPrice: line.unitPrice ? `$${Number(line.unitPrice).toFixed(2)}` : '-',
+    total: line.total ? `$${Number(line.total).toFixed(2)}` : '-',
   }));
 
   const metadata = [
@@ -625,9 +625,9 @@ export function printSalesOrder(
 
   const summary: { label: string; value: string }[] = [];
   if (showPrices) {
-    if (order.subtotal) summary.push({ label: 'Subtotal', value: `$${order.subtotal.toFixed(2)}` });
-    if (order.tax) summary.push({ label: 'IVA', value: `$${order.tax.toFixed(2)}` });
-    if (order.total) summary.push({ label: 'Total', value: `$${order.total.toFixed(2)}` });
+    if (order.subtotal) summary.push({ label: 'Subtotal', value: `$${Number(order.subtotal).toFixed(2)}` });
+    if (order.tax) summary.push({ label: 'IVA', value: `$${Number(order.tax).toFixed(2)}` });
+    if (order.total) summary.push({ label: 'Total', value: `$${Number(order.total).toFixed(2)}` });
   }
 
   printTable({

@@ -66,8 +66,10 @@ import {
   FileText,
   Filter
 } from "lucide-react";
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from '@/lib/contexts/auth-context';
 import { useAlerts } from "@/components/providers/alert-provider";
 import { PRODUCT_GROUPS, Product } from "@/lib/mock-data/products";
 import { MOCK_SUPPLIERS } from "@/lib/mock-data/purchase-orders";
@@ -144,120 +146,123 @@ function ProductCard({
       className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] shadow-sm transition-all duration-300"
     >
       {/* Image Container */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]">
+      <div className="relative aspect-[4/2] w-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a]">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product.description}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center bg-gray-50/50 dark:bg-black/20">
-             <div className="flex flex-col items-center gap-2 opacity-20">
-                <Package className="h-16 w-16 text-gray-400 dark:text-gray-500" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sin Imagen</span>
+             <div className="flex flex-col items-center gap-1 opacity-20">
+                <Package className="h-10 w-10 text-gray-400 dark:text-gray-500" />
+                <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400">Sin Imagen</span>
              </div>
           </div>
         )}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 items-end pointer-events-none">
+        <div className="absolute top-2 right-2 flex gap-1 items-end pointer-events-none">
           <div 
             className={cn(
-              "border-none flex items-center gap-1.5 px-2 py-0.5 h-auto font-bold uppercase tracking-wider text-[9px] rounded-full",
+              "border-none flex items-center gap-1.5 px-2 py-0.5 h-auto font-black uppercase tracking-widest text-[8px] rounded-md backdrop-blur-md shadow-sm",
               stockInfo.color
             )}
           >
-            <StockIcon className="h-3 w-3" />
+            <StockIcon className="h-2.5 w-2.5" />
             {stockInfo.label}
           </div>
           <div 
             className={cn(
-              "border-none flex items-center gap-1.5 px-2 py-0.5 h-auto font-bold uppercase tracking-wider text-[9px] rounded-full",
+              "border-none flex items-center gap-1.5 px-2 py-0.5 h-auto font-black uppercase tracking-widest text-[8px] rounded-md backdrop-blur-md shadow-sm",
               product.status === "active" 
-                ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" 
-                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                ? "bg-blue-50/80 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" 
+                : "bg-gray-100/80 text-gray-700 dark:bg-gray-800/80 dark:text-gray-300"
             )}
           >
-            <StatusIcon className="h-3 w-3" />
+            <StatusIcon className="h-2.5 w-2.5" />
             {product.status === "active" ? "Activo" : "Inactivo"}
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-5 flex-1 flex flex-col">
-        <div className="flex-1 space-y-4">
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-white line-clamp-2 leading-[1.2] tracking-tight min-h-[2.4rem]">
+      <div className="p-3.5 flex-1 flex flex-col">
+        <div className="flex-1 space-y-2">
+          <h3 className="text-base font-black text-gray-900 dark:text-white line-clamp-1 leading-tight tracking-tight">
             {product.description}
           </h3>
           
-          <div className="space-y-1.5 pt-1">
-            <div className="text-2xl font-black text-[#253D6B] dark:text-blue-400 flex items-baseline gap-1">
-              <span className="text-sm font-bold">$</span>
+          <div className="flex items-center justify-between">
+            <div className="text-xl font-black text-[#253D6B] dark:text-blue-400 flex items-baseline gap-0.5">
+              <span className="text-xs font-bold">$</span>
               {(product.prices?.A || 0).toFixed(2)}
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold font-mono text-gray-400 dark:text-gray-500 uppercase tracking-tight">
-                {product.reference}
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold text-gray-400 dark:text-gray-600 uppercase">
+                REF: {product.reference}
               </span>
-              <span className="text-gray-300 dark:text-gray-800 text-[10px]">•</span>
-              <span className="text-[11px] font-black text-gray-500 dark:text-gray-600 uppercase tracking-widest">
+              <span className="text-[9px] font-black text-blue-500/60 dark:text-blue-400/40 uppercase tracking-tighter">
                 {brandLabel}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="pt-4 mt-4 border-t border-gray-100 dark:border-[#2a2a2a] flex items-center justify-between">
+        <div className="pt-2.5 mt-2.5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={cn("h-2 w-2 rounded-full", (stockInfo as any).dotColor)} />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {product.stock.available} <span className="text-xs text-gray-500 font-normal">unid.</span>
+            <div className={cn("h-1.5 w-1.5 rounded-full transition-all", (stockInfo as any).dotColor)} />
+            <span className="text-xs font-black text-gray-800 dark:text-gray-200">
+              {product.stock.available} <span className="text-[10px] text-gray-500 font-normal uppercase">Unidades</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-gray-400 hover:text-brand-500"
+              className="h-7 w-7 text-gray-400 hover:text-brand-500 hover:bg-brand-50/50"
               onClick={() => onView(product)}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-gray-400 hover:text-brand-500"
+              className="h-7 w-7 text-gray-400 hover:text-brand-500 hover:bg-brand-50/50"
               onClick={() => onEdit(product)}
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-3.5 w-3.5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-brand-500"
+                  className="h-7 w-7 text-gray-400 hover:text-brand-500 hover:bg-brand-50/50"
                 >
-                  <MoreVertical className="h-4 w-4" />
+                  <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onDuplicate(product)}>
-                  <Copy className="mr-2 h-4 w-4" />
+              <DropdownMenuContent align="end" className="rounded-xl border-gray-200 dark:border-white/5">
+                <DropdownMenuItem onClick={() => onDuplicate(product)} className="rounded-lg">
+                  <Copy className="mr-2 h-3 w-3" />
                   Duplicar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onToggleStatus(product)}>
-                  <ToggleLeft className="mr-2 h-4 w-4" />
+                <DropdownMenuSeparator className="dark:bg-white/5" />
+                <DropdownMenuItem 
+                   onClick={() => onToggleStatus(product)}
+                   className="rounded-lg"
+                >
+                  <ToggleLeft className="mr-2 h-3 w-3" />
                   {product.status === "active" ? "Desactivar" : "Activar"}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
+                <DropdownMenuSeparator className="dark:bg-white/5" />
+                <DropdownMenuItem 
                   onClick={() => onDelete(product)}
-                  className="text-red-500 focus:text-red-600"
+                  className="text-red-600 focus:text-red-600 rounded-lg"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  <Trash2 className="mr-2 h-3 w-3" />
                   Eliminar
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -389,15 +394,14 @@ export default function ProductosPage() {
 
       const matchesSearch =
         !searchQuery ||
-        product.description.toLowerCase().includes(searchLower) ||
-        brandLabel.toLowerCase().includes(searchLower) ||
-        groupLabel.toLowerCase().includes(searchLower) ||
-        product.reference.toLowerCase().includes(searchLower) ||
-        (product.barcode &&
-          product.barcode.toLowerCase().includes(searchLower)) ||
-        product.barcodes?.some((b) =>
-          b.code.toLowerCase().includes(searchLower),
-        );
+        (product.description?.toLowerCase().includes(searchLower) ?? false) ||
+        (brandLabel?.toLowerCase().includes(searchLower) ?? false) ||
+        (groupLabel?.toLowerCase().includes(searchLower) ?? false) ||
+        (product.reference?.toLowerCase().includes(searchLower) ?? false) ||
+        (product.barcode?.toLowerCase().includes(searchLower) ?? false) ||
+        (product.barcodes?.some((b) =>
+          b?.code?.toLowerCase().includes(searchLower),
+        ) ?? false);
 
       let matchesStockFilter = true;
       if (stockFilter === "inStock") {
@@ -518,7 +522,7 @@ export default function ProductosPage() {
 
   const handleDuplicateProduct = useCallback(async (product: Product) => {
     try {
-      const { id, _id, createdAt, updatedAt, ...productData } = product as any;
+      const { id, createdAt, updatedAt, ...productData } = product as any;
       const productName = product.description || product.name || "Producto";
       const copyData = {
         ...productData,
@@ -633,80 +637,90 @@ export default function ProductosPage() {
     const file = e.target.files?.[0];
     if (file) setSelectedFile(file);
   };
-
   const onConfirmImport = async () => {
     if (!selectedFile) return;
 
     setIsImporting(true);
-    setImportProgress(2);
+    setImportProgress(0);
+    setImportResults(null);
     
     try {
       const reader = new FileReader();
-      const fileData = await new Promise<ArrayBuffer>((resolve, reject) => {
-        reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
-        reader.onerror = (e) => reject(e);
-        reader.readAsArrayBuffer(selectedFile);
-      });
-
-      const workbook = XLSX.read(fileData, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-
-      if (jsonData.length < 2) {
-          throw new Error("El archivo está vacío o no tiene suficientes filas");
-      }
-
-      // Identify headers
-      let headerRowIndex = 0;
-      let headers: string[] = [];
       
-      for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
-          const row = jsonData[i];
-          if (row && Array.isArray(row) && row.some((v: any) => v?.toString().trim().toLowerCase().includes('referencia'))) {
-              headerRowIndex = i;
-              headers = row.map((v: any) => v?.toString().trim());
-              break;
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[];
+
+          if (jsonData.length <= 1) {
+             throw new Error("El archivo está vacío o no tiene datos de productos");
           }
-      }
 
-      if (headers.length === 0) {
-          headers = jsonData[0].map((v: any) => v?.toString().trim());
-      }
+          let headerRowIndex = 0;
+          let headers: string[] = [];
+          
+          for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
+            const row = jsonData[i];
+            if (row && Array.isArray(row) && row.some((v: any) => v?.toString().toLowerCase().includes('referencia'))) {
+              headerRowIndex = i;
+              headers = row.map((h: any) => h?.toString().trim().toLowerCase() || '');
+              break;
+            }
+          }
 
-      const colMap: any = {};
-      headers.forEach((h, i) => {
-          if (!h) return;
-          const lower = h.toLowerCase();
-          if (lower.includes('referencia')) colMap.sku = i;
-          if (lower.includes('descripción') || lower.includes('descripcion')) colMap.name = i;
-          if (lower.includes('codigo barra') || lower.includes('códigos de barras')) colMap.barcode = i;
-          if (lower.includes('existencia') || lower.includes('disponible')) colMap.stock = i;
-          if (lower.includes('precio a')) colMap.priceA = i;
-          if (lower.includes('cantidad minima') || lower.includes('mínimo')) colMap.minQty = i;
-          if (lower.includes('marca')) colMap.brand = i;
-          if (lower.includes('grupo') && !lower.includes('sub')) colMap.group = i;
-          if (lower.includes('sub-grupo') || lower.includes('subgrupo')) colMap.subgroup = i;
-      });
+          if (headers.length === 0) {
+            headers = jsonData[0]?.map((h: any) => h?.toString().trim().toLowerCase() || '') || [];
+          }
 
-      const missing: string[] = [];
-      if (colMap.sku === undefined) missing.push('Referencia');
-      if (colMap.name === undefined) missing.push('Descripción');
-      if (colMap.group === undefined) missing.push('Grupo');
+          let colMap: any = {};
+          
+          // Enhanced header detection for single-column arrays (bad delimiter parsing)
+          if (headers.length === 1 && (headers[0].includes(',') || headers[0].includes(';'))) {
+              const delimiter = headers[0].includes(',') ? ',' : ';';
+              headers = headers[0].split(delimiter).map(h => h.trim().toLowerCase());
+          }
 
-      if (missing.length > 0) {
-          alertError("Columnas faltantes", `Faltan requeridas: ${missing.join(', ')}`);
-          setIsImporting(false);
-          return;
-      }
+          headers.forEach((h: string, i: number) => {
+              const clean = h.trim().toLowerCase();
+              if (clean === 'referencia' || clean === 'sku' || clean === 'ref' || clean.includes('referencia')) colMap.sku = i;
+              if (clean === 'nombre' || clean === 'descripción' || clean === 'descripcion' || clean === 'name' || clean.includes('nombre') || clean.includes('descrip')) colMap.name = i;
+              if ((clean === 'grupo' || clean === 'categoria' || clean === 'categoría' || clean === 'category' || clean.includes('grupo') || clean.includes('categ')) && !clean.includes('sub')) colMap.group = i;
+              if (clean === 'marca' || clean === 'brand' || clean.includes('marca')) colMap.brand = i;
+              if (clean === 'sub-grupo' || clean === 'subgrupo' || clean === 'subcategory' || clean.includes('subgrupo') || clean.includes('sub-grupo')) colMap.subgroup = i;
+              if (clean === 'barra' || clean === 'barcode' || clean === 'ean' || clean.includes('barra')) colMap.barcode = i;
+              if (clean === 'precio a' || clean === 'base' || clean === 'price' || clean.includes('precio a')) colMap.priceA = i;
+              if (clean === 'existencia' || clean === 'disponible' || clean === 'stock' || clean === 'cantidad' || clean.includes('exis')) colMap.stock = i;
+              if (clean.includes('minima') || clean.includes('mínima') || clean.includes('minimo') || clean.includes('mínimo')) colMap.minQty = i;
+          });
 
-      const rowsToProcess = jsonData.slice(headerRowIndex + 1);
-      const totalRows = rowsToProcess.length;
-      const batchSize = 50;
-      const finalResults = { success: 0, failed: 0, errors: [] as string[] };
+          // Second pass: if some are still missing, be even more aggressive
+          if (colMap.sku === undefined) colMap.sku = headers.indexOf('referencia') >= 0 ? headers.indexOf('referencia') : headers.indexOf('sku');
+          if (colMap.name === undefined) colMap.name = headers.indexOf('nombre') >= 0 ? headers.indexOf('nombre') : (headers.indexOf('descripción') >= 0 ? headers.indexOf('descripción') : headers.indexOf('name'));
+          if (colMap.group === undefined) colMap.group = headers.indexOf('grupo') >= 0 ? headers.indexOf('grupo') : (headers.indexOf('categoría') >= 0 ? headers.indexOf('categoría') : headers.indexOf('grupo'));
 
-      for (let i = 0; i < totalRows; i += batchSize) {
-          const batch = rowsToProcess.slice(i, i + batchSize).map((row, idx) => ({
+
+          const missing = [];
+          if (colMap.sku === undefined) missing.push('Referencia');
+          if (colMap.name === undefined) missing.push('Descripción');
+          if (colMap.group === undefined) missing.push('Grupo');
+
+          if (missing.length > 0) {
+              throw new Error(`Faltan columnas requeridas en el archivo: ${missing.join(', ')}`);
+          }
+
+          const rows = jsonData.slice(headerRowIndex + 1).map((rawRow, index) => {
+            let row = rawRow;
+            // Handle bad delimiter parsing for data rows as well
+            if (Array.isArray(row) && row.length === 1 && typeof row[0] === 'string' && (row[0].includes(',') || row[0].includes(';'))) {
+                const delimiter = row[0].includes(',') ? ',' : ';';
+                row = row[0].split(delimiter);
+            }
+
+            if (!row || (!row[colMap.sku] && !row[colMap.name])) return null;
+            return {
               sku: row[colMap.sku]?.toString().trim(),
               name: row[colMap.name]?.toString().trim(),
               groupName: row[colMap.group]?.toString().trim(),
@@ -716,29 +730,54 @@ export default function ProductosPage() {
               priceA: colMap.priceA !== undefined ? parseFloat(row[colMap.priceA]) : null,
               stock: colMap.stock !== undefined ? parseFloat(row[colMap.stock]) : null,
               minQty: colMap.minQty !== undefined ? parseInt(row[colMap.minQty]) || 0 : 0,
-              rowNumber: headerRowIndex + 1 + i + idx + 1
-          }));
+              rowNumber: index + headerRowIndex + 2
+            };
+          }).filter(Boolean);
 
-          const response = await api.importProductsBatch(batch);
-          
-          if (response.success) {
-            finalResults.success += response.details.success;
-            finalResults.failed += response.details.failed;
-            finalResults.errors.push(...response.details.errors);
+          const totalRows = rows.length;
+          const batchSize = 30;
+          let successTotal = 0;
+          let failedTotal = 0;
+          const errorsTotal: string[] = [];
+
+          for (let i = 0; i < totalRows; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize);
+            const batchResult = await api.importProductsBatch(batch);
+            
+            if (batchResult.success) {
+              successTotal += batchResult.details.success;
+              failedTotal += batchResult.details.failed;
+              errorsTotal.push(...batchResult.details.errors);
+            }
+            
+            setImportProgress(Math.round(((i + batch.length) / totalRows) * 100));
           }
 
-          setImportProgress(Math.min(100, Math.round(((i + batch.length) / totalRows) * 100)));
-      }
+          setImportResults({
+            success: successTotal,
+            failed: failedTotal,
+            errors: errorsTotal
+          });
+          setImportProgress(100);
+          setImportSuccess(true);
+          loadProducts();
+          alertSuccess('Importación finalizada', `${successTotal} productos procesados correctamente.`);
+        } catch (err: any) {
+          console.error("Error processing import data:", err);
+          alertError('Error al importar', err.message);
+        } finally {
+          setIsImporting(false);
+        }
+      };
 
-      setImportResults(finalResults);
-      setImportSuccess(true);
-      alertSuccess("Importación completada", `Se procesaron ${totalRows} filas.`);
-      loadProducts();
-      
-    } catch (error: any) {
-      alertError("Error al importar", error.message || "No se pudo procesar el archivo");
-      console.error("Import error:", error);
-    } finally {
+      reader.onerror = () => {
+        alertError('Error de lectura', 'No se pudo leer el archivo seleccionado.');
+        setIsImporting(false);
+      };
+
+      reader.readAsArrayBuffer(selectedFile);
+    } catch (err: any) {
+      alertError('Error de importación', err.message);
       setIsImporting(false);
     }
   };
@@ -759,7 +798,6 @@ export default function ProductosPage() {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
           Productos
         </h1>
-        {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-500" />}
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
@@ -1094,7 +1132,7 @@ export default function ProductosPage() {
         )
       ) : viewMode === "grid" ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 min-h-[400px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-[400px]">
             {filteredProducts.length > 0 ? (
               filteredProducts
                 .slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)

@@ -28,7 +28,7 @@ export default function NewVendorPaymentPage() {
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
     const [pendingPOs, setPendingPOs] = useState<any[]>([]);
-    const [amount, setAmount] = useState<number>(0);
+    const [amount, setAmount] = useState<string>('');
     const [applications, setApplications] = useState<Record<string, number>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
@@ -57,7 +57,7 @@ export default function NewVendorPaymentPage() {
 
     // Auto-apply FIFO
     useEffect(() => {
-        let remaining = amount;
+        let remaining = parseFloat(amount) || 0;
         const newApps: Record<string, number> = {};
         
         for (const po of pendingPOs) {
@@ -73,13 +73,14 @@ export default function NewVendorPaymentPage() {
        const newApps = { ...applications, [poId]: val };
        setApplications(newApps);
        const total = Object.values(newApps).reduce((a, b) => a + b, 0);
-       setAmount(total);
+       setAmount(total.toString());
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        const parsedAmount = parseFloat(amount) || 0;
         if (!selectedSupplier) return toast.error('Selecciona un proveedor');
-        if (amount <= 0) return toast.error('El monto debe ser mayor a 0');
+        if (parsedAmount <= 0) return toast.error('El monto debe ser mayor a 0');
 
         setIsLoading(true);
         const formData = new FormData(e.currentTarget);
@@ -91,7 +92,7 @@ export default function NewVendorPaymentPage() {
                 entityType: 'supplier',
                 entityId: selectedSupplier.id,
                 entityName: selectedSupplier.legalName,
-                amount,
+                amount: parsedAmount,
                 paymentMethod: formData.get('paymentMethod') as string,
                 referenceNumber: formData.get('referenceNumber') as string,
                 notes: formData.get('notes') as string,
@@ -104,7 +105,7 @@ export default function NewVendorPaymentPage() {
                 await api.applyVendorPayment(payment.id, poId, val);
             }
 
-            toast.success(`Pago a proveedor de ${formatCurrency(amount)} registrado y aplicado correctamente`);
+            toast.success(`Pago a proveedor de ${formatCurrency(parsedAmount)} registrado y aplicado correctamente`);
             router.push(`/proveedores/${selectedSupplier.id}?tab=cxp`);
         } catch (err: any) {
             toast.error(err.message || 'Error al registrar pago');
@@ -160,9 +161,9 @@ export default function NewVendorPaymentPage() {
                                             type="number"
                                             step="0.01"
                                             value={amount}
-                                            onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            placeholder="0.00"
                                             className="h-11 pl-7 rounded-xl"
-                                            required
                                         />
                                     </div>
                                 </div>
@@ -238,13 +239,13 @@ export default function NewVendorPaymentPage() {
                         <div className="pt-4 border-t border-gray-100 dark:border-[#222]">
                             <div className="flex justify-between items-center mb-1">
                                 <span className="text-xs text-gray-500">Total a Pagar:</span>
-                                <span className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(amount)}</span>
+                                <span className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(parseFloat(amount) || 0)}</span>
                             </div>
                         </div>
 
                         <Button
                             type="submit"
-                            disabled={isLoading || amount === 0}
+                            disabled={isLoading || !amount || parseFloat(amount) <= 0}
                             className="w-full bg-[#253D6B] hover:bg-[#1e3156] text-white py-6 rounded-xl text-lg transition-transform active:scale-95"
                         >
                             {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirmar Pago'}

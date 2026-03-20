@@ -35,7 +35,7 @@ async function fetcher(endpoint: string, options: RequestInit = {}) {
 
 const mapProduct = (p: any) => ({
     ...p,
-    id: p.id || p._id,
+    id: p.id,
     reference: p.sku || p.reference || 'S/R',
     description: p.description || p.name || 'Sin nombre',
     name: p.name || p.description || 'Sin nombre',
@@ -58,6 +58,9 @@ export const api = {
         return mapProduct(p);
     },
     createProduct: (data: any) => {
+        // Remove mongo specific fields if they leak in
+        delete (data as any)._id;
+        delete (data as any).__v;
         // Ensure name is sent for backend schema
         const payload = {
             ...data,
@@ -169,14 +172,14 @@ export const api = {
     // Users
     getUsers: async () => {
         const users = await fetcher('/users');
-        return (users || []).map((u: any) => ({ ...u, id: u._id || u.id }));
+        return (users || []).map((u: any) => ({ ...u }));
     },
     createUser: (data: any) => fetcher('/users', { method: 'POST', body: JSON.stringify(data) }),
     updateUser: (id: string, data: any) => fetcher(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     toggleUserActive: (id: string, isActive: boolean) => fetcher(`/users/${id}/toggle`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
     getPendingUsers: async () => {
         const users = await fetcher('/users/pending');
-        return (users || []).map((u: any) => ({ ...u, id: u._id || u.id }));
+        return (users || []).map((u: any) => ({ ...u }));
     },
     approveUser: (id: string, role: string) => fetcher(`/users/${id}/approve`, { method: 'PATCH', body: JSON.stringify({ role }) }),
     uploadUserAvatar: async (id: string, file: File) => {
@@ -203,13 +206,17 @@ export const api = {
     // Suppliers
     getSuppliers: async () => {
         const suppliers = await fetcher('/suppliers');
-        return (suppliers || []).map((s: any) => ({ ...s, id: s._id || s.id }));
+        return (suppliers || []).map((s: any) => ({ ...s, name: s.legalName }));
     },
     getSupplierById: async (id: string) => {
         const s = await fetcher(`/suppliers/${id}`);
-        return { ...s, id: s._id || s.id };
+        return { ...s };
     },
     createSupplier: (data: any) => fetcher('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
+    importSuppliersBatch: (batch: any[]) => fetcher('/suppliers/batch-import-json', {
+        method: 'POST',
+        body: JSON.stringify({ batch })
+    }),
     updateSupplier: (id: string, data: any) => fetcher(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     deleteSupplier: (id: string) => fetcher(`/suppliers/${id}`, { method: 'DELETE' }),
     getApSummary: (asOf?: string) => fetcher(`/suppliers/cxp/summary${asOf ? `?asOf=${asOf}` : ''}`),
@@ -225,11 +232,11 @@ export const api = {
         const query = new URLSearchParams(filters).toString();
         const path = `/purchase-orders${query ? `?${query}` : ''}`;
         const orders = await fetcher(path);
-        return (orders || []).map((o: any) => ({ ...o, id: o._id || o.id }));
+        return (orders || []).map((o: any) => ({ ...o, id: o.id }));
     },
     getPurchaseOrderById: async (id: string) => {
         const o = await fetcher(`/purchase-orders/${id}`);
-        return { ...o, id: o._id };
+        return { ...o, id: o.id };
     },
     createPurchaseOrder: (data: any) => fetcher('/purchase-orders', { method: 'POST', body: JSON.stringify(data) }),
     updatePurchaseOrderStatus: (id: string, status: string) => fetcher(`/purchase-orders/${id}/status`, {
@@ -246,11 +253,11 @@ export const api = {
         const query = new URLSearchParams(filters).toString();
         const path = `/sales${query ? `?${query}` : ''}`;
         const sales = await fetcher(path);
-        return (sales || []).map((s: any) => ({ ...s, id: s._id || s.id }));
+        return (sales || []).map((s: any) => ({ ...s, id: s.id }));
     },
     getSaleById: async (id: string) => {
         const s = await fetcher(`/sales/${id}`);
-        return { ...s, id: s._id };
+        return { ...s, id: s.id };
     },
     createSale: (data: any) => fetcher('/sales', {
         method: 'POST',
@@ -290,11 +297,11 @@ export const api = {
         const query = new URLSearchParams(filters).toString();
         const path = `/clients${query ? `?${query}` : ''}`;
         const clients = await fetcher(path);
-        return (clients || []).map((c: any) => ({ ...c, id: c._id || c.id }));
+        return (clients || []).map((c: any) => ({ ...c, id: c.id }));
     },
     getClientById: async (id: string) => {
         const c = await fetcher(`/clients/${id}`);
-        return { ...c, id: c._id };
+        return { ...c, id: c.id };
     },
     createClient: (data: any) => fetcher('/clients', {
         method: 'POST',
@@ -349,17 +356,18 @@ export const api = {
         return fetcher(`/clients/${id}/transactions${query ? `?${query}` : ''}`);
     },
     getClientBalance: (id: string) => fetcher(`/clients/${id}/balance`),
+    getClientPOSHistory: (id: string) => fetcher(`/clients/${id}/pos-history`),
 
     // Payments (CXC / CXP)
     getPayments: async (filters: any = {}) => {
         const query = new URLSearchParams(filters).toString();
         const path = `/payments${query ? `?${query}` : ''}`;
         const payments = await fetcher(path);
-        return (payments || []).map((p: any) => ({ ...p, id: p._id || p.id }));
+        return (payments || []).map((p: any) => ({ ...p, id: p.id }));
     },
     getPaymentById: async (id: string) => {
         const p = await fetcher(`/payments/${id}`);
-        return { ...p, id: p._id };
+        return { ...p, id: p.id };
     },
     createPayment: (data: any) => fetcher('/payments', {
         method: 'POST',
@@ -389,13 +397,23 @@ export const api = {
         body: JSON.stringify(data)
     }),
 
-    // Analytics
-    getDashboardAnalytics: () => fetcher('/analytics/dashboard'),
+    // Analytics & Reports
+    getDashboardAnalytics: () => fetcher('/erp/reports/dashboard'),
+    getReportsSales: (startDate: string, endDate: string, channel?: string) => {
+        let url = `/erp/reports/sales?startDate=${startDate}&endDate=${endDate}`;
+        if (channel && channel !== 'ALL') url += `&channel=${channel}`;
+        return fetcher(url);
+    },
+    getReportsCashRegisters: (filters: any) => {
+        const query = new URLSearchParams(filters).toString();
+        return fetcher(`/erp/reports/cash-registers?${query}`);
+    },
+    getReportsInventory: () => fetcher('/erp/reports/inventory'),
 
     // Warehouses
     getWarehouses: async () => {
         const warehouses = await fetcher('/warehouses');
-        return (warehouses || []).map((w: any) => ({ ...w, id: w._id || w.id }));
+        return (warehouses || []).map((w: any) => ({ ...w, id: w.id }));
     },
 
     // Stock
@@ -456,14 +474,129 @@ export const api = {
     createBL: (data: any) => fetcher('/traffic/bl', { method: 'POST', body: JSON.stringify(data) }),
     prefillBL: (expedientId: string) => fetcher(`/traffic/expedients/${expedientId}/prefill-bl`, { method: 'POST' }),
 
-    // Accounting
-    getAccounts: () => fetcher('/accounting/accounts'),
-    createAccount: (data: any) => fetcher('/accounting/accounts', { method: 'POST', body: JSON.stringify(data) }),
-    getJournalEntries: () => fetcher('/accounting/entries'),
-    createJournalEntry: (data: any) => fetcher('/accounting/entries', { method: 'POST', body: JSON.stringify(data) }),
-    seedCOA: () => fetcher('/accounting/seed', { method: 'POST' }),
     // Settings
     getCommercialParams: () => fetcher('/settings/commercial-params'),
     getDocumentNumbering: () => fetcher('/settings/document-numbering'),
+
+    // POS
+    posStartSession: (data: { userId: string; openingAmount: number }) =>
+        fetcher('/pos/session/start', { method: 'POST', body: JSON.stringify(data) }),
+    posCloseSession: (id: string, data: { closingAmount: number; notes?: string }) =>
+        fetcher(`/pos/session/close/${id}`, { method: 'POST', body: JSON.stringify(data) }),
+    posGetActiveSession: (userId: string) => fetcher(`/pos/session/active/${userId}`),
+    posCreateSale: (data: any) =>
+        fetcher('/pos/sale', { method: 'POST', body: JSON.stringify(data) }),
+    posGetReceipt: (id: string) => fetcher(`/pos/receipt/${id}`),
+    posSearchSales: (filters: any) => {
+        const query = new URLSearchParams(filters).toString();
+        return fetcher(`/pos/sales${query ? `?${query}` : ''}`);
+    },
+    posGetSaleById: (id: string) => fetcher(`/pos/sales/${id}`),
+    posVoidSale: (id: string, userId: string, reason: string) =>
+        fetcher(`/pos/sales/${id}/void`, { method: 'POST', body: JSON.stringify({ userId, reason }) }),
+    posSearchOriginalSale: (ticketNumber: string) => fetcher(`/pos/returns/search?ticketNumber=${ticketNumber}`),
+    posCreateReturn: (data: any) => fetcher('/pos/returns', { method: 'POST', body: JSON.stringify(data) }),
+
+    // CONTABILIDAD
+    getAccounts: () => fetcher('/accounting/accounts'),
+    createAccount: (data: any) => fetcher('/accounting/accounts', { method: 'POST', body: JSON.stringify(data) }),
+    updateAccount: (id: string, data: any) => fetcher(`/accounting/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    getAccountingMappings: () => fetcher('/accounting/mappings'),
+    saveAccountingMapping: (data: any) => fetcher('/accounting/mappings', { method: 'POST', body: JSON.stringify(data) }),
+    getJournalEntries: (filters?: Record<string, string>) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/accounting/entries${q ? `?${q}` : ''}`);
+    },
+    getJournalEntryById: (id: string) => fetcher(`/accounting/entries/${id}`),
+    createJournalEntry: (data: any) => fetcher('/accounting/entries', { method: 'POST', body: JSON.stringify(data) }),
+    reverseJournalEntry: (id: string, reason: string) =>
+        fetcher(`/accounting/entries/${id}/reverse`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    getLedger: (accountId: string, filters?: Record<string, string>) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/accounting/ledger/${accountId}${q ? `?${q}` : ''}`);
+    },
+    getProfitAndLoss: (filters?: Record<string, string>) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/accounting/financials/pnl${q ? `?${q}` : ''}`);
+    },
+    getBalanceSheet: (filters?: Record<string, string>) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/accounting/financials/balance-sheet${q ? `?${q}` : ''}`);
+    },
+    getCashFlow: (filters?: Record<string, string>) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/accounting/financials/cash-flow${q ? `?${q}` : ''}`);
+    },
+    seedAccountingCOA: () => fetcher('/accounting/seed', { method: 'POST' }),
+
+    // Banking & Treasury
+    getBankAccounts: () => fetcher('/banking/accounts'),
+    getBankAccountById: (id: string) => fetcher(`/banking/accounts/${id}`),
+    getBankAccountSummary: (id: string) => fetcher(`/banking/accounts/${id}/summary`),
+    createBankAccount: (data: any) => fetcher('/banking/accounts', { method: 'POST', body: JSON.stringify(data) }),
+    updateBankAccount: (id: string, data: any) => fetcher(`/banking/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    getBankTransactions: (accountId: string, filters?: any) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/banking/accounts/${accountId}/transactions${q ? `?${q}` : ''}`);
+    },
+    createBankTransaction: (accountId: string, data: any) =>
+        fetcher(`/banking/accounts/${accountId}/transactions`, { method: 'POST', body: JSON.stringify(data) }),
+    importBankCSV: (accountId: string, csv: string) =>
+        fetcher(`/banking/accounts/${accountId}/import`, { method: 'POST', body: JSON.stringify({ csv }) }),
+    autoMatchTransactions: (accountId: string) => fetcher(`/banking/accounts/${accountId}/auto-match`, { method: 'POST' }),
+    manualMatchTx: (txId: string, data: any) =>
+        fetcher(`/banking/transactions/${txId}/match`, { method: 'POST', body: JSON.stringify(data) }),
+    ignoreBankTx: (txId: string) => fetcher(`/banking/transactions/${txId}/ignore`, { method: 'POST' }),
+    unmatchBankTx: (txId: string) => fetcher(`/banking/transactions/${txId}/unmatch`, { method: 'POST' }),
+    createBankTransfer: (data: any) => fetcher('/banking/transfer', { method: 'POST', body: JSON.stringify(data) }),
+
+    // Reconciliations
+    getReconciliations: (bankAccountId?: string) =>
+        fetcher(`/banking/reconciliations${bankAccountId ? `?bankAccountId=${bankAccountId}` : ''}`),
+    getReconciliationById: (id: string) => fetcher(`/banking/reconciliations/${id}`),
+    createReconciliation: (data: any) => fetcher('/banking/reconciliations', { method: 'POST', body: JSON.stringify(data) }),
+    closeReconciliation: (id: string) => fetcher(`/banking/reconciliations/${id}/close`, { method: 'POST' }),
+    updateBookBalance: (id: string, bookBalance: number) =>
+        fetcher(`/banking/reconciliations/${id}/book-balance`, { method: 'PATCH', body: JSON.stringify({ bookBalance }) }),
+
+    // Accounting Periods
+    getAccountingPeriods: () => fetcher('/banking/periods'),
+    getCurrentAccountingPeriod: () => fetcher('/banking/periods/current'),
+    getAccountingPeriodById: (id: string) => fetcher(`/banking/periods/${id}`),
+    getPeriodChecklist: (id: string) => fetcher(`/banking/periods/${id}/checklist`),
+    closeAccountingPeriod: (id: string) => fetcher(`/banking/periods/${id}/close`, { method: 'POST' }),
+    reopenAccountingPeriod: (id: string) => fetcher(`/banking/periods/${id}/reopen`, { method: 'POST' }),
+
+    // Advanced Reports
+    getCashFlowByBank: (filters?: any) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/banking/reports/cash-flow-by-bank${q ? `?${q}` : ''}`);
+    },
+    getMonthlyComparison: (year?: number) => fetcher(`/banking/reports/monthly-comparison?year=${year || new Date().getFullYear()}`),
+    getChannelComparison: (filters?: any) => {
+        const q = filters ? new URLSearchParams(filters).toString() : '';
+        return fetcher(`/banking/reports/channel-comparison${q ? `?${q}` : ''}`);
+    },
+
+    // Notifications
+    getMyNotifications: () => fetcher('/notifications'),
+    getUnreadCount: () => fetcher('/notifications/unread-count'),
+    markNotificationAsRead: (id: string) => fetcher(`/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllNotificationsAsRead: () => fetcher('/notifications/read-all', { method: 'POST' }),
+    
+    // Audit Logs
+    getAuditLogs: (filters: any = {}) => {
+        const q = new URLSearchParams(filters).toString();
+        return fetcher(`/audit/logs${q ? `?${q}` : ''}`);
+    },
+    getAuditSummary: () => fetcher('/audit/summary'),
+
+    // Categories
+    getCategories: () => fetcher('/categories'),
+    getCategoriesFlat: () => fetcher('/categories/flat'),
+    getCategoryById: (id: string) => fetcher(`/categories/${id}`),
+    createCategory: (data: any) => fetcher('/categories', { method: 'POST', body: JSON.stringify(data) }),
+    updateCategory: (id: string, data: any) => fetcher(`/categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteCategory: (id: string) => fetcher(`/categories/${id}`, { method: 'DELETE' }),
 };
 

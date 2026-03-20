@@ -15,6 +15,8 @@ export class ProductsService {
                 brand: true,
                 group: true,
                 subgroup: true,
+                category: true,
+                subcategory: true,
                 barcodes: true,
                 prices: true,
             },
@@ -32,9 +34,11 @@ export class ProductsService {
 
                 return {
                     ...product,
-                    _id: product.id, // Compatibility
                     prices: pricesObj,
                     stock,
+                    costAvgWeighted: Number(product.costAvgWeighted || 0),
+                    costCIF: Number(product.costCIF || 0),
+                    costFOB: Number(product.costFOB || 0),
                 };
             }),
         );
@@ -48,6 +52,8 @@ export class ProductsService {
                 brand: true,
                 group: true,
                 subgroup: true,
+                category: true,
+                subcategory: true,
                 barcodes: true,
                 prices: true,
             },
@@ -66,7 +72,6 @@ export class ProductsService {
 
         return { 
             ...product, 
-            _id: product.id, 
             prices: pricesObj,
             stock,
             costFOB: Number(product.costFOB || 0),
@@ -85,7 +90,7 @@ export class ProductsService {
         if (!product) {
             throw new NotFoundException(`Product with reference ${reference} not found`);
         }
-        return { ...product, _id: product.id };
+        return { ...product };
     }
 
     async create(createProductDto: any): Promise<any> {
@@ -97,6 +102,8 @@ export class ProductsService {
                 groupId: createProductDto.groupId,
                 subgroupId: createProductDto.subgroupId,
                 brandId: createProductDto.brandId,
+                categoryId: createProductDto.categoryId,
+                subcategoryId: createProductDto.subcategoryId,
                 unitsPerBox: createProductDto.unitsPerBox,
                 image: createProductDto.image,
                 isActive: createProductDto.isActive ?? (createProductDto.status !== undefined ? createProductDto.status === 'active' : true),
@@ -111,6 +118,8 @@ export class ProductsService {
         if (updateProductDto.description !== undefined) data.description = updateProductDto.description;
         if (updateProductDto.groupId !== undefined) data.groupId = updateProductDto.groupId;
         if (updateProductDto.subgroupId !== undefined) data.subgroupId = updateProductDto.subgroupId;
+        if (updateProductDto.categoryId !== undefined) data.categoryId = updateProductDto.categoryId;
+        if (updateProductDto.subcategoryId !== undefined) data.subcategoryId = updateProductDto.subcategoryId;
         if (updateProductDto.brandId !== undefined) data.brandId = updateProductDto.brandId;
         if (updateProductDto.unitsPerBox !== undefined) data.unitsPerBox = updateProductDto.unitsPerBox;
         if (updateProductDto.image !== undefined) data.image = updateProductDto.image;
@@ -164,15 +173,15 @@ export class ProductsService {
             worksheet.eachRow((row, rowNumber) => {
                 if (headers.length > 0) return;
                 const rowValues = row.values as any[];
-                if (rowValues.some(v => v?.toString().trim().toLowerCase() === 'referencia')) {
+                if (rowValues.some(v => v?.toString()?.trim()?.toLowerCase() === 'referencia')) {
                     headerRowIndex = rowNumber;
-                    headers = rowValues.map(v => v?.toString().trim());
+                    headers = rowValues.map(v => v?.toString()?.trim() || '');
                 }
             });
 
             if (headers.length === 0) {
                 // Fallback to row 1
-                headers = (worksheet.getRow(1).values as any[]).map(v => v?.toString().trim());
+                headers = (worksheet.getRow(1).values as any[]).map(v => v?.toString()?.trim() || '');
             }
 
             const colMap: any = {};
@@ -221,12 +230,12 @@ export class ProductsService {
             for (const row of rows) {
                 const values = row.values as any[];
                 const rowData = {
-                    sku: values[colMap.sku]?.toString().trim(),
-                    name: values[colMap.name]?.toString().trim(),
-                    groupName: values[colMap.group]?.toString().trim(),
-                    brandName: colMap.brand ? values[colMap.brand]?.toString().trim() : null,
-                    subgroupName: colMap.subgroup ? values[colMap.subgroup]?.toString().trim() : null,
-                    barcode: colMap.barcode ? values[colMap.barcode]?.toString().trim() : null,
+                    sku: values[colMap.sku]?.toString()?.trim(),
+                    name: values[colMap.name]?.toString()?.trim(),
+                    groupName: values[colMap.group]?.toString()?.trim(),
+                    brandName: colMap.brand ? values[colMap.brand]?.toString()?.trim() : null,
+                    subgroupName: colMap.subgroup ? values[colMap.subgroup]?.toString()?.trim() : null,
+                    barcode: colMap.barcode ? values[colMap.barcode]?.toString()?.trim() : null,
                     priceA: colMap.priceA ? parseFloat(values[colMap.priceA]) : null,
                     stock: colMap.stock ? parseFloat(values[colMap.stock]) : null,
                     minQty: colMap.minQty ? parseInt(values[colMap.minQty]) || 0 : 0,
@@ -276,25 +285,18 @@ export class ProductsService {
         const { sku, name, groupName, brandName, subgroupName, barcode, priceA, stock, minQty, rowNumber } = rowData;
 
         if (!sku || !name || !groupName) {
-            if (sku || name || groupName) {
-                results.failed++;
-                results.errors.push(`Fila ${rowNumber || 'N/A'}: Datos incompletos (Referencia, Descripción y Grupo son obligatorios)`);
-            }
+            const missing: string[] = [];
+            if (!sku) missing.push('Referencia');
+            if (!name) missing.push('Descripción');
+            if (!groupName) missing.push('Grupo');
+            
+            results.failed++;
+            results.errors.push(`Fila ${rowNumber || 'N/A'}: Datos incompletos (${missing.join(', ')} son obligatorios)`);
             return;
         }
 
         try {
             // Check if duplicate SKU
-            const existingProduct = await this.prisma.product.findUnique({
-                where: { sku }
-            });
-
-            if (existingProduct) {
-                results.failed++;
-                results.errors.push(`Referencia "${sku}": Ya existe en el sistema`);
-                return;
-            }
-
             // Handle Brand
             let brandId: string | null = null;
             if (brandName && brandName.toLowerCase() !== 'varios') {
@@ -313,8 +315,26 @@ export class ProductsService {
                 create: { name: groupName }
             });
 
+            // Handle Category (New Model)
+            let rootCategory = await this.prisma.category.findUnique({
+                where: { name: groupName }
+            });
+
+            if (!rootCategory) {
+                rootCategory = await this.prisma.category.create({
+                    data: {
+                        name: groupName,
+                        level: 1,
+                        isActive: true
+                    }
+                });
+            }
+
+
             // Handle Subgroup
             let subgroupId: string | null = null;
+            let subcategoryId: string | null = null;
+
             if (subgroupName) {
                 const subgroup = await this.prisma.productSubgroup.upsert({
                     where: { 
@@ -327,17 +347,49 @@ export class ProductsService {
                     create: { name: subgroupName, groupId: group.id }
                 });
                 subgroupId = subgroup.id;
+
+                const subCat = await this.prisma.category.findUnique({
+                    where: { name: subgroupName }
+                });
+
+                if (subCat) {
+                    subcategoryId = subCat.id;
+                } else {
+                    const newSubCat = await this.prisma.category.create({
+                        data: {
+                            name: subgroupName,
+                            parentId: rootCategory.id,
+                            level: 2,
+                            isActive: true
+                        }
+                    });
+                    subcategoryId = newSubCat.id;
+                }
             }
 
-            // Create Product
-            const product = await this.prisma.product.create({
-                data: {
+            // Upsert Product
+            const product = await this.prisma.product.upsert({
+                where: { sku },
+                update: {
+                    name,
+                    description: name,
+                    brandId,
+                    groupId: group.id,
+                    subgroupId,
+                    categoryId: rootCategory.id,
+                    subcategoryId,
+                    minimumQuantity: minQty || 0,
+                    isActive: true
+                },
+                create: {
                     sku,
                     name,
                     description: name,
                     brandId,
                     groupId: group.id,
                     subgroupId,
+                    categoryId: rootCategory.id,
+                    subcategoryId,
                     minimumQuantity: minQty || 0,
                     isActive: true
                 }
@@ -358,8 +410,15 @@ export class ProductsService {
 
             // Handle Price A
             if (priceA !== null && !isNaN(priceA)) {
-                await this.prisma.productPrice.create({
-                    data: {
+                await this.prisma.productPrice.upsert({
+                    where: {
+                        productId_level: {
+                            productId: product.id,
+                            level: 'A'
+                        }
+                    },
+                    update: { price: priceA },
+                    create: {
                         productId: product.id,
                         level: 'A',
                         price: priceA,
@@ -370,8 +429,18 @@ export class ProductsService {
 
             // Handle Stock
             if (stock !== null && !isNaN(stock) && stock > 0 && defaultWarehouse) {
-                await this.prisma.inventoryExistence.create({
-                    data: {
+                await this.prisma.inventoryExistence.upsert({
+                    where: {
+                        productId_warehouseId: {
+                            productId: product.id,
+                            warehouseId: defaultWarehouse.id
+                        }
+                    },
+                    update: {
+                        existence: stock,
+                        available: stock
+                    },
+                    create: {
                         productId: product.id,
                         warehouseId: defaultWarehouse.id,
                         existence: stock,
@@ -384,6 +453,7 @@ export class ProductsService {
         } catch (rowErr) {
             results.failed++;
             results.errors.push(`Error en referencia "${sku}": ${rowErr.message}`);
+            console.error(`[Import] Error processing row with SKU ${sku}:`, rowErr);
         }
     }
     async exportProducts(format: 'xlsx' | 'csv'): Promise<any> {

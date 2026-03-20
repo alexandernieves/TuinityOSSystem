@@ -7,6 +7,8 @@ import { AccountsReceivableService } from '../services/accounts-receivable/accou
 import { AccountsPayableService } from '../services/accounts-payable/accounts-payable.service';
 import { AccountsReceivableEntryType, AccountsPayableEntryType } from '@prisma/client';
 
+import { CommissionsService } from '../sales/commissions.service';
+
 @Injectable()
 export class PaymentsService {
     constructor(
@@ -16,6 +18,7 @@ export class PaymentsService {
         private accountingService: AccountingService,
         private arService: AccountsReceivableService,
         private apService: AccountsPayableService,
+        @Inject(forwardRef(() => CommissionsService)) private commissionsService: CommissionsService
     ) { }
 
     async create(createPaymentDto: any): Promise<any> {
@@ -108,39 +111,39 @@ export class PaymentsService {
 
     private async createAccountingEntryForPayment(payment: any, type: 'inbound' | 'outbound', amount: number, entityId: string, userId?: string) {
         try {
-            const accounts = await this.accountingService.findAllAccounts();
-            const banco = accounts.find(a => a.code === '1010.02');
-            const cxc = accounts.find(a => a.code === '1020.01');
-            const cxp = accounts.find(a => a.code === '2010.01');
-
-            if (!banco || !cxc || !cxp) return;
-
-            const lines: { accountId: string; debit: number; credit: number; memo: string }[] = [];
             if (type === 'inbound') {
-                 // Cobro: Banco (Dr) vs CxC (Cr)
-                 lines.push({ accountId: banco.id, debit: amount, credit: 0, memo: `Cobro Cliente - Recibo ${payment.number}` });
-                 lines.push({ accountId: cxc.id, debit: 0, credit: amount, memo: `Aplicación a CxC - Recibo ${payment.number}` });
+                // Cobro cliente: Banco (Dr) vs CxC (Cr)
+                await this.accountingService.generateAutoEntry({
+                    operationType: 'B2B_COLLECTION',
+                    referenceId: payment.id,
+                    amount,
+                    memo: `Cobro Cliente - Recibo ${payment.number}`,
+                    userId
+                });
             } else {
-                 // Pago: CxP (Dr) vs Banco (Cr)
-                 lines.push({ accountId: cxp.id, debit: amount, credit: 0, memo: `Pago Proveedor - Pago ${payment.number}` });
-                 lines.push({ accountId: banco.id, debit: 0, credit: amount, memo: `Salida de Banco - Pago ${payment.number}` });
+                // Pago proveedor: CxP (Dr) vs Banco (Cr)
+                await this.accountingService.generateAutoEntry({
+                    operationType: 'SUPPLIER_PAYMENT',
+                    referenceId: payment.id,
+                    amount,
+                    memo: `Pago Proveedor - ${payment.number}`,
+                    userId
+                });
             }
-
-            await this.accountingService.createEntry({
-                date: new Date(),
-                description: type === 'inbound' ? `Contabilización Recibo de Caja ${payment.number}` : `Contabilización Pago a Proveedor ${payment.number}`,
-                sourceType: type === 'inbound' ? 'receipt' : 'vendor_payment',
-                sourceId: payment.id,
-                createdByUserId: userId,
-                lines
-            });
         } catch (e) {
             console.error('Error generating accounting entry for payment:', e);
         }
     }
 
     async applyReceipt(receiptId: string, invoiceId: string, amount: number, userId: string): Promise<any> {
-        return this.arService.processReceiptApplication(receiptId, invoiceId, amount, userId);
+        const result = await this.arService.processReceiptApplication(receiptId, invoiceId, amount, userId);
+        
+        // Recalculate commissions after applying payment
+        this.commissionsService.recalculateEligibleCommission(invoiceId).catch(err => {
+            console.error('Error recalculating commission post-payment', err);
+        });
+        
+        return result;
     }
 
     async applyVendorPayment(paymentId: string, purchaseOrderId: string, amount: number, userId: string): Promise<any> {

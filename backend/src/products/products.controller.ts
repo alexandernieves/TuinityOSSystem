@@ -1,11 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, UploadedFile, Header, StreamableFile } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { CurrentUser } from '../auth/decorators/user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from '../storage/storage.service';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductsController {
     constructor(
         private readonly productsService: ProductsService,
@@ -13,8 +15,17 @@ export class ProductsController {
     ) { }
 
     @Get()
-    findAll() {
-        return this.productsService.findAll();
+    async findAll(@CurrentUser() user: any) {
+        const products = await this.productsService.findAll();
+        
+        // Security filter: Cajeros and Bodega don't see costs/margins
+        if (['vendedor', 'bodega', 'pos_cajero', 'pos_encargado'].includes(user.role)) {
+            return products.map(p => {
+                const { costFOB, costCIF, costAvgWeighted, ...rest } = p;
+                return rest;
+            });
+        }
+        return products;
     }
 
     @Post('batch-import')
@@ -42,8 +53,14 @@ export class ProductsController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.productsService.findOne(id);
+    async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+        const product = await this.productsService.findOne(id);
+        
+        if (['vendedor', 'bodega', 'pos_cajero', 'pos_encargado'].includes(user.role)) {
+            const { costFOB, costCIF, costAvgWeighted, ...rest } = product;
+            return rest;
+        }
+        return product;
     }
 
     @Get('ref/:reference')

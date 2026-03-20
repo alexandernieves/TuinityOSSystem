@@ -15,9 +15,9 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canApproveSales: ['gerencia'],
   canViewReports: ['gerencia', 'contabilidad'],
   canManageUsers: ['gerencia'],
-  canAccessPOS: ['gerencia', 'vendedor', 'bodega'],
+  canAccessPOS: ['gerencia', 'vendedor', 'bodega', 'pos_cajero', 'pos_encargado'],
   canAccessTrafico: ['gerencia', 'contabilidad', 'trafico'],
-  canAccessInventory: ['gerencia', 'compras', 'bodega'],
+  canAccessInventory: ['gerencia', 'compras', 'bodega', 'pos_encargado'],
   canAccessCompras: ['gerencia', 'contabilidad', 'compras'],
   // Inventory module permissions
   canCreateAdjustments: ['gerencia', 'compras', 'bodega', 'trafico'],
@@ -66,15 +66,15 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canAnnulTrafficDocs: ['gerencia', 'trafico'],
   canConfigureTrafico: [],
   // Punto de Venta B2C
-  canSellPOS: ['gerencia', 'vendedor', 'bodega'],
-  canOpenCloseCash: ['gerencia', 'vendedor', 'bodega'],
-  canApplyPOSDiscount: ['gerencia'],
-  canProcessPOSReturn: ['gerencia', 'vendedor', 'bodega'],
-  canAnnulPOSSale: ['gerencia'],
-  canViewPOSReports: ['gerencia', 'contabilidad', 'vendedor'],
+  canSellPOS: ['gerencia', 'vendedor', 'bodega', 'pos_cajero', 'pos_encargado'],
+  canOpenCloseCash: ['gerencia', 'vendedor', 'bodega', 'pos_cajero', 'pos_encargado'],
+  canApplyPOSDiscount: ['gerencia', 'pos_encargado'],
+  canProcessPOSReturn: ['gerencia', 'vendedor', 'bodega', 'pos_encargado'],
+  canAnnulPOSSale: ['gerencia', 'pos_encargado'],
+  canViewPOSReports: ['gerencia', 'contabilidad', 'vendedor', 'pos_encargado'],
   canViewPOSMargins: ['gerencia'],
   canConfigurePOSPrices: ['gerencia'],
-  canRequestReplenishment: ['gerencia', 'bodega'],
+  canRequestReplenishment: ['gerencia', 'bodega', 'pos_encargado'],
   // Doc09 Feature Permissions
   canConfigureReorderPoints: ['gerencia', 'compras'],
   canViewInventoryAlerts: ['gerencia', 'compras', 'bodega'],
@@ -107,6 +107,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   vendedor: 'Vendedor B2B',
   trafico: 'Tráfico',
   bodega: 'Bodega',
+  pos_cajero: 'Cajero POS',
+  pos_encargado: 'Encargado de Tienda',
 };
 
 /**
@@ -120,6 +122,8 @@ export const ROLE_COLORS: Record<UserRole, { bg: string; text: string }> = {
   vendedor: { bg: 'bg-amber-50', text: 'text-amber-600' },
   trafico: { bg: 'bg-blue-50', text: 'text-blue-600' },
   bodega: { bg: 'bg-accent', text: 'text-muted-foreground' },
+  pos_cajero: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  pos_encargado: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
 };
 
 /**

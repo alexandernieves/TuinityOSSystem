@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,12 +56,22 @@ export default function RegistrarCobroPage() {
   const { checkPermission } = useAuth();
   const canRegisterPayments = checkPermission('canRegisterPayments');
 
+  const searchParams = useSearchParams();
+  const clientIdParam = searchParams.get('clientId');
+
   // Step tracking
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(clientIdParam ? 2 : 1);
 
   // Step 1: Client selection
   const [clientSearch, setClientSearch] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(clientIdParam);
+
+  useEffect(() => {
+    if (clientIdParam) {
+      setSelectedClientId(clientIdParam);
+      setCurrentStep(2);
+    }
+  }, [clientIdParam]);
 
   // Step 2: Invoice selection
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());

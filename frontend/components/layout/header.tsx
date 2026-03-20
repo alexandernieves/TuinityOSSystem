@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { CommandPalette } from '@/components/ui/command-palette';
-import { NotificationsPanel } from '@/components/ui/notifications-panel';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   Dialog,
@@ -41,8 +41,6 @@ export function Header() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const bellRef = useRef<HTMLButtonElement>(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Global Ctrl+K listener
@@ -57,12 +55,6 @@ export function Header() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Listen for toggle-notifications event (from Ctrl+Shift+N shortcut)
-  useEffect(() => {
-    const handler = () => setIsNotificationsOpen((prev) => !prev);
-    window.addEventListener('toggle-notifications', handler);
-    return () => window.removeEventListener('toggle-notifications', handler);
-  }, []);
 
   const handleLogoutClick = () => {
     setIsLogoutModalOpen(true);
@@ -119,14 +111,7 @@ export function Header() {
           <ThemeToggle />
 
           {/* Notifications */}
-          <button
-            ref={bellRef}
-            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-            className="relative flex h-9 w-9 items-center justify-center rounded-md text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-600 border-2 border-background" />
-          </button>
+          <NotificationBell />
 
           {/* User Avatar */}
           {user && (
@@ -169,11 +154,6 @@ export function Header() {
         onClose={() => setIsCommandPaletteOpen(false)}
       />
 
-      {/* Notifications Panel */}
-      <NotificationsPanel
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-      />
 
       {/* Logout Confirmation Modal */}
       <Dialog open={isLogoutModalOpen} onOpenChange={setIsLogoutModalOpen}>

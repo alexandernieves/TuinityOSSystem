@@ -48,9 +48,14 @@ export interface SelectedLot {
   quantityToConsume: number;
 }
 
+import { NotificationsService } from '../../notifications/notifications.service';
+
 @Injectable()
 export class InventoryService extends BaseService {
-  constructor(prisma: PrismaService) {
+  constructor(
+    prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {
     super(prisma);
   }
 
@@ -91,6 +96,19 @@ export class InventoryService extends BaseService {
         );
       }
 
+      if (movement.movementType === InventoryMovementType.INVENTORY_ADJUSTMENT_POSITIVE) {
+        await this.notificationsService.notifyRole('GERENCIA', {
+           type: 'INVENTORY_ADJUSTMENT',
+           title: 'Nuevo Ajuste de Inventario',
+           message: `Se ha realizado un ajuste de ${movement.quantity} unidades para el producto ${movement.productId}.`,
+           module: 'INVENTORY',
+           entityType: 'InventoryMovement',
+           entityId: movement.id,
+           severity: 'WARNING',
+           actionUrl: `/inventario/ajustes`,
+        });
+      }
+
       return movement;
     });
   }
@@ -127,7 +145,7 @@ export class InventoryService extends BaseService {
     return this.createInventoryMovement({
       productId: data.productId,
       warehouseId: data.warehouseId,
-      movementType: InventoryMovementType.ADJUSTMENT,
+      movementType: InventoryMovementType.INVENTORY_ADJUSTMENT_POSITIVE,
       quantity: data.adjustmentQuantity,
       notes: data.reason,
       createdByUserId: data.createdByUserId,
@@ -290,7 +308,7 @@ export class InventoryService extends BaseService {
         newAvailableQuantity -= absoluteMagnitude;
         break;
 
-      case InventoryMovementType.ADJUSTMENT:
+      case InventoryMovementType.INVENTORY_ADJUSTMENT_POSITIVE:
         // Positive increases, negative decreases. Validate if negative.
         if (quantity < 0 && currentAvailable < absoluteMagnitude) {
           throw new BadRequestException(
@@ -311,10 +329,25 @@ export class InventoryService extends BaseService {
         return;
     }
 
-    await prisma.productLot.update({
+    const updatedLot = await prisma.productLot.update({
       where: { id: productLotId },
       data: { availableQuantity: newAvailableQuantity },
+      include: { product: true, warehouse: true }
     });
+
+    // Check for low stock notification
+    if (newAvailableQuantity <= 10 && currentAvailable > 10) {
+      await this.notificationsService.notifyRole('BODEGA', {
+        type: 'STOCK_LOW',
+        title: 'Stock Bajo Detectado',
+        message: `El producto ${updatedLot.product.name} (${updatedLot.product.sku}) ha bajado de 10 unidades en bodega ${updatedLot.warehouse.name}.`,
+        module: 'INVENTORY',
+        entityType: 'Product',
+        entityId: updatedLot.productId,
+        severity: 'CRITICAL',
+        actionUrl: `/inventario/stock`,
+      });
+    }
   }
 
   /**

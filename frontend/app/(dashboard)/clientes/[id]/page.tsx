@@ -48,12 +48,14 @@ export default function EditClientPage() {
   const [client, setClient] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [posHistory, setPosHistory] = useState<any>(null);
   const [balanceData, setBalanceData] = useState<any>(null);
 
   // Paginación por tab
   const [comercialPage, setComercialPage] = useState(1);
   const [cxcPage, setCxcPage] = useState(1);
   const [ledgerPage, setLedgerPage] = useState(1);
+  const [posPage, setPosPage] = useState(1);
   const ROWS_PER_PAGE = 8;
 
   // Modal Registrar Cobro
@@ -64,16 +66,18 @@ export default function EditClientPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientData, transactionsData, salesData, balData] = await Promise.all([
+        const [clientData, transactionsData, salesData, balData, posData] = await Promise.all([
           api.getClientById(clientId),
           api.getClientTransactions(clientId),
           api.getSales({ clientId }),
-          api.getClientBalance(clientId)
+          api.getClientBalance(clientId),
+          api.getClientPOSHistory(clientId)
         ]);
         setClient(clientData);
         setTransactions(transactionsData);
         setHistory(salesData);
         setBalanceData(balData);
+        setPosHistory(posData);
       } catch (error) {
         toast.error('Error al cargar datos del cliente');
         router.push('/clientes');
@@ -260,6 +264,7 @@ export default function EditClientPage() {
           { id: 'comercial', icon: History, label: 'Historial Comercial' },
           { id: 'cxc', icon: CreditCard, label: 'Cuentas por Cobrar' },
           { id: 'ledger', icon: FileText, label: 'Estado de Cuenta' },
+          { id: 'pos', icon: Building2, label: 'Compras POS' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -508,6 +513,103 @@ export default function EditClientPage() {
                   onPageChange={setLedgerPage}
                   onRowsPerPageChange={() => {}}
                   itemName="movimientos"
+                />
+              )}
+            </div>
+          );
+        })()}
+
+        {activeTab === 'pos' && (() => {
+          if (!posHistory) return null;
+          const { summary, sales } = posHistory;
+          const totalPages = Math.ceil(sales.length / ROWS_PER_PAGE);
+          const paginated = sales.slice((posPage - 1) * ROWS_PER_PAGE, posPage * ROWS_PER_PAGE);
+          
+          return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+               {/* Resumen POS */}
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Gastado (POS)</p>
+                   <p className="text-xl font-black font-mono mt-1 text-emerald-600">{formatCurrency(summary.totalSpent)}</p>
+                 </div>
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ticket Promedio</p>
+                   <p className="text-xl font-black font-mono mt-1 text-blue-600">{formatCurrency(summary.avgTicket)}</p>
+                 </div>
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tickets Cerrados</p>
+                   <p className="text-xl font-black font-mono mt-1 text-gray-900 dark:text-white">{summary.count}</p>
+                 </div>
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Última Compra</p>
+                   <p className="text-xl font-black font-mono mt-1 text-gray-900 dark:text-white">
+                     {summary.lastPurchase ? new Date(summary.lastPurchase).toLocaleDateString() : 'N/A'}
+                   </p>
+                 </div>
+               </div>
+
+              {/* Lista de Venta POS */}
+              <div className="bg-white dark:bg-[#141414] rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/2">
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Ticket / Fecha</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Cajero</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Método</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                    {sales.length === 0 ? (
+                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">Este cliente no tiene compras en POS.</td></tr>
+                    ) : (
+                      paginated.map((s: any) => (
+                        <tr 
+                          key={s.id} 
+                          className="text-[13px] hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+                          onClick={() => router.push(`/pos/history/${s.id}`)}
+                        >
+                          <td className="px-6 py-4">
+                             <div className="flex flex-col">
+                                <span className="font-bold text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors">{s.number}</span>
+                                <span className="text-[10px] text-gray-400">{new Date(s.createdAt).toLocaleString()}</span>
+                             </div>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-gray-600 dark:text-gray-300">{s.createdByUser?.name || 'Sistema'}</td>
+                          <td className="px-6 py-4">
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                              {s.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                              {s.status === 'VOIDED' ? (
+                                <span className="text-red-500 font-bold text-xs bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md uppercase">Anulada</span>
+                              ) : s.status === 'RETURNED' || s.status === 'PARTIALLY_RETURNED' ? (
+                                <span className="text-orange-500 font-bold text-xs bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-md uppercase">Devolución</span>
+                              ) : (
+                                <span className="text-emerald-500 font-bold text-xs bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md uppercase">Pagada</span>
+                              )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                             <span className="font-black font-mono text-[14px] text-gray-900 dark:text-white">{formatCurrency(s.total)}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {sales.length > ROWS_PER_PAGE && (
+                <Pagination
+                  currentPage={posPage}
+                  totalPages={totalPages}
+                  totalItems={sales.length}
+                  rowsPerPage={ROWS_PER_PAGE}
+                  onPageChange={setPosPage}
+                  onRowsPerPageChange={() => {}}
+                  itemName="tickets"
                 />
               )}
             </div>

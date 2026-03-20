@@ -19,11 +19,15 @@ import {
   Calculator,
   History,
   BarChart3,
+  TrendingUp,
+  RotateCcw,
   Settings,
   ChevronRight as ChevronRightIcon,
   LogOut,
   Menu,
   X,
+  Bell,
+  Layers,
 } from 'lucide-react';
 import {
   Badge
@@ -81,6 +85,18 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Productos',
     href: '/productos',
     icon: <Package className="h-5 w-5" />,
+    subitems: [
+      {
+        label: 'Todos los Productos',
+        href: '/productos',
+        icon: <Package className="h-4 w-4" />,
+      },
+      {
+        label: 'Categorías',
+        href: '/productos/categorias',
+        icon: <Layers className="h-4 w-4" />,
+      },
+    ],
   },
   {
     label: 'Compras',
@@ -138,15 +154,38 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Briefcase className="h-5 w-5" />,
   },
   {
-    label: 'Ventas ERP',
+    label: 'Historial Ventas',
     href: '/erp/ventas',
-    icon: <ShoppingCart className="h-5 w-5" />,
+    icon: <History className="h-5 w-5" />,
   },
   {
     label: 'Punto de Venta',
-    href: '/ventas/pos',
+    href: '/pos',
     icon: <Store className="h-5 w-5" />,
     permission: 'canAccessPOS',
+  },
+  {
+    label: 'Reportes',
+    href: '/reportes',
+    icon: <BarChart3 className="h-5 w-5" />,
+    permission: 'canViewReports',
+    subitems: [
+      {
+        label: 'Ventas',
+        href: '/reportes/ventas',
+        icon: <TrendingUp className="h-4 w-4" />,
+      },
+      {
+        label: 'Caja POS',
+        href: '/reportes/caja',
+        icon: <RotateCcw className="h-4 w-4" />,
+      },
+      {
+        label: 'Inventario',
+        href: '/reportes/inventario',
+        icon: <Package className="h-4 w-4" />,
+      },
+    ],
   },
   {
     label: 'Tráfico',
@@ -184,10 +223,9 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'canViewHistorial',
   },
   {
-    label: 'Reportes',
-    href: '/reportes',
-    icon: <BarChart3 className="h-5 w-5" />,
-    permission: 'canViewReports',
+    label: 'Notificaciones',
+    href: '/notificaciones',
+    icon: <Bell className="h-5 w-5" />,
   },
 ];
 

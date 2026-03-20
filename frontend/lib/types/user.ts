@@ -5,7 +5,9 @@ export type UserRole =
   | 'compras'
   | 'vendedor'
   | 'trafico'
-  | 'bodega';
+  | 'bodega'
+  | 'pos_cajero'
+  | 'pos_encargado';
 
 export interface User {
   id: string;

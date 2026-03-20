@@ -128,7 +128,10 @@ export default function InventarioPage() {
   const normalizedItems = useMemo(() => {
     return realItems.map((item: any) => {
       const p = item.product || {};
-      const stockValue = item.existence * (p.costAvgWeighted || 0);
+      // Ensure we have a cost to see something in "Valor Total"
+      // If costAvgWeighted is 0 or missing, we use costCIF or a fraction of price A
+      const cost = Number(p.costAvgWeighted || p.costCIF || 0);
+      const stockValue = item.existence * cost;
 
       const alerts = [];
       if (item.available === 0) alerts.push({ type: 'out_of_stock' as const, severity: 'danger' as const, message: 'Sin stock disponible', productId: p.id });
@@ -136,24 +139,25 @@ export default function InventarioPage() {
 
       return {
         productId: p.id,
-        productReference: p.sku || p.reference,
-        productDescription: p.description || p.name,
-        group: p.category,
-        subGroup: p.subCategory || 'General',
-        brand: p.brand || 'General',
+        productReference: p.sku || p.reference || 'S/R',
+        productDescription: p.description || p.name || 'Sin nombre',
+        group: p.group?.name || p.category?.name || 'Varios',
+        subGroup: p.subgroup?.name || p.subcategory?.name || 'General',
+        brand: p.brand?.name || 'General',
         supplier: p.supplierName || 'Varios',
-        warehouseId: 'WH-001', // Fallback
-        warehouseName: 'Bodega Central', // Fallback
-        existence: item.existence,
-        arriving: item.arriving,
-        reserved: item.reserved,
-        available: item.available,
-        minimumQty: p.minimumQty || 0,
+        warehouseId: 'ALL',
+        warehouseName: 'Inventario Consolidado',
+        existence: item.existence || 0,
+        arriving: item.arriving || 0,
+        reserved: item.reserved || 0,
+        available: item.available || 0,
+        minimumQty: p.minimumQty || p.minimumQuantity || 0,
         reorderPoint: p.reorderPoint,
-        unitsPerCase: p.unitsPerCase || 1,
+        unitsPerCase: p.unitsPerCase || p.unitsPerBox || 1,
         lastPurchaseDate: p.lastPurchaseDate,
         lastSaleDate: p.lastSaleDate,
-        costCIF: p.costAvgWeighted || 0,
+        costCIF: cost,
+        price: Number(p.prices?.A || 0),
         stockValue: stockValue,
         productImage: p.image,
         alerts
@@ -240,7 +244,7 @@ export default function InventarioPage() {
       outOfStock,
       stagnant4Months: 0,
       totalValue,
-      pendingAdjustments: realAdjustments.filter((a) => a.status === 'pendiente').length,
+      pendingAdjustments: realAdjustments.filter((a) => a.status?.toLowerCase() === 'pendiente' || a.status === 'PENDING').length,
       arrivingProducts,
     };
   }, [normalizedItems, realAdjustments]);
@@ -264,6 +268,7 @@ export default function InventarioPage() {
       if (stockFilter === 'out_of_stock') matchesStock = item.available === 0;
       else if (stockFilter === 'low_stock') matchesStock = item.available > 0 && item.available <= item.minimumQty;
       else if (stockFilter === 'in_stock') matchesStock = item.available > item.minimumQty;
+      else if (stockFilter === 'below_reorder') matchesStock = item.reorderPoint != null && item.available <= item.reorderPoint;
 
       // Advanced filters
       const matchesMin = !stockRange.min || item.available >= parseFloat(stockRange.min);
@@ -376,7 +381,7 @@ export default function InventarioPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 w-full max-w-full overflow-hidden pb-10">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -419,7 +424,7 @@ export default function InventarioPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
         {[
           { label: 'Con Stock', value: stats.productsWithStock, icon: TrendingUp, color: 'emerald', filter: 'in_stock' as InventoryStockFilter },
           { label: 'Bajo Mínimo', value: stats.belowMinimum, icon: AlertTriangle, color: 'amber', filter: 'low_stock' as InventoryStockFilter },
@@ -614,6 +619,7 @@ export default function InventarioPage() {
                 {canViewCosts && (
                   <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Valor</th>
                 )}
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Precio</th>
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Alerta</th>
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]"></th>
               </tr>
@@ -662,7 +668,7 @@ export default function InventarioPage() {
                             : "Sin categoría"}
                       </span>
                     </td>
-                    <td className="hidden sm:table-cell px-4 py-3 text-right font-mono text-sm">
+                    <td className="hidden sm:table-cell px-4 py-3 text-right text-sm">
                       {item.existence}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -693,10 +699,13 @@ export default function InventarioPage() {
                       </td>
                     )}
                     {canViewCosts && (
-                      <td className="hidden lg:table-cell px-4 py-3 text-right font-mono text-sm font-medium">
+                      <td className="hidden lg:table-cell px-4 py-3 text-right text-sm font-semibold">
                         {formatCurrency(item.stockValue)}
                       </td>
                     )}
+                    <td className="px-4 py-3 text-right text-sm font-semibold">
+                      {formatCurrency(item.price)}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {item.alerts.map((alert, idx) => (
