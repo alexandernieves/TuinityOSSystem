@@ -11,6 +11,7 @@ import { AccountingPrismaController } from './accounting/accounting-prisma.contr
 import { ReportsService } from './services/reports/reports.service';
 import { ReportsPrismaController } from './reports-prisma/reports-prisma.controller';
 import { AuditController } from './audit/audit.controller';
+import { LotsService } from './services/inventory/lots.service';
 
 @Global()
 @Module({
@@ -21,6 +22,7 @@ import { AuditController } from './audit/audit.controller';
     AccountingService,
     AuditService,
     ReportsService,
+    LotsService,
   ],
   controllers: [
     InventoryPrismaController,
@@ -36,6 +38,7 @@ import { AuditController } from './audit/audit.controller';
     AccountingService,
     AuditService,
     ReportsService,
+    LotsService,
   ],
 })
 export class ErpModule {}
