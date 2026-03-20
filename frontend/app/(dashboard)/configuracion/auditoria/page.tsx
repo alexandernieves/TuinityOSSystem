@@ -67,15 +67,15 @@ export default function AuditoriaPage() {
       const sessions = await api.getSessions();
       if (sessions) {
         setRealActiveSessions(sessions.map((s: any) => ({
-          id: s._id,
-          userId: s.userId?._id || s.userId,
-          userName: s.userId?.name || 'Usuario desconocido',
-          userRole: s.userId?.role || 'vendedor',
+          id: s.id,
+          userId: s.userId?.id || s.userId,
+          userName: s.user?.name || s.user?.email || 'Usuario desconocido',
+          userRole: s.user?.role || 'vendedor',
           loginAt: s.loginAt,
           lastActivity: s.lastActivity,
           ipAddress: s.ipAddress,
           browser: s.userAgent || 'Desconocido',
-          isCurrent: s._id === (currentUser as any)?.sessionId || false // we might need to store sessionId in user object
+          isCurrent: s.id === (currentUser as any)?.sessionId || false 
         })));
       }
     } catch (error) {
@@ -121,21 +121,7 @@ export default function AuditoriaPage() {
 
   const handleCloseSession = async (sessionId: string, userName: string) => {
     try {
-      // If we had a specific endpoint to close OTHER sessions:
-      // await api.closeSession(sessionId);
-      // For now, let's assume we use a logout-like endpoint for specific session if needed,
-      // or just hit a new endpoint I should add.
-      // I'll use the existing logout logic but it's for current session.
-      // Let's add a specific 'close session' endpoint in backend if we want to manage others.
-
-      // I'll call a generic endpoint I promised in API:
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout/${sessionId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('evolution_auth_token')}`
-        }
-      });
-
+      await api.logoutSession(sessionId);
       await fetchSessions();
       toast.success('Sesión cerrada', {
         description: `Se ha cerrado la sesión de ${userName}`,

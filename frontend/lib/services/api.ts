@@ -598,5 +598,9 @@ export const api = {
     createCategory: (data: any) => fetcher('/categories', { method: 'POST', body: JSON.stringify(data) }),
     updateCategory: (id: string, data: any) => fetcher(`/categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     deleteCategory: (id: string) => fetcher(`/categories/${id}`, { method: 'DELETE' }),
+
+    // Auth Sessions
+    getSessions: () => fetcher('/auth/sessions'),
+    logoutSession: (id: string) => fetcher(`/auth/logout/${id}`, { method: 'POST' }),
 };
 
