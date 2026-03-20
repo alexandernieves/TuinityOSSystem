@@ -40,12 +40,10 @@ import { useAuth } from '@/lib/contexts/auth-context';
 
 export default function AprobacionesPage() {
   const router = useRouter();
-  const salesOrdersFromStore = useStore(subscribeSalesOrders, getSalesOrdersData);
+  const salesOrders = useStore(subscribeSalesOrders, getSalesOrdersData);
   const { checkPermission, user } = useAuth();
   const canApproveOrders = checkPermission('canApproveOrders');
   const canViewMargins = checkPermission('canViewMargins');
-
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
