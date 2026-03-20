@@ -4,11 +4,14 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
 import {
-  Button,
   Select,
+  SelectContent,
   SelectItem,
-} from '@heroui/react';
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   FileText,
@@ -99,7 +102,7 @@ export default function EstadosCuentaPage() {
         <Ban className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
         <h2 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Acceso restringido</h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-[#888888]">No tienes permisos para ver estados de cuenta.</p>
-        <Button color="primary" onPress={() => router.push('/clientes/cxc')} className="bg-brand-700">
+        <Button onClick={() => router.push('/clientes/cxc')} className="bg-blue-700 hover:bg-blue-800 text-white">
           Volver a CxC
         </Button>
       </div>
@@ -114,12 +117,14 @@ export default function EstadosCuentaPage() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => router.push('/clientes/cxc')}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
+          className="h-9 w-9"
         >
           <ArrowLeft className="h-4 w-4" />
-        </button>
+        </Button>
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Estados de Cuenta</h1>
           <p className="text-sm text-gray-500 dark:text-[#888888]">Generar y enviar estados de cuenta a clientes</p>
@@ -135,16 +140,19 @@ export default function EstadosCuentaPage() {
               Cliente
             </label>
             <Select
-              placeholder="Seleccionar cliente..."
-              variant="bordered"
-              selectedKeys={selectedClientId ? [selectedClientId] : []}
-              onSelectionChange={(keys) => setSelectedClientId(Array.from(keys)[0] as string)}
+              value={selectedClientId}
+              onValueChange={setSelectedClientId}
             >
-              {clientsWithBalance.map((c) => (
-                <SelectItem key={c.id}>
-                  {c.name} ({c.id})
-                </SelectItem>
-              ))}
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar cliente..." />
+              </SelectTrigger>
+              <SelectContent>
+                {clientsWithBalance.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.id})
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
           <div>
@@ -155,7 +163,7 @@ export default function EstadosCuentaPage() {
               type="date"
               value={cutoffDate}
               onChange={(e) => setCutoffDate(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -166,21 +174,22 @@ export default function EstadosCuentaPage() {
         <div className="space-y-4">
           {/* Actions */}
           <div className="flex gap-2 justify-end">
-            <button
+            <Button
+              variant="outline"
               onClick={handlePrint}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+              className="flex h-9 items-center gap-2"
             >
               <Printer className="h-4 w-4" />
               Imprimir
-            </button>
+            </Button>
             {canSendStatements && (
-              <button
+              <Button
                 onClick={handleSendEmail}
-                className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+                className="flex h-9 items-center gap-2 bg-blue-700 text-white hover:bg-blue-800"
               >
                 <Mail className="h-4 w-4" />
                 Enviar por Email
-              </button>
+              </Button>
             )}
           </div>
 

@@ -4,11 +4,16 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
-  Button,
-  Textarea,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ThumbsUp,
   XCircle,
@@ -113,7 +118,7 @@ export default function AprobacionesPage() {
         <AlertTriangle className="mb-4 h-12 w-12 text-amber-500" />
         <h2 className="mb-2 text-lg font-medium text-foreground">Acceso restringido</h2>
         <p className="mb-4 text-sm text-muted-foreground">No tienes permisos para aprobar pedidos.</p>
-        <Button color="primary" onPress={() => router.push('/ventas')}>
+        <Button onClick={() => router.push('/ventas')} className="bg-blue-600 hover:bg-blue-700 text-white">
           Volver a Ventas
         </Button>
       </div>
@@ -226,7 +231,7 @@ export default function AprobacionesPage() {
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => router.push(`/ventas/${order.id}`)}
-                          className="font-mono text-lg font-semibold text-brand-500 hover:underline"
+                          className="font-mono text-lg font-semibold text-blue-500 hover:underline"
                         >
                           {order.orderNumber}
                         </button>
@@ -263,27 +268,27 @@ export default function AprobacionesPage() {
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant="bordered"
-                        startContent={<Eye className="h-4 w-4" />}
-                        onPress={() => router.push(`/ventas/${order.id}`)}
+                        variant="outline"
+                        onClick={() => router.push(`/ventas/${order.id}`)}
                       >
+                        <Eye className="h-4 w-4 mr-2" />
                         Ver
                       </Button>
                       <Button
                         size="sm"
-                        color="danger"
-                        variant="bordered"
-                        startContent={<XCircle className="h-4 w-4" />}
-                        onPress={() => handleRejectClick(order)}
+                        variant="outline"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => handleRejectClick(order)}
                       >
+                        <XCircle className="h-4 w-4 mr-2" />
                         Rechazar
                       </Button>
                       <Button
                         size="sm"
-                        color="success"
-                        startContent={<ThumbsUp className="h-4 w-4" />}
-                        onPress={() => handleApproveClick(order)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => handleApproveClick(order)}
                       >
+                        <ThumbsUp className="h-4 w-4 mr-2" />
                         Aprobar
                       </Button>
                     </div>
@@ -350,20 +355,22 @@ export default function AprobacionesPage() {
       )}
 
       {/* Approve Modal */}
-      <CustomModal isOpen={isApproveOpen} onClose={() => setIsApproveOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsApproveOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-              <ThumbsUp className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Aprobar Pedido</h2>
-              <p className="text-sm text-muted-foreground">{selectedOrder?.orderNumber}</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
+      <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <ThumbsUp className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Aprobar Pedido</h2>
+                  <p className="text-sm text-muted-foreground font-normal">{selectedOrder?.orderNumber}</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-500">
               <AlertTriangle className="h-4 w-4 mt-0.5" />
               <div>
@@ -391,41 +398,44 @@ export default function AprobacionesPage() {
               )}
             </div>
 
-            <Textarea
-              label="Notas de aprobación (opcional)"
-              placeholder="Agregar comentarios..."
-              value={approvalNotes}
-              onChange={(e) => setApprovalNotes(e.target.value)}
-              variant="bordered"
-              minRows={2}
-            />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Notas de aprobación (opcional)</label>
+              <Textarea
+                placeholder="Agregar comentarios..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsApproveOpen(false)}>
-            Cancelar
-          </Button>
-          <Button color="success" onPress={handleApprove}>
-            Aprobar Pedido
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsApproveOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleApprove}>
+              Aprobar Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Modal */}
-      <CustomModal isOpen={isRejectOpen} onClose={() => setIsRejectOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsRejectOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
-              <XCircle className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Rechazar Pedido</h2>
-              <p className="text-sm text-muted-foreground">{selectedOrder?.orderNumber}</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
+      <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
+                  <XCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Rechazar Pedido</h2>
+                  <p className="text-sm text-muted-foreground font-normal">{selectedOrder?.orderNumber}</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Cliente:</span>
@@ -437,25 +447,26 @@ export default function AprobacionesPage() {
               </div>
             </div>
 
-            <Textarea
-              label="Motivo del rechazo *"
-              placeholder="Explica el motivo del rechazo..."
-              value={approvalNotes}
-              onChange={(e) => setApprovalNotes(e.target.value)}
-              variant="bordered"
-              minRows={3}
-            />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Motivo del rechazo *</label>
+              <Textarea
+                placeholder="Explica el motivo del rechazo..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsRejectOpen(false)}>
-            Cancelar
-          </Button>
-          <Button color="danger" onPress={handleReject} isDisabled={!approvalNotes.trim()}>
-            Rechazar Pedido
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRejectOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={!approvalNotes.trim()}>
+              Rechazar Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

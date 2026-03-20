@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Button,
-  Input,
-  Select,
-  SelectItem,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -425,7 +425,7 @@ export default function EmpresaPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900 dark:text-white">{branch.name}</span>
                         {branch.isHeadquarters && (
-                          <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-500">Principal</span>
+                          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500">Principal</span>
                         )}
                       </div>
                     </td>
@@ -482,49 +482,37 @@ export default function EmpresaPage() {
       </div>
 
       {/* Branch Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="lg" scrollable>
-        <CustomModalHeader onClose={() => setIsOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
-              <Building2 className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {editingBranch ? 'Editar Sucursal' : 'Nueva Sucursal'}
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-[#888888]">
-                {editingBranch ? `Editando ${editingBranch.name}` : 'Registrar una nueva sucursal'}
-              </p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {editingBranch ? 'Editar Sucursal' : 'Nueva Sucursal'}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-[#888888] font-normal">
+                    {editingBranch ? `Editando ${editingBranch.name}` : 'Registrar una nueva sucursal'}
+                  </p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2 py-4 max-h-[60vh] overflow-y-auto">
             <div className="space-y-1.5">
               <label className={labelClass}>Nombre</label>
-              <input
-                placeholder="Ej: Bodega Norte"
-                value={branchForm.name}
-                onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
-                className={inputClass}
-              />
+              <input placeholder="Ej: Bodega Norte" value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} className={inputClass} />
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Código</label>
-              <input
-                placeholder="Ej: BOD-N"
-                value={branchForm.code}
-                onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })}
-                className={inputClass}
-              />
+              <input placeholder="Ej: BOD-N" value={branchForm.code} onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })} className={inputClass} />
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Tipo</label>
-              <select
-                value={branchForm.type}
-                onChange={(e) => setBranchForm({ ...branchForm, type: e.target.value as Branch['type'] })}
-                className={inputClass}
-              >
+              <select value={branchForm.type} onChange={(e) => setBranchForm({ ...branchForm, type: e.target.value as Branch['type'] })} className={inputClass}>
                 {Object.entries(BRANCH_TYPES).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -532,49 +520,29 @@ export default function EmpresaPage() {
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Ciudad</label>
-              <input
-                placeholder="Ej: Ciudad de Panamá"
-                value={branchForm.city}
-                onChange={(e) => setBranchForm({ ...branchForm, city: e.target.value })}
-                className={inputClass}
-              />
+              <input placeholder="Ej: Ciudad de Panamá" value={branchForm.city} onChange={(e) => setBranchForm({ ...branchForm, city: e.target.value })} className={inputClass} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className={labelClass}>Dirección</label>
-              <input
-                placeholder="Dirección completa"
-                value={branchForm.address}
-                onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
-                className={inputClass}
-              />
+              <input placeholder="Dirección completa" value={branchForm.address} onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })} className={inputClass} />
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Teléfono</label>
-              <input
-                placeholder="+507 000-0000"
-                value={branchForm.phone}
-                onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
-                className={inputClass}
-              />
+              <input placeholder="+507 000-0000" value={branchForm.phone} onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })} className={inputClass} />
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Encargado</label>
-              <input
-                placeholder="Nombre del encargado"
-                value={branchForm.manager}
-                onChange={(e) => setBranchForm({ ...branchForm, manager: e.target.value })}
-                className={inputClass}
-              />
+              <input placeholder="Nombre del encargado" value={branchForm.manager} onChange={(e) => setBranchForm({ ...branchForm, manager: e.target.value })} className={inputClass} />
             </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <button onClick={() => setIsOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
-          <button onClick={handleSaveBranch} className={buttonPrimaryClass}>
-            {editingBranch ? 'Guardar Cambios' : 'Crear Sucursal'}
-          </button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <button onClick={() => setIsOpen(false)} className={buttonSecondaryClass}>Cancelar</button>
+            <button onClick={handleSaveBranch} className={buttonPrimaryClass}>
+              {editingBranch ? 'Guardar Cambios' : 'Crear Sucursal'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

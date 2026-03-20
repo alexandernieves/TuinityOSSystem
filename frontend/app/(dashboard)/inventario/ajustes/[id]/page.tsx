@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button, Textarea } from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  CustomModal,
-  CustomModalHeader,
-  CustomModalBody,
-  CustomModalFooter,
-} from "@/components/ui/custom-modal";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   FileText,
@@ -80,9 +82,8 @@ export default function AjusteDetallePage() {
           El ajuste {adjustmentId} no existe
         </p>
         <Button
-          color="primary"
-          onPress={() => router.push("/inventario/ajustes")}
-          className="bg-brand-600"
+          onClick={() => router.push("/inventario/ajustes")}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           Volver a Ajustes
         </Button>
@@ -211,8 +212,8 @@ export default function AjusteDetallePage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-              <FileText className="h-5 w-5 text-brand-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <div className="flex items-center gap-3">
@@ -241,19 +242,18 @@ export default function AjusteDetallePage() {
         {canApprove && (
           <div className="flex items-center gap-2">
             <Button
-              variant="bordered"
-              color="danger"
-              onPress={() => setIsRejectOpen(true)}
-              startContent={<XCircle className="h-4 w-4" />}
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setIsRejectOpen(true)}
             >
+              <XCircle className="mr-2 h-4 w-4" />
               Rechazar
             </Button>
             <Button
-              color="success"
-              onPress={() => setIsApproveOpen(true)}
-              startContent={<CheckCircle className="h-4 w-4" />}
-              className="bg-emerald-600"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => setIsApproveOpen(true)}
             >
+              <CheckCircle className="mr-2 h-4 w-4" />
               Aprobar
             </Button>
           </div>
@@ -586,74 +586,79 @@ export default function AjusteDetallePage() {
         </div>
       </div>
 
-      {/* Approve Modal */}
-      <CustomModal
-        isOpen={isApproveOpen}
-        onClose={() => setIsApproveOpen(false)}
-        size="md"
-      >
-        <CustomModalHeader onClose={() => setIsApproveOpen(false)}>
-          <CheckCircle className="h-5 w-5 text-emerald-600" />
-          Aprobar Ajuste
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <p className="text-sm text-gray-600">
-            ¿Estás seguro de aprobar este ajuste? El inventario se actualizará
-            inmediatamente.
-          </p>
-          <Textarea
-            label="Notas (opcional)"
-            placeholder="Agregar notas de aprobación..."
-            value={approvalNotes}
-            onChange={(e) => setApprovalNotes(e.target.value)}
-            variant="bordered"
-            classNames={{ inputWrapper: "bg-white" }}
-          />
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsApproveOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            color="success"
-            onPress={handleApprove}
-            className="bg-emerald-600"
-          >
-            Aprobar y Aplicar
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+      {/* Approve Dialog */}
+      <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-600">
+              <CheckCircle className="h-5 w-5" />
+              Aprobar Ajuste
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-gray-600">
+              ¿Estás seguro de aprobar este ajuste? El inventario se actualizará
+              inmediatamente.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Notas (opcional)</label>
+              <Textarea
+                placeholder="Agregar notas de aprobación..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="bg-white min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsApproveOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleApprove}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Aprobar y Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Reject Modal */}
-      <CustomModal
-        isOpen={isRejectOpen}
-        onClose={() => setIsRejectOpen(false)}
-        size="md"
-      >
-        <CustomModalHeader onClose={() => setIsRejectOpen(false)}>
-          <XCircle className="h-5 w-5 text-red-600" />
-          Rechazar Ajuste
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <Textarea
-            label="Motivo del rechazo *"
-            placeholder="Escribe el motivo por el cual rechazas este ajuste..."
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            variant="bordered"
-            classNames={{ inputWrapper: "bg-white" }}
-            minRows={3}
-          />
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsRejectOpen(false)}>
-            Cancelar
-          </Button>
-          <Button color="danger" onPress={handleReject}>
-            Rechazar Ajuste
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+      {/* Reject Dialog */}
+      <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="h-5 w-5" />
+              Rechazar Ajuste
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Motivo del rechazo *</label>
+              <Textarea
+                placeholder="Escribe el motivo por el cual rechazas este ajuste..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="bg-white min-h-[100px]"
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsRejectOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+                variant="destructive"
+                onClick={handleReject}
+                className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Rechazar Ajuste
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

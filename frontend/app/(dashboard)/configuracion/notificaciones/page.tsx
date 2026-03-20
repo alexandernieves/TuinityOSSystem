@@ -3,10 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 import {
-  Button,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -171,7 +175,7 @@ export default function NotificacionesPage() {
                               className={cn(
                                 'flex h-7 w-7 items-center justify-center rounded-lg',
                                 channel.enabled
-                                  ? 'bg-brand-500/10 text-brand-600'
+                                  ? 'bg-blue-500/10 text-blue-600'
                                   : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-400 dark:text-[#666666]'
                               )}
                             >
@@ -283,22 +287,24 @@ export default function NotificacionesPage() {
         )}
       </div>
 
-      {/* Edit Notification Modal */}
-      <CustomModal isOpen={isOpen} onClose={() => setIsOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950">
-              <Bell className="h-5 w-5 text-orange-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Editar Notificación</h2>
-              <p className="text-sm text-gray-500 dark:text-[#888888]">{editingNotification?.eventLabel}</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
+      {/* Edit Notification Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950">
+                  <Bell className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Editar Notificación</h2>
+                  <p className="text-sm text-gray-500 dark:text-[#888888] font-normal">{editingNotification?.eventLabel}</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
           {editingNotification && (
-            <div className="space-y-5">
+            <div className="space-y-5 py-4 max-h-[60vh] overflow-y-auto">
               <p className="text-sm text-gray-600 dark:text-gray-400">{editingNotification.description}</p>
 
               {/* Channels */}
@@ -358,14 +364,14 @@ export default function NotificacionesPage() {
               </div>
             </div>
           )}
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsOpen(false)}>Cancelar</Button>
-          <Button color="primary" onPress={handleSaveNotification} className="bg-brand-600">
-            Guardar Cambios
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveNotification} className="bg-blue-600 text-white hover:bg-blue-700">
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

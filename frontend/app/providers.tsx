@@ -1,31 +1,14 @@
 'use client';
 
-import { HeroUIProvider } from '@heroui/react';
-import { ThemeProvider, useTheme } from 'next-themes';
+import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/lib/contexts/auth-context';
-import { Toaster } from 'sonner';
+import { AlertProvider } from '@/components/providers/alert-provider';
+import { Toaster } from '@/components/ui/sonner';
 import type { ReactNode } from 'react';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 interface ProvidersProps {
   children: ReactNode;
-}
-
-function ToasterWithTheme() {
-  const { resolvedTheme } = useTheme();
-
-  return (
-    <Toaster
-      position="top-right"
-      richColors
-      closeButton
-      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-      toastOptions={{
-        style: {
-          fontFamily: 'var(--font-dm-sans), system-ui, sans-serif',
-        },
-      }}
-    />
-  );
 }
 
 export function Providers({ children }: ProvidersProps) {
@@ -37,12 +20,14 @@ export function Providers({ children }: ProvidersProps) {
       enableSystem={false}
       disableTransitionOnChange
     >
-      <HeroUIProvider>
+      <TooltipProvider>
         <AuthProvider>
-          {children}
-          <ToasterWithTheme />
+          <AlertProvider>
+            {children}
+            <Toaster position="top-right" richColors closeButton />
+          </AlertProvider>
         </AuthProvider>
-      </HeroUIProvider>
+      </TooltipProvider>
     </ThemeProvider>
   );
 }

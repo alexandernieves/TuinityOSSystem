@@ -1,27 +1,30 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { SalesService } from './sales.service';
 import { SalesController } from './sales.controller';
-import { Sale, SaleSchema } from './schemas/sale.schema';
-import { CashRegister, CashRegisterSchema } from './schemas/cash-register.schema';
+import { CommissionsService } from './commissions.service';
+import { CommissionsController } from './commissions.controller';
 import { StockModule } from '../stock/stock.module';
 import { ProductsModule } from '../products/products.module';
 import { WarehousesModule } from '../warehouses/warehouses.module';
 import { AccountingModule } from '../accounting/accounting.module';
+import { SettingsModule } from '../settings/settings.module';
+import { ClientsModule } from '../clients/clients.module';
+import { TrafficModule } from '../traffic/traffic.module';
+import { InventoryPrismaModule } from '../inventory-prisma/inventory-prisma.module';
 
 @Module({
     imports: [
-        MongooseModule.forFeature([
-            { name: Sale.name, schema: SaleSchema },
-            { name: CashRegister.name, schema: CashRegisterSchema }
-        ]),
         StockModule,
         ProductsModule,
         WarehousesModule,
         AccountingModule,
+        SettingsModule,
+        ClientsModule,
+        TrafficModule,
+        InventoryPrismaModule,
     ],
-    controllers: [SalesController],
-    providers: [SalesService],
-    exports: [SalesService],
+    controllers: [SalesController, CommissionsController],
+    providers: [SalesService, CommissionsService],
+    exports: [SalesService, CommissionsService],
 })
 export class SalesModule { }

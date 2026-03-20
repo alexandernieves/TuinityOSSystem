@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { cn } from "@/lib/utils/cn";
@@ -55,6 +56,7 @@ export default function NuevoAjustePage() {
   const [lines, setLines] = useState<FormLine[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
 
   // Product search modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -108,6 +110,21 @@ export default function NuevoAjustePage() {
       p.barcode?.toLowerCase().includes(searchLower)
     );
   });
+ 
+  const {
+    currentPage,
+    totalPages,
+    totalItems: searchTotalItems,
+    rowsPerPage,
+    paginatedData: paginatedProducts,
+    handlePageChange,
+    handleRowsPerPageChange,
+  } = usePagination(filteredProducts, 10);
+ 
+  // Reset page when search changes
+  useEffect(() => {
+    handlePageChange(1);
+  }, [productSearch]);
 
   // Add product to lines
   const handleAddProduct = (productId: string) => {
@@ -126,11 +143,11 @@ export default function NuevoAjustePage() {
       ...lines,
       {
         productId: product.id,
-        productReference: product.reference,
-        productDescription: product.description,
-        currentStock: product.stock?.existence || 0,
+        productReference: product.sku || product.reference,
+        productDescription: product.name || product.description,
+        currentStock: product.stock?.existence ?? (typeof product.stock === 'number' ? product.stock : 0),
         adjustmentQty: 1,
-        costCIF: product.costCIF || 0,
+        costCIF: (product.costAvgWeighted || product.costCIF || 0) as number,
       },
     ]);
 
@@ -148,6 +165,18 @@ export default function NuevoAjustePage() {
     const newLines = [...lines];
     newLines[index].adjustmentQty = qty;
     setLines(newLines);
+  };
+
+  // Evidence files
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setEvidenceFiles([...evidenceFiles, ...newFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setEvidenceFiles(evidenceFiles.filter((_, i) => i !== index));
   };
 
   // Calculate totals
@@ -205,12 +234,23 @@ export default function NuevoAjustePage() {
 
     setIsSaving(true);
     try {
+      // 1. Upload evidence if exists
+      let evidenceUrls: string[] = [];
+      if (evidenceFiles.length > 0) {
+        const uploadRes = await api.uploadAdjustmentEvidence(evidenceFiles);
+        if (uploadRes.success) {
+          evidenceUrls = uploadRes.urls;
+        }
+      }
+
+      // 2. Create adjustment
       await api.createAdjustment({
         createdBy: user?.id,
         warehouseId,
         type: adjustmentType,
         reason: reason as string,
         observation,
+        evidenceUrls,
         lines: lines.map((l) => ({
           productId: l.productId,
           currentStock: l.currentStock,
@@ -365,14 +405,49 @@ export default function NuevoAjustePage() {
             <label className={labelClass} style={labelStyle}>
               Evidencia (opcional)
             </label>
-            <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer">
+            <div 
+              onClick={() => document.getElementById('evidence-upload')?.click()}
+              className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] transition-colors hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
+            >
+              <input 
+                id="evidence-upload"
+                type="file" 
+                multiple 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleFileChange}
+              />
               <div className="flex flex-col items-center text-gray-500 dark:text-[#888888]">
                 <ImagePlus className="mb-1 h-6 w-6" />
                 <span className="text-xs">
-                  Click o arrastra para subir fotos
+                  Click para subir fotos de evidencia
                 </span>
               </div>
             </div>
+
+            {/* Evidence Previews */}
+            {evidenceFiles.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {evidenceFiles.map((file, idx) => (
+                  <div key={idx} className="relative h-16 w-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2a2a2a]">
+                    <img 
+                      src={URL.createObjectURL(file)} 
+                      alt="Preview" 
+                      className="h-full w-full object-cover" 
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFile(idx);
+                      }}
+                      className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -410,9 +485,12 @@ export default function NuevoAjustePage() {
                     <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                       Stock Resultante
                     </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                      Costo Unitario
+                    </th>
                     {canViewCosts && (
                       <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                        Valor
+                        Total Línea
                       </th>
                     )}
                     <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
@@ -474,9 +552,29 @@ export default function NuevoAjustePage() {
                             )}
                           </span>
                         </td>
+                        <td className="px-4 py-3">
+                          {adjustmentType === "positivo" ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={line.costCIF.toString()}
+                              onChange={(e) => {
+                                const newLines = [...lines];
+                                newLines[index].costCIF = parseFloat(e.target.value) || 0;
+                                setLines(newLines);
+                              }}
+                              className={cn(inputClass, "w-28 ml-auto text-right font-medium")}
+                              placeholder="Costo"
+                            />
+                          ) : (
+                            <div className="text-right text-xs text-gray-400 font-medium">
+                              Costo ref: {formatCurrency(line.costCIF)}
+                            </div>
+                          )}
+                        </td>
                         {canViewCosts && (
                           <td className="px-4 py-3 text-right">
-                            <span className="font-mono text-sm text-gray-700 dark:text-gray-400">
+                            <span className="text-sm font-bold text-gray-700 dark:text-gray-400">
                               {formatCurrency(
                                 line.adjustmentQty * line.costCIF,
                               )}
@@ -564,7 +662,7 @@ export default function NuevoAjustePage() {
       <CustomModal
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
-        size="2xl"
+        size="xl"
         scrollable
       >
         <CustomModalHeader onClose={() => setIsSearchOpen(false)}>
@@ -579,7 +677,7 @@ export default function NuevoAjustePage() {
             </div>
           </div>
         </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
+        <CustomModalBody className="space-y-4 pb-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -589,8 +687,8 @@ export default function NuevoAjustePage() {
               className={cn(inputClass, "pl-10")}
             />
           </div>
-          <div className="mt-4 max-h-96 space-y-2 overflow-y-auto pr-1">
-            {filteredProducts.slice(0, 20).map((product) => (
+          <div className="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
+            {paginatedProducts.map((product) => (
               <button
                 key={product.id}
                 onClick={() => handleAddProduct(product.id)}
@@ -608,7 +706,7 @@ export default function NuevoAjustePage() {
                 <Plus className="h-4 w-4 text-gray-400 group-hover:text-[#008060]" />
               </button>
             ))}
-            {filteredProducts.length === 0 && (
+            {paginatedProducts.length === 0 && (
               <div className="py-12 text-center text-sm text-gray-500 dark:text-[#888888]">
                 <Package className="mx-auto h-8 w-8 mb-2 opacity-20" />
                 No se encontraron productos
@@ -616,6 +714,17 @@ export default function NuevoAjustePage() {
             )}
           </div>
         </CustomModalBody>
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={searchTotalItems}
+            rowsPerPage={rowsPerPage}
+            onPageChange={handlePageChange}
+            onRowsPerPageChange={handleRowsPerPageChange}
+            itemName="productos"
+          />
+        </div>
         <CustomModalFooter>
           <button
             onClick={() => setIsSearchOpen(false)}

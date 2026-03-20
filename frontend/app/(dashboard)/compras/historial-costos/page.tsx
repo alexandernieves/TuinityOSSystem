@@ -3,7 +3,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Select, SelectItem } from '@heroui/react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
   TrendingUp,
@@ -124,7 +131,7 @@ export default function HistorialCostosPage() {
         </p>
         <button
           onClick={() => router.push('/compras')}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           Volver a Compras
         </button>
@@ -161,21 +168,22 @@ export default function HistorialCostosPage() {
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar Producto</label>
               <Select
-                placeholder="Buscar producto..."
-                selectedKeys={selectedProductId ? [selectedProductId] : []}
-                onChange={(e) => setSelectedProductId(e.target.value)}
-                variant="bordered"
-                aria-label="Seleccionar Producto"
-                classNames={{ trigger: 'bg-white dark:bg-[#1a1a1a]' }}
+                value={selectedProductId}
+                onValueChange={setSelectedProductId}
               >
-                {products.map((product: any) => (
-                  <SelectItem key={product.id} textValue={product.description}>
-                    <div className="flex flex-col">
-                      <span className="text-sm">{product.description}</span>
-                      <span className="text-xs text-gray-500">{product.reference}</span>
-                    </div>
-                  </SelectItem>
-                ))}
+                <SelectTrigger className="bg-white dark:bg-[#1a1a1a]">
+                  <SelectValue placeholder="Seleccionar producto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product: any) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{product.description}</span>
+                        <span className="text-xs text-gray-500">{product.reference}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
           </div>
@@ -212,7 +220,11 @@ export default function HistorialCostosPage() {
             <div className="flex-1">
               <h2 className="font-medium text-gray-900">{selectedProduct.description}</h2>
               <p className="text-sm text-gray-500">
-                {selectedProduct.reference} | {selectedProduct.brand} | {selectedProduct.group}
+                {selectedProduct.reference} | {selectedProduct.brand} | {typeof selectedProduct.group === "object" && selectedProduct.group !== null && (selectedProduct.group as { name?: string }).name
+                  ? (selectedProduct.group as { name?: string }).name
+                  : typeof selectedProduct.group === "string"
+                    ? selectedProduct.group
+                    : "Sin categoría"}
               </p>
             </div>
           </div>
@@ -342,7 +354,7 @@ export default function HistorialCostosPage() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => router.push(`/compras/${entry.purchaseOrderId}`)}
-                        className="font-mono text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                        className="font-mono text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
                       >
                         {entry.purchaseOrderNumber}
                       </button>

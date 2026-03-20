@@ -11,7 +11,7 @@ import {
 import type { User, AuthState, PermissionKey } from '@/lib/types/user';
 import { MOCK_USERS, getUserByEmail } from '@/lib/mock-data/users';
 import { hasPermission } from '@/lib/constants/roles';
-import { api } from '@/lib/services/api';
+import { toast } from 'sonner';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password?: string) => Promise<boolean>;
@@ -32,34 +32,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
   });
 
-  // Load user from localStorage on mount and verify session
+  // Verify session from localStorage on mount
   useEffect(() => {
     const verifySession = async () => {
-      const storedUser = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEY);
       const token = localStorage.getItem('evolution_auth_token');
-      
-      if (storedUser && token) {
+
+      if (stored && token) {
         try {
-          const user = JSON.parse(storedUser) as User;
-          
-          // Verificar con el servidor que la sesión sigue siendo válida
-          const me = await api.me();
-          
-          if (me) {
+          console.log('[AUTH] Verifying stored session...');
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (response.ok) {
+            const user = await response.json();
+            console.log(`[AUTH] Session valid: ${user.email}`);
             setState({
               user,
               isAuthenticated: true,
               isLoading: false,
             });
           } else {
-            // Sesión inválida en el servidor
-            throw new Error('Invalid session');
+            console.warn(`[AUTH] Session invalid or expired (${response.status}). Clearing...`);
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem('evolution_auth_token');
+            setState((prev) => ({ ...prev, user: null, isAuthenticated: false, isLoading: false }));
           }
         } catch (error) {
-          console.warn('Authentication verification failed:', error);
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem('evolution_auth_token');
-          setState((prev) => ({ ...prev, user: null, isAuthenticated: false, isLoading: false }));
+          console.error('[AUTH] Background session verification failed:', error);
+          setState((prev) => ({ ...prev, isLoading: false }));
         }
       } else {
         setState((prev) => ({ ...prev, isLoading: false }));
@@ -72,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login with email/password (Real API)
   const login = useCallback(async (email: string, password?: string): Promise<boolean> => {
     setState((prev) => ({ ...prev, isLoading: true }));
+    console.log(`[AUTH] Login attempt for: ${email}`);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
@@ -82,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         const { access_token, user } = data;
+
+        console.log(`[AUTH] Login success for ${email}. Session: ${user.sessionId}`);
 
         // Guardar token y usuario
         localStorage.setItem('evolution_auth_token', access_token);
@@ -94,9 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         return true;
       }
+      
+      console.warn(`[AUTH] Login failed: ${response.status} for ${email}`);
+      // Clear potentially stale state
+      setState((prev) => ({ ...prev, user: null, isAuthenticated: false, isLoading: false }));
       return false;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[AUTH] Login exception:', error);
+      setState((prev) => ({ ...prev, user: null, isAuthenticated: false, isLoading: false }));
       return false;
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
@@ -115,29 +125,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Logout
+  // Logout with toast and proper cleanup
   const logout = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true }));
+    // Show loading toast
+    const toastId = toast.loading('Cerrando sesión', {
+      description: 'Por favor, espere un momento...',
+    });
 
     try {
-      // Intentar cerrar sesión en el servidor
-      await api.logout();
-    } catch (error) {
-      console.error('Logout error on server:', error);
-    } finally {
-      // Limpiar TODO el almacenamiento local para seguridad absoluta
-      localStorage.clear();
-      sessionStorage.clear();
+      const token = localStorage.getItem('evolution_auth_token');
+      // Extract sessionId from current user state if available
+      const sessionId = state.user?.sessionId;
 
+      if (token && sessionId) {
+        // Attempt to call backend logout
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        }).catch(err => console.error('Silent API logout failure:', err));
+      }
+
+      // Short delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Clear local storage
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('evolution_auth_token');
+
+      // Update state
       setState({
         user: null,
         isAuthenticated: false,
         isLoading: false,
       });
 
-      // Usar window.location.replace para limpiar el historial de navegación
-      // y forzar una recarga completa del estado de la aplicación
-      window.location.replace('/login');
+      toast.success('Sesión cerrada', {
+        id: toastId,
+        description: 'Vuelva pronto.',
+      });
+
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Error al cerrar sesión', { id: toastId });
+    }
+  }, [state.user?.sessionId]);
+
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('evolution_auth_token');
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+        setState((prev) => ({
+          ...prev,
+          user,
+          isAuthenticated: true,
+        }));
+      }
+    } catch (error) {
+      console.error('Refresh user error:', error);
     }
   }, []);
 
@@ -149,23 +206,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [state.user]
   );
-  
-  // Refresh user data from server
-  const refreshUser = useCallback(async () => {
-    try {
-      const me = await api.me();
-      if (me) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(me));
-        setState((prev) => ({
-          ...prev,
-          user: me,
-          isAuthenticated: true,
-        }));
-      }
-    } catch (error) {
-      console.error('Error refreshing user:', error);
-    }
-  }, []);
 
   return (
     <AuthContext.Provider

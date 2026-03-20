@@ -322,7 +322,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               className={cn(
                 'w-full px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors',
                 isSelected
-                  ? 'bg-[#1a1a1a] border-l-2 border-brand-500'
+                  ? 'bg-[#1a1a1a] border-l-2 border-blue-500'
                   : 'border-l-2 border-transparent hover:bg-[#1a1a1a]',
               )}
             >

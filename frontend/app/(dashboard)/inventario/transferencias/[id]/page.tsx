@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Button,
-  Input,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Textarea,
-} from "@heroui/react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -84,7 +84,7 @@ export default function TransferenciaDetailPage() {
         <p className="text-sm text-gray-500">
           La transferencia {params.id} no existe
         </p>
-        <Button variant="light" onPress={() => router.back()} className="mt-4">
+        <Button variant="ghost" onClick={() => router.back()} className="mt-4">
           Volver
         </Button>
       </div>
@@ -267,8 +267,8 @@ export default function TransferenciaDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-              <ArrowRightLeft className="h-5 w-5 text-brand-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <div className="flex items-center gap-3">
@@ -293,9 +293,8 @@ export default function TransferenciaDetailPage() {
         </div>
         {canConfirmTransfer && (
           <Button
-            color="primary"
-            onPress={handleOpenConfirmModal}
-            className="bg-brand-600"
+            onClick={handleOpenConfirmModal}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             Confirmar Recepción
           </Button>
@@ -334,8 +333,8 @@ export default function TransferenciaDetailPage() {
                 </p>
               </div>
 
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100">
-                <ArrowRight className="h-4 w-4 text-brand-600" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                <ArrowRight className="h-4 w-4 text-blue-600" />
               </div>
 
               <div className="flex-1 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -647,171 +646,156 @@ export default function TransferenciaDetailPage() {
         </div>
       </div>
 
-      {/* Confirm Modal */}
-      <Modal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        size="2xl"
-      >
-        <ModalContent>
-          <ModalHeader className="border-b border-gray-200">
+      {/* Confirm Dialog */}
+      <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <DialogTitle className="text-lg font-semibold text-gray-900">
                   Confirmar Recepción
-                </h3>
+                </DialogTitle>
                 <p className="text-sm text-gray-500">
                   Verifica las cantidades recibidas
                 </p>
               </div>
             </div>
-          </ModalHeader>
-          <ModalBody className="py-6">
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Ingresa las cantidades efectivamente recibidas. Si hay
-                diferencias, se registrarán como discrepancias.
-              </p>
+          </DialogHeader>
+          <div className="py-2 space-y-4 max-h-[60vh] overflow-y-auto">
+            <p className="text-sm text-gray-600">
+              Ingresa las cantidades efectivamente recibidas. Si hay
+              diferencias, se registrarán como discrepancias.
+            </p>
 
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Producto
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Esperado
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Recibido
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Notas
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {transfer.lines.map((line: any, index: number) => {
-                      const lineId = line._id || line.productId?._id || line.id;
-                      const expectedUnits =
-                        line.totalUnits || line.resultingUnits || 0;
-                      const receivedQty =
-                        receivedQuantities.find((rq) => rq.lineId === lineId)
-                          ?.receivedQty ?? expectedUnits;
-                      const diff = receivedQty - expectedUnits;
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Producto
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Esperado
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Recibido
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Notas
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {transfer.lines.map((line: any, index: number) => {
+                    const lineId = line._id || line.productId?._id || line.id;
+                    const expectedUnits =
+                      line.totalUnits || line.resultingUnits || 0;
+                    const receivedQty =
+                      receivedQuantities.find((rq) => rq.lineId === lineId)
+                        ?.receivedQty ?? expectedUnits;
+                    const diff = receivedQty - expectedUnits;
 
-                      return (
-                        <tr key={index}>
-                          <td className="px-4 py-3">
-                            <p className="text-sm font-medium text-gray-900">
-                              {line.productId?.name || line.productDescription}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-sm text-gray-600">
-                              {expectedUnits}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <Input
-                                type="number"
-                                min={0}
-                                value={receivedQty.toString()}
-                                onChange={(e) =>
-                                  handleUpdateReceivedQty(
-                                    lineId,
-                                    parseInt(e.target.value) || 0,
-                                  )
-                                }
-                                variant="bordered"
-                                size="sm"
-                                classNames={{
-                                  base: "w-20",
-                                  inputWrapper: "bg-white",
-                                  input: "text-right",
-                                }}
-                              />
-                              {diff !== 0 && (
-                                <span
-                                  className={cn(
-                                    "text-xs font-medium",
-                                    diff > 0
-                                      ? "text-green-600"
-                                      : "text-red-600",
-                                  )}
-                                >
-                                  {diff > 0 ? "+" : ""}
-                                  {diff}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
+                    return (
+                      <tr key={index}>
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-medium text-gray-900">
+                            {line.productId?.name || line.productDescription}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-sm text-gray-600">
+                            {expectedUnits}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
                             <Input
-                              placeholder="Notas..."
-                              value={
-                                receivedQuantities.find(
-                                  (rq) => rq.lineId === lineId,
-                                )?.notes || ""
-                              }
+                              type="number"
+                              min={0}
+                              value={receivedQty.toString()}
                               onChange={(e) =>
-                                handleUpdateNotes(lineId, e.target.value)
+                                handleUpdateReceivedQty(
+                                  lineId,
+                                  parseInt(e.target.value) || 0,
+                                )
                               }
-                              variant="bordered"
-                              size="sm"
-                              classNames={{ inputWrapper: "bg-white" }}
+                              className="w-20 text-right h-8"
                             />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {receivedQuantities.some((rq) => {
-                const line = transfer.lines.find(
-                  (l: any) => (l._id || l.productId?._id || l.id) === rq.lineId,
-                );
-                const expectedUnits =
-                  line?.totalUnits || line?.resultingUnits || 0;
-                return line && rq.receivedQty !== expectedUnits;
-              }) && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                      <p className="text-xs text-amber-700">
-                        Se detectaron diferencias en las cantidades. La
-                        transferencia se marcará como &quot;Recibida con
-                        Discrepancia&quot;.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                            {diff !== 0 && (
+                              <span
+                                className={cn(
+                                  "text-xs font-medium",
+                                  diff > 0
+                                    ? "text-green-600"
+                                    : "text-red-600",
+                                )}
+                              >
+                                {diff > 0 ? "+" : ""}
+                                {diff}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Input
+                            placeholder="Notas..."
+                            value={
+                              receivedQuantities.find(
+                                (rq) => rq.lineId === lineId,
+                              )?.notes || ""
+                            }
+                            onChange={(e) =>
+                              handleUpdateNotes(lineId, e.target.value)
+                            }
+                            className="h-8 text-sm"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </ModalBody>
-          <ModalFooter className="border-t border-gray-200">
+
+            {receivedQuantities.some((rq) => {
+              const line = transfer.lines.find(
+                (l: any) => (l._id || l.productId?._id || l.id) === rq.lineId,
+              );
+              const expectedUnits =
+                line?.totalUnits || line?.resultingUnits || 0;
+              return line && rq.receivedQty !== expectedUnits;
+            }) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                    <p className="text-xs text-amber-700">
+                      Se detectaron diferencias en las cantidades. La
+                      transferencia se marcará como &quot;Recibida con
+                      Discrepancia&quot;.
+                    </p>
+                  </div>
+                </div>
+              )}
+          </div>
+          <DialogFooter>
             <Button
-              variant="light"
-              onPress={() => setIsConfirmModalOpen(false)}
+              variant="ghost"
+              onClick={() => setIsConfirmModalOpen(false)}
             >
               Cancelar
             </Button>
             <Button
-              color="primary"
-              onPress={handleConfirmTransfer}
-              className="bg-brand-600"
+              onClick={handleConfirmTransfer}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Confirmar Recepción
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

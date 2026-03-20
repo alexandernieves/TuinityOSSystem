@@ -34,30 +34,7 @@ export function LoadingScreen() {
                     </div>
                 </motion.div>
 
-                {/* Animated Loader */}
-                <div className="relative h-12 w-48 overflow-hidden rounded-full bg-muted/30 p-1">
-                    <motion.div
-                        className="h-full rounded-full bg-primary"
-                        initial={{ width: "0%" }}
-                        animate={{ width: "100%" }}
-                        transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                        }}
-                    />
-                    {/* Shine effect */}
-                    <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                        initial={{ x: "-100%" }}
-                        animate={{ x: "100%" }}
-                        transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            ease: "linear",
-                        }}
-                    />
-                </div>
+
 
                 {/* Loading Text */}
                 <motion.div

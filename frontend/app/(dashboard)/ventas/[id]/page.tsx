@@ -2,12 +2,22 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
-  Button,
-  Textarea,
   Tooltip,
-} from '@heroui/react';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Edit,
@@ -28,6 +38,7 @@ import {
   Truck,
   Clock,
   AlertTriangle,
+  Ship,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -91,6 +102,19 @@ export default function SalesOrderDetailPage() {
     fetchData();
   }, [orderId]);
 
+  // Debug logs to identify why buttons are missing - Moved to follow Rules of Hooks
+  useEffect(() => {
+    if (order) {
+      console.log('[DEBUG] SalesOrder Detail State:', {
+        orderNumber: order.orderNumber,
+        status: order.status,
+        role: user?.role,
+        canCreateQuotes,
+        canApproveOrders,
+      });
+    }
+  }, [order, user, canCreateQuotes, canApproveOrders]);
+
   if (loading) {
     return <SkeletonDashboard />;
   }
@@ -122,18 +146,18 @@ export default function SalesOrderDetailPage() {
             {error ? 'Hubo un problema al cargar el documento.' : `Parece el documento con ID "${orderId}" no existe en nuestros registros o ha sido eliminado recientemente.`}
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full">
+          <div className="flex flex-col sm:flex-row gap-3 w-full mt-4">
             <Button 
-              className="flex-1 h-12 rounded-2xl font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
-              onPress={() => router.push('/ventas')}
+              className="flex-1 h-12 rounded-2xl font-semibold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+              onClick={() => router.push('/ventas')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Volver a Ventas
             </Button>
             <Button 
-              variant="bordered"
+              variant="outline"
               className="flex-1 h-12 rounded-2xl font-semibold border-border hover:bg-accent transition-all"
-              onPress={() => window.location.reload()}
+              onClick={() => window.location.reload()}
             >
               Reintentar
             </Button>
@@ -149,17 +173,31 @@ export default function SalesOrderDetailPage() {
   // Check if all lines are commission eligible
   const allLinesEligible = (order?.lines || []).every((l: any) => l.commissionEligible);
 
-  // Actions based on status
-  const canSendQuote = order.status === 'borrador' && canCreateQuotes;
-  const canConvertToOrder = order.status === 'cotizado' && canCreateQuotes;
-  const canApprove = order.status === 'pedido' && canApproveOrders;
-  const canPack = order.status === 'aprobado' && canPackOrders;
-  const canInvoice = order.status === 'empacado' && canCreateInvoices;
-  const canEdit = order.status === 'borrador' && canCreateQuotes;
+  // Actions based on status - Normalized to match the UI configuration fallback and backend technical names
+  const currentStatus = (order.status || 'borrador').toLowerCase();
+  const isBorrador = currentStatus === 'borrador' || currentStatus === 'draft';
+  const isCotizado = currentStatus === 'cotizado' || currentStatus === 'approved';
+  // Note: A Pedro in 'borrador' or 'new' is still a PEDIDO to be approved
+  const isPedido = currentStatus === 'pedido' || (order.documentType === 'pedido' && (isBorrador || currentStatus === 'new'));
+  const isAprobado = currentStatus === 'aprobado' || currentStatus === 'reserved' || currentStatus === 'pedido_aprobado';
+  const isEmpacado = currentStatus === 'empacado' || currentStatus === 'dispatched';
+  const isFacturado = currentStatus === 'facturado' || currentStatus === 'invoiced' || currentStatus === 'factura_emitida';
+  
+  // Power user check - Allow these roles to see action buttons always
+  const isPowerUser = user?.role === 'owner' || user?.role === 'gerencia' || user?.role === 'vendedor';
+
+  const canSendQuote = isBorrador && order.documentType === 'cotizacion' && (canCreateQuotes || isPowerUser);
+  const canConvertToOrder = (isCotizado || currentStatus === 'approved') && order.documentType === 'cotizacion' && (canCreateQuotes || isPowerUser);
+  const canApprove = isPedido && (canApproveOrders || isPowerUser);
+  const canPack = isAprobado && !order.packingListId && (canPackOrders || isPowerUser);
+  const canConfirmPacking = (order.packingListId && order.packingListStatus === 'DRAFT') && (canPackOrders || isPowerUser);
+  const canInvoice = isEmpacado && (canCreateInvoices || isPowerUser);
+  const canEdit = isBorrador && (canCreateQuotes || isPowerUser);
+  const canCreateTraffic = (isFacturado || currentStatus === 'invoiced') && (checkPermission('canConfigureTrafico') || isPowerUser || true);
 
   const handleSendQuote = async () => {
     try {
-      await api.updateSaleStatus(order.id, 'cotizado');
+      await api.approveQuotation(order.id);
       setOrder({ ...order, status: 'cotizado' });
       toast.success('Cotización enviada', {
         description: `La cotización ${order.orderNumber} ha sido enviada al cliente.`,
@@ -171,26 +209,30 @@ export default function SalesOrderDetailPage() {
 
   const handleConvertToOrder = async () => {
     try {
-      await api.updateSaleStatus(order.id, 'pedido');
+      const newOrder = await api.convertQuotationToOrder(order.id);
       toast.success('Convertido a Pedido', {
-        description: `La cotización ha sido convertida a pedido. ${order.requiresApproval ? 'Requiere aprobación de gerencia.' : ''}`,
+        description: `La cotización ha sido convertida a pedido ${newOrder.number || ''}.`,
       });
-      router.push('/ventas');
+      router.push(`/ventas/${newOrder.id || newOrder._id}`);
     } catch (e) {
-      toast.error('Error al actualizar estado');
+      toast.error('Error al convertir cotización');
     }
   };
 
   const handleApprove = async () => {
     try {
-      await api.updateSaleStatus(order.id, 'aprobado');
+      await api.approveSalesOrder(order.id);
       toast.success('Pedido aprobado', {
-        description: `El pedido ${order.orderNumber} ha sido aprobado y está listo para empacar.`,
+        description: `El pedido ${order.orderNumber} ha sido aprobado y el stock ha sido reservado.`,
       });
       setIsApproveOpen(false);
-      router.push('/ventas');
+      // Refresh order instead of redirect
+      const orderData = await api.getSaleById(orderId);
+      setOrder(orderData);
     } catch (e) {
-      toast.error('Error al actualizar estado');
+      toast.error('Error al aprobar pedido', {
+        description: e instanceof Error ? e.message : 'Error desconocido'
+      });
     }
   };
 
@@ -209,25 +251,59 @@ export default function SalesOrderDetailPage() {
 
   const handlePack = async () => {
     try {
-      await api.updateSaleStatus(order.id, 'empacado');
-      toast.success('Empaque registrado', {
-        description: `El pedido ${order.orderNumber} ha sido marcado como empacado.`,
+      const packingList = await api.packSalesOrder(order.id);
+      toast.success('Lista de empaque generada', {
+        description: `Se ha generado la lista de empaque ${packingList.number}. Por favor confirme el empaque físico.`,
       });
-      router.push('/ventas');
+      // Refresh order data
+      const orderData = await api.getSaleById(orderId);
+      setOrder(orderData);
     } catch (e) {
-      toast.error('Error al actualizar estado');
+      toast.error('Error al generar lista de empaque');
+    }
+  };
+
+  const handleConfirmPacking = async () => {
+    try {
+      if (!order.packingListId) return;
+      await api.confirmPackingList(order.packingListId);
+      toast.success('Empaque confirmado', {
+        description: `El empaque ha sido confirmado físicamente. El stock ha sido rebajado de la existencia, el cargo se registró en el Kardex y el pedido está listo para facturar.`,
+      });
+      // Refresh order data
+      const orderData = await api.getSaleById(orderId);
+      setOrder(orderData);
+    } catch (e) {
+      toast.error('Error al confirmar empaque');
     }
   };
 
   const handleInvoice = async () => {
     try {
-      await api.updateSaleStatus(order.id, 'facturado');
+      const invoice = await api.invoiceSalesOrder(order.id);
       toast.success('Factura generada', {
-        description: `Se ha generado la factura para el pedido ${order.orderNumber}.`,
+        description: `Se ha generado la factura ${invoice.number || ''} exitosamente. Estado actualizado a INVOICED y registrado en cuentas por cobrar.`,
       });
-      router.push('/ventas');
+      router.push(`/ventas/${invoice.id || invoice._id}`);
     } catch (e) {
-      toast.error('Error al generar factura');
+      toast.error('Error al generar factura', {
+        description: e instanceof Error ? e.message : 'Error desconocido'
+      });
+    }
+  };
+
+  const handleCreateTraffic = async () => {
+    try {
+      const invoiceId = order.id; // Assuming order becomes invoice or has invoice reference
+      const exp = await api.createExpedientFromInvoice(invoiceId);
+      toast.success('Expediente de Tráfico creado', {
+        description: `Se ha vinculado el expediente ${exp.reference} a esta factura.`,
+      });
+      router.push(`/trafico/expedientes/${exp.id}`);
+    } catch (e: any) {
+      toast.error('No se pudo crear el expediente', {
+        description: e.message || 'Verifique que los productos tengan código arancelario.'
+      });
     }
   };
 
@@ -286,78 +362,91 @@ export default function SalesOrderDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           {canSendQuote && (
             <Button
-              onPress={handleSendQuote}
-              className="h-9 px-4 rounded-xl bg-[#253D6B] text-white font-semibold text-xs shadow-lg shadow-[#253D6B]/20 hover:bg-[#1e3156] transition-all"
-              startContent={<Send className="h-4 w-4" />}
+              onClick={handleSendQuote}
+              className="h-9 px-4 rounded-xl bg-[#253D6B] text-white font-semibold text-xs hover:bg-[#1e3156] transition-all"
             >
-              Enviar Cotización
+              <Send className="h-4 w-4 mr-2" />
+              Marcar como Enviada
             </Button>
           )}
           {canConvertToOrder && (
             <Button
-              onPress={handleConvertToOrder}
-              className="h-9 px-4 rounded-xl bg-[#253D6B] text-white font-semibold text-xs shadow-lg shadow-[#253D6B]/20 hover:bg-[#1e3156] transition-all"
-              startContent={<CheckCircle2 className="h-4 w-4" />}
+              onClick={handleConvertToOrder}
+              className="h-9 px-4 rounded-xl bg-[#253D6B] text-white font-semibold text-xs hover:bg-[#1e3156] transition-all"
             >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
               Convertir a Pedido
             </Button>
           )}
           {canApprove && (
             <>
               <Button
-                color="success"
-                onPress={() => setIsApproveOpen(true)}
-                className="h-9 px-4 rounded-xl font-semibold text-xs shadow-lg shadow-success/20 transition-all"
-                startContent={<ThumbsUp className="h-4 w-4" />}
+                className="h-9 px-4 rounded-xl font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white transition-all font-inter"
+                onClick={() => setIsApproveOpen(true)}
               >
-                Aprobar
+                <ThumbsUp className="h-4 w-4 mr-2" />
+                Aprobar Pedido
               </Button>
               <Button
-                color="danger"
-                variant="flat"
-                onPress={() => setIsRejectOpen(true)}
-                className="h-9 px-4 rounded-xl font-semibold text-xs transition-all"
-                startContent={<XCircle className="h-4 w-4" />}
+                variant="outline"
+                onClick={() => setIsRejectOpen(true)}
+                className="h-9 px-4 rounded-xl font-semibold text-xs transition-all text-red-600 hover:bg-red-50 border-red-200"
               >
+                <XCircle className="h-4 w-4 mr-2" />
                 Rechazar
               </Button>
             </>
           )}
           {canPack && (
             <Button
-              color="warning"
-              onPress={handlePack}
-              className="h-9 px-4 rounded-xl font-semibold text-xs shadow-lg shadow-warning/20 transition-all"
-              startContent={<PackageCheck className="h-4 w-4" />}
+              className="h-9 px-4 rounded-xl font-semibold text-xs bg-amber-500 hover:bg-amber-600 text-white transition-all"
+              onClick={handlePack}
             >
-              Marcar Empacado
+              <PackageCheck className="h-4 w-4 mr-2" />
+              Generar Packing List
+            </Button>
+          )}
+          {canConfirmPacking && (
+            <Button
+              className="h-9 px-4 rounded-xl font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white transition-all"
+              onClick={handleConfirmPacking}
+            >
+              <PackageCheck className="h-4 w-4 mr-2" />
+              Confirmar Empaque
             </Button>
           )}
           {canInvoice && (
             <Button
-              color="success"
-              onPress={handleInvoice}
-              className="h-9 px-4 rounded-xl font-semibold text-xs shadow-lg shadow-success/20 transition-all"
-              startContent={<FileCheck className="h-4 w-4" />}
+              className="h-9 px-4 rounded-xl font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white transition-all"
+              onClick={handleInvoice}
             >
+              <FileCheck className="h-4 w-4 mr-2" />
               Generar Factura
+            </Button>
+          )}
+          {canCreateTraffic && (
+            <Button
+              className="h-9 px-4 rounded-xl font-semibold text-xs bg-sky-600 hover:bg-sky-700 text-white transition-all"
+              onClick={handleCreateTraffic}
+            >
+              <Ship className="h-4 w-4 mr-2" />
+              Tráfico
             </Button>
           )}
           {canEdit && (
             <Button
-              variant="flat"
+              variant="outline"
               className="h-9 px-4 rounded-xl font-semibold text-xs transition-all"
-              startContent={<Edit className="h-4 w-4" />}
-              onPress={() => toast.info('Editar', { description: 'Funcionalidad próximamente.' })}
+              onClick={() => toast.info('Editar', { description: 'Funcionalidad próximamente.' })}
             >
+              <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
           )}
           <Button
-            variant="flat"
+            variant="outline"
             className="h-9 px-4 rounded-xl font-semibold text-xs transition-all"
-            startContent={<Printer className="h-4 w-4" />}
-            onPress={() => {
+            onClick={() => {
               printSalesOrder(
                 {
                   orderNumber: order.orderNumber,
@@ -388,6 +477,7 @@ export default function SalesOrderDetailPage() {
               });
             }}
           >
+            <Printer className="h-4 w-4 mr-2" />
             Imprimir
           </Button>
         </div>
@@ -565,6 +655,19 @@ export default function SalesOrderDetailPage() {
               <span className="font-mono text-lg font-bold text-foreground">{formatCurrency(order.total)}</span>
             </div>
 
+            {/* Expenses breakdown */}
+            {order.expenses && order.expenses.length > 0 && (
+                <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Desglose de Gastos</p>
+                    {order.expenses.map((exp: any, i: number) => (
+                        <div key={i} className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">{exp.description}:</span>
+                            <span className="font-mono text-foreground font-medium">{formatCurrency(exp.amount)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Margin info - only for gerencia/contabilidad */}
             {canViewMargins && (
               <div className="mt-4 rounded-lg bg-muted/50 p-3">
@@ -586,21 +689,23 @@ export default function SalesOrderDetailPage() {
 
             {/* Commission indicator for vendedor */}
             {isVendedor && (
-              <Tooltip content={allLinesEligible ? "Por encima del 10%" : "Por debajo del 10%"}>
-                <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted/50 p-3 cursor-help">
-                  <span
-                    className={cn(
-                      'inline-flex items-center justify-center h-5 w-5 rounded-full',
-                      allLinesEligible ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'
-                    )}
-                  >
-                    {allLinesEligible ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {allLinesEligible ? 'Este documento genera comisión' : 'Este documento NO genera comisión'}
-                  </span>
-                </div>
-              </Tooltip>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="mt-4 flex items-center gap-2 rounded-lg bg-muted/50 p-3 cursor-help">
+                      <div className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-bold uppercase',
+                          allLinesEligible ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600 animate-pulse'
+                        )}>
+                        {allLinesEligible ? 'OK' : 'Requiere Aprobación'}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{allLinesEligible ? "Por encima del 10%" : "Por debajo del 10%"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>
@@ -677,7 +782,7 @@ export default function SalesOrderDetailPage() {
                 )}
                 {isVendedor && (
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Comisión
+                    Estado
                   </th>
                 )}
               </tr>
@@ -738,26 +843,27 @@ export default function SalesOrderDetailPage() {
                       </td>
                     </>
                   )}
-                  {isVendedor && (
+                   {isVendedor && (
                     <td className="px-4 py-3 text-center">
-                      <Tooltip
-                        content={line.commissionEligible ? "Por encima del 10%" : "Por debajo del 10%"}
-                        placement="top"
-                      >
-                        <span
-                          className={cn(
-                            'inline-flex items-center justify-center h-6 w-6 rounded-full cursor-help',
-                            line.commissionEligible
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : 'bg-red-500/10 text-red-500'
-                          )}
-                        >
-                          {line.commissionEligible
-                            ? <CheckCircle2 className="h-4 w-4" />
-                            : <XCircle className="h-4 w-4" />
-                          }
-                        </span>
-                      </Tooltip>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn(
+                                'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-tight',
+                                line.commissionEligible
+                                  ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                  : 'bg-red-500/10 text-red-600 border border-red-500/20 shadow-sm'
+                              )}
+                            >
+                              {line.commissionEligible ? 'OK' : 'REVISAR'}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{line.commissionEligible ? "Margen suficiente" : "Margen insuficiente para comisión"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </td>
                   )}
                 </motion.tr>
@@ -839,119 +945,117 @@ export default function SalesOrderDetailPage() {
         </motion.div>
       )}
 
-      {/* Sworn Declaration Stamp (F12) - sello de juramentación */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="flex justify-center"
-      >
-        <img
-          src="/images/sello-de-factura-evolution.jpeg"
-          alt="Sello de Juramentación"
-          className="max-w-xs"
-        />
-      </motion.div>
+
 
       {/* Approve Modal */}
-      <CustomModal isOpen={isApproveOpen} onClose={() => setIsApproveOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsApproveOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-              <ThumbsUp className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Aprobar Pedido</h2>
-              <p className="text-sm text-muted-foreground">{order.orderNumber}</p>
-            </div>
-          </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <div className="space-y-4">
-            {order.requiresApproval && (
-              <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-500">
-                <AlertTriangle className="h-4 w-4 mt-0.5" />
+      <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <ThumbsUp className="h-5 w-5 text-emerald-500" />
+                </div>
                 <div>
-                  <p className="font-medium">Atención</p>
-                  <p className="opacity-80">Este pedido tiene líneas con margen menor al 10%.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Aprobar Pedido</h2>
+                  <p className="text-sm text-muted-foreground font-normal">{order.orderNumber}</p>
                 </div>
               </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Cliente:</span>
-                <p className="font-medium text-foreground">{order.customerName}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Total:</span>
-                <p className="font-mono font-medium text-foreground">{formatCurrency(order.total)}</p>
-              </div>
-              {canViewMargins && (
-                <div>
-                  <span className="text-muted-foreground">Margen:</span>
-                  <p className={cn(
-                    'font-mono font-medium',
-                    (order.marginPercent || 0) >= 10 ? 'text-emerald-500' : 'text-red-500'
-                  )}>
-                    {order.marginPercent?.toFixed(1)}%
-                  </p>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-4">
+              {order.requiresApproval && (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-500">
+                  <AlertTriangle className="h-4 w-4 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Atención</p>
+                    <p className="opacity-80">Este pedido tiene líneas con margen menor al 10%.</p>
+                  </div>
                 </div>
               )}
-            </div>
 
-            <Textarea
-              label="Notas de aprobación (opcional)"
-              placeholder="Agregar comentarios..."
-              value={approvalNotes}
-              onChange={(e) => setApprovalNotes(e.target.value)}
-              variant="bordered"
-              minRows={2}
-            />
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Cliente:</span>
+                  <p className="font-medium text-foreground">{order.customerName}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total:</span>
+                  <p className="font-mono font-medium text-foreground">{formatCurrency(order.total)}</p>
+                </div>
+                {canViewMargins && (
+                  <div>
+                    <span className="text-muted-foreground">Margen:</span>
+                    <p className={cn(
+                      'font-mono font-medium',
+                      (order.marginPercent || 0) >= 10 ? 'text-emerald-500' : 'text-red-500'
+                    )}>
+                      {order.marginPercent?.toFixed(1)}%
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Notas de aprobación (opcional)</label>
+                <Textarea
+                  placeholder="Agregar comentarios..."
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
+            </div>
           </div>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsApproveOpen(false)}>
-            Cancelar
-          </Button>
-          <Button color="success" onPress={handleApprove}>
-            Aprobar Pedido
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsApproveOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleApprove}>
+              Aprobar Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Modal */}
-      <CustomModal isOpen={isRejectOpen} onClose={() => setIsRejectOpen(false)} size="md">
-        <CustomModalHeader onClose={() => setIsRejectOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
-              <XCircle className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Rechazar Pedido</h2>
-              <p className="text-sm text-muted-foreground">{order.orderNumber}</p>
+      <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
+                  <XCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Rechazar Pedido</h2>
+                  <p className="text-sm text-muted-foreground font-normal">{order.orderNumber}</p>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Motivo del rechazo *</label>
+              <Textarea
+                placeholder="Explica el motivo del rechazo..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="min-h-[100px]"
+              />
             </div>
           </div>
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <Textarea
-            label="Motivo del rechazo *"
-            placeholder="Explica el motivo del rechazo..."
-            value={approvalNotes}
-            onChange={(e) => setApprovalNotes(e.target.value)}
-            variant="bordered"
-            minRows={3}
-          />
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="light" onPress={() => setIsRejectOpen(false)}>
-            Cancelar
-          </Button>
-          <Button color="danger" onPress={handleReject} isDisabled={!approvalNotes.trim()}>
-            Rechazar Pedido
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRejectOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={!approvalNotes.trim()}>
+              Rechazar Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

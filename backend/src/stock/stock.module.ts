@@ -1,15 +1,11 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { StockService } from './stock.service';
 import { StockController } from './stock.controller';
-import { Stock, StockSchema } from './schemas/stock.schema';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: Stock.name, schema: StockSchema }]),
-  ],
+  imports: [],
   controllers: [StockController],
   providers: [StockService],
-  exports: [MongooseModule, StockService],
+  exports: [StockService],
 })
 export class StockModule { }

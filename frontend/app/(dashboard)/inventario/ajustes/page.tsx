@@ -3,14 +3,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Tabs,
-  Tab,
-} from "@heroui/react";
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Plus,
   FileText,
@@ -35,6 +34,8 @@ import {
   ADJUSTMENT_REASONS,
   type AdjustmentStatus,
 } from "@/lib/types/inventory";
+import { CustomModal, CustomModalHeader, CustomModalBody } from "@/components/ui/custom-modal";
+import { Package, MapPin, User, Info, FileStack } from "lucide-react";
 
 type TabKey = "all" | "pendiente" | "aprobado" | "rechazado" | "aplicado";
 
@@ -61,6 +62,7 @@ export default function AjustesPage() {
       const data = await api.getAdjustments();
       setAdjustments(data);
     } catch (error) {
+      console.error("Error fetching adjustments:", error);
       toast.error("Error cargando ajustes");
     } finally {
       setLoading(false);
@@ -75,7 +77,7 @@ export default function AjustesPage() {
   const filteredAdjustments = useMemo(() => {
     return adjustments.filter((adj) => {
       // Tab filter
-      if (selectedTab !== "all" && adj.status !== selectedTab) return false;
+      if (selectedTab !== "all" && adj.status?.toLowerCase() !== selectedTab && adj.status !== selectedTab) return false;
 
       // Search filter
       if (searchQuery) {
@@ -97,39 +99,52 @@ export default function AjustesPage() {
   }, [adjustments, selectedTab, searchQuery]);
 
   // Get status badge
-  const getStatusBadge = (status: AdjustmentStatus) => {
-    switch (status) {
+  const getStatusBadge = (status: string) => {
+    const s = status?.toLowerCase() || "pendiente";
+    switch (s) {
       case "pendiente":
+      case "pending":
         return {
-          label: ADJUSTMENT_STATUS_LABELS[status],
+          label: ADJUSTMENT_STATUS_LABELS["pendiente"],
           icon: Clock,
           bgColor: "bg-amber-100",
           textColor: "text-amber-700",
           iconColor: "text-amber-600",
         };
       case "aprobado":
+      case "approved":
         return {
-          label: ADJUSTMENT_STATUS_LABELS[status],
+          label: ADJUSTMENT_STATUS_LABELS["aprobado"],
           icon: CheckCircle,
           bgColor: "bg-emerald-100",
           textColor: "text-emerald-700",
           iconColor: "text-emerald-600",
         };
       case "rechazado":
+      case "rejected":
         return {
-          label: ADJUSTMENT_STATUS_LABELS[status],
+          label: ADJUSTMENT_STATUS_LABELS["rechazado"],
           icon: XCircle,
           bgColor: "bg-red-100",
           textColor: "text-red-700",
           iconColor: "text-red-600",
         };
       case "aplicado":
+      case "applied":
         return {
-          label: ADJUSTMENT_STATUS_LABELS[status],
+          label: ADJUSTMENT_STATUS_LABELS["aplicado"],
           icon: CheckCircle,
           bgColor: "bg-blue-100",
           textColor: "text-blue-700",
           iconColor: "text-blue-600",
+        };
+      default:
+        return {
+          label: s,
+          icon: Info,
+          bgColor: "bg-gray-100",
+          textColor: "text-gray-700",
+          iconColor: "text-gray-500",
         };
     }
   };
@@ -153,10 +168,21 @@ export default function AjustesPage() {
     }).format(value);
   };
 
-  // Handlers
-  const handleViewAdjustment = (adj: any) => {
-    // router.push(`/inventario/ajustes/${adj._id || adj.id}`);
-    toast.info("Visualización de detalle en construcción"); // Placeholder until detail view is refactored
+  // View adjustment modal
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedAdjustment, setSelectedAdjustment] = useState<any>(null);
+
+  const handleViewAdjustment = async (adj: any) => {
+    try {
+      setLoading(true);
+      const detail = await api.getAdjustmentById(adj._id || adj.id);
+      setSelectedAdjustment(detail);
+      setIsViewModalOpen(true);
+    } catch (error) {
+      toast.error("Error al cargar el detalle");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleNewAdjustment = () => {
@@ -181,10 +207,10 @@ export default function AjustesPage() {
   const counts = useMemo(
     () => ({
       all: adjustments.length,
-      pendiente: adjustments.filter((a) => a.status === "pendiente").length,
-      aprobado: adjustments.filter((a) => a.status === "aprobado").length,
-      rechazado: adjustments.filter((a) => a.status === "rechazado").length,
-      aplicado: adjustments.filter((a) => a.status === "aplicado").length,
+      pendiente: adjustments.filter((a) => a.status?.toLowerCase() === "pendiente" || a.status === "PENDING").length,
+      aprobado: adjustments.filter((a) => a.status?.toLowerCase() === "aprobado" || a.status === "APPROVED").length,
+      rechazado: adjustments.filter((a) => a.status?.toLowerCase() === "rechazado" || a.status === "REJECTED").length,
+      aplicado: adjustments.filter((a) => a.status?.toLowerCase() === "aplicado" || a.status === "APPLIED").length,
     }),
     [adjustments],
   );
@@ -201,8 +227,8 @@ export default function AjustesPage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-              <FileText className="h-5 w-5 text-brand-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -217,7 +243,7 @@ export default function AjustesPage() {
         {canCreateAdjustments && (
           <button
             onClick={handleNewAdjustment}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+            className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
           >
             <Plus className="h-4 w-4" />
             Nuevo Ajuste
@@ -226,76 +252,33 @@ export default function AjustesPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs
-        selectedKey={selectedTab}
-        onSelectionChange={(key) => setSelectedTab(key as TabKey)}
-        color="primary"
-        variant="underlined"
-        classNames={{
-          tabList: "gap-6 border-b border-gray-200",
-          cursor: "bg-brand-600",
-          tab: "px-0 h-10",
-          tabContent: "group-data-[selected=true]:text-brand-600",
-        }}
-      >
-        <Tab
-          key="all"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Todos</span>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                {counts.all}
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 overflow-x-auto">
+        {[
+          { key: 'all' as TabKey, label: 'Todos', count: counts.all, color: 'text-gray-600', countClass: 'bg-gray-200 text-gray-600' },
+          { key: 'pendiente' as TabKey, label: 'Pendientes', count: counts.pendiente, color: 'text-amber-700', countClass: 'bg-amber-100 text-amber-700' },
+          { key: 'aprobado' as TabKey, label: 'Aprobados', count: counts.aprobado, color: 'text-emerald-700', countClass: 'bg-emerald-100 text-emerald-700' },
+          { key: 'rechazado' as TabKey, label: 'Rechazados', count: counts.rechazado, color: 'text-red-700', countClass: 'bg-red-100 text-red-700' },
+          { key: 'aplicado' as TabKey, label: 'Aplicados', count: counts.aplicado, color: 'text-blue-700', countClass: 'bg-blue-100 text-blue-700' },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setSelectedTab(tab.key)}
+            className={cn(
+              'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all',
+              selectedTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            )}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', selectedTab === tab.key ? tab.countClass : 'bg-gray-200 text-gray-600')}>
+                {tab.count}
               </span>
-            </div>
-          }
-        />
-        <Tab
-          key="pendiente"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Pendientes</span>
-              {counts.pendiente > 0 && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  {counts.pendiente}
-                </span>
-              )}
-            </div>
-          }
-        />
-        <Tab
-          key="aprobado"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Aprobados</span>
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                {counts.aprobado}
-              </span>
-            </div>
-          }
-        />
-        <Tab
-          key="rechazado"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Rechazados</span>
-              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                {counts.rechazado}
-              </span>
-            </div>
-          }
-        />
-        <Tab
-          key="aplicado"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Aplicados</span>
-              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                {counts.aplicado}
-              </span>
-            </div>
-          }
-        />
-      </Tabs>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Search */}
       <div className="relative w-full sm:w-64">
@@ -305,7 +288,7 @@ export default function AjustesPage() {
           placeholder="Buscar ajuste..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -374,7 +357,7 @@ export default function AjustesPage() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleViewAdjustment(adj)}
-                        className="font-mono text-sm font-medium text-brand-600 hover:text-brand-700"
+                        className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                       >
                         {adj.reference || adj.id}
                       </button>
@@ -394,13 +377,13 @@ export default function AjustesPage() {
                       <span
                         className={cn(
                           "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          adj.type === "positivo"
+                          adj.type?.toLowerCase() === "positivo"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-red-100 text-red-700",
                         )}
                       >
-                        {adj.type === "positivo" ? "+" : "-"}{" "}
-                        {adj.type.charAt(0).toUpperCase() + adj.type.slice(1)}
+                        {adj.type?.toLowerCase() === "positivo" ? "+" : "-"}{" "}
+                        {adj.type?.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -410,13 +393,13 @@ export default function AjustesPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="text-sm font-medium text-gray-900">
-                        {adj.totalItems}
+                        {adj.lines?.length || 0} productos
                       </span>
                     </td>
                     {canViewCosts && (
                       <td className="px-4 py-3 text-right">
-                        <span className="font-mono text-sm text-gray-700">
-                          {formatCurrency(adj.totalValue)}
+                        <span className="text-sm font-semibold text-gray-700">
+                          {formatCurrency(Number(adj.totalValue || 0))}
                         </span>
                       </td>
                     )}
@@ -436,81 +419,41 @@ export default function AjustesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm text-gray-600">
-                        {adj.createdBy?.name || "-"}
+                        {adj.createdByUser?.name || "-"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
-                          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownTrigger>
-                        <DropdownMenu
-                          aria-label="Acciones"
-                          classNames={{
-                            base: "bg-white border border-gray-200 shadow-lg",
-                          }}
-                          items={[
-                            {
-                              key: "view",
-                              label: "Ver detalle",
-                              icon: Eye,
-                              action: () => handleViewAdjustment(adj),
-                              show: true,
-                              className: "",
-                              color: undefined as "danger" | undefined,
-                            },
-                            {
-                              key: "approve",
-                              label: "Aprobar",
-                              icon: CheckCircle,
-                              action: () => handleApprove(adj),
-                              show:
-                                canApproveAdjustments &&
-                                adj.status === "pendiente",
-                              className: "text-emerald-600",
-                              color: undefined as "danger" | undefined,
-                            },
-                            {
-                              key: "apply",
-                              label: "Aplicar",
-                              icon: CheckCircle,
-                              action: () => handleApply(adj),
-                              show:
-                                canApproveAdjustments &&
-                                adj.status === "aprobado",
-                              className: "text-blue-600",
-                              color: undefined as "danger" | undefined,
-                            },
-                            {
-                              key: "reject",
-                              label: "Rechazar",
-                              icon: XCircle,
-                              action: () => handleReject(adj),
-                              show:
-                                canApproveAdjustments &&
-                                adj.status === "pendiente",
-                              className: "text-danger",
-                              color: "danger" as "danger" | undefined,
-                            },
-                          ].filter((menuItem) => menuItem.show)}
-                        >
-                          {(menuItem) => (
-                            <DropdownItem
-                              key={menuItem.key}
-                              startContent={
-                                <menuItem.icon className="h-4 w-4" />
-                              }
-                              onPress={menuItem.action}
-                              className={menuItem.className}
-                              color={menuItem.color}
-                            >
-                              {menuItem.label}
-                            </DropdownItem>
-                          )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewAdjustment(adj)} className="flex items-center gap-2">
+                              <Eye className="h-4 w-4" />
+                              Ver detalle
+                            </DropdownMenuItem>
+                            {canApproveAdjustments && (adj.status?.toLowerCase() === 'pendiente' || adj.status === 'PENDING') && (
+                              <DropdownMenuItem onClick={() => handleApprove(adj)} className="flex items-center gap-2 text-emerald-600">
+                                <CheckCircle className="h-4 w-4" />
+                                Aprobar
+                              </DropdownMenuItem>
+                            )}
+                            {canApproveAdjustments && (adj.status?.toLowerCase() === 'aprobado' || adj.status === 'APPROVED') && (
+                              <DropdownMenuItem onClick={() => handleApply(adj)} className="flex items-center gap-2 text-blue-600">
+                                <CheckCircle className="h-4 w-4" />
+                                Aplicar
+                              </DropdownMenuItem>
+                            )}
+                            {canApproveAdjustments && (adj.status?.toLowerCase() === 'pendiente' || adj.status === 'PENDING') && (
+                              <DropdownMenuItem onClick={() => handleReject(adj)} className="flex items-center gap-2 text-red-600">
+                                <XCircle className="h-4 w-4" />
+                                Rechazar
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
                         </DropdownMenu>
-                      </Dropdown>
                     </td>
                   </motion.tr>
                 );
@@ -535,7 +478,7 @@ export default function AjustesPage() {
           {canCreateAdjustments && (
             <button
               onClick={handleNewAdjustment}
-              className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />
               Crear Ajuste
@@ -544,13 +487,135 @@ export default function AjustesPage() {
         </div>
       )}
 
-      {/* Results count */}
-      {!loading && filteredAdjustments.length > 0 && (
-        <div className="text-center text-sm text-gray-500">
-          Mostrando {filteredAdjustments.length} ajuste
-          {filteredAdjustments.length !== 1 ? "s" : ""}
-        </div>
-      )}
+      {/* Detail Modal */}
+      <CustomModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        size="xl"
+      >
+        {selectedAdjustment && (
+          <CustomModalBody className="space-y-6">
+            <CustomModalHeader>
+               Detalle de Ajuste: {selectedAdjustment?.reference || ""}
+            </CustomModalHeader>
+            
+            <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <div className="space-y-1">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Fecha</span>
+                <div className="flex items-center gap-2 text-sm text-gray-700 font-semibold">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                  {formatDate(selectedAdjustment.createdAt)}
+                </div>
+              </div>
+              <div className="space-y-1 text-right">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Bodega</span>
+                <div className="flex items-center gap-2 justify-end text-sm text-gray-700 font-semibold">
+                   <MapPin className="h-4 w-4 text-gray-400" />
+                   {selectedAdjustment.warehouseId?.name || selectedAdjustment.warehouse?.name || "-"}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Motivo</span>
+                <div className="flex items-center gap-2 text-sm text-gray-700 font-semibold">
+                  <Info className="h-4 w-4 text-gray-400" />
+                  {ADJUSTMENT_REASONS[selectedAdjustment.reason as keyof typeof ADJUSTMENT_REASONS] || selectedAdjustment.reason || "Sin motivo"}
+                </div>
+              </div>
+              <div className="space-y-1 text-right">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Realizado por</span>
+                <div className="flex items-center gap-2 justify-end text-sm text-gray-700 font-semibold">
+                  <User className="h-4 w-4 text-gray-400" />
+                  {selectedAdjustment.createdByUser?.name || "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                  <Package className="h-4 w-4 text-blue-500" />
+                  Productos Ajustados
+                </h3>
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                  {selectedAdjustment.lines?.length || 0} Items
+                </span>
+              </div>
+              <div className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50/50 border-b border-gray-200">
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase">Producto</th>
+                      <th className="px-4 py-2.5 text-right text-[11px] font-bold text-gray-500 uppercase">Ajuste</th>
+                      {canViewCosts && (
+                        <th className="px-4 py-2.5 text-right text-[11px] font-bold text-gray-500 uppercase">Valor</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {selectedAdjustment.lines?.map((line: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-gray-900 leading-none mb-1">
+                            {line.product?.description || line.product?.name || "Producto"}
+                          </div>
+                          <div className="text-[10px] font-bold text-blue-500/70 border border-blue-100 bg-blue-50/30 w-fit px-1.5 rounded uppercase">
+                            REF: {line.product?.sku || line.product?.reference || "-"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={cn(
+                            "font-bold text-sm",
+                            selectedAdjustment.type?.toLowerCase() === 'positivo' ? "text-emerald-600" : "text-red-600"
+                          )}>
+                            {selectedAdjustment.type?.toLowerCase() === 'positivo' ? "+" : "-"}
+                            {line.adjustmentQty}
+                          </span>
+                        </td>
+                        {canViewCosts && (
+                          <td className="px-4 py-3 text-right font-bold text-gray-700">
+                            {formatCurrency(Number(line.adjustmentQty) * (Number(line.unitCost) || 0))}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                  {canViewCosts && (
+                    <tfoot className="bg-gray-50/80">
+                      <tr>
+                        <td className="px-4 py-3 font-black text-gray-500 text-xs uppercase text-right" colSpan={2}>Valor Total del Ajuste</td>
+                        <td className="px-4 py-3 text-right font-black text-blue-700 text-base">
+                          {formatCurrency(Number(selectedAdjustment.totalValue || 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            {selectedAdjustment.notes && (
+              <div className="space-y-2 group">
+                <div className="flex items-center gap-2 px-1">
+                   <FileStack className="h-3.5 w-3.5 text-gray-400" />
+                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Observaciones</h3>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-sm text-gray-600 italic leading-relaxed group-hover:border-blue-100 transition-colors">
+                  {selectedAdjustment.notes}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-gray-100">
+              <Button 
+                onClick={() => setIsViewModalOpen(false)}
+                className="bg-gray-900 border-none shadow-xl hover:bg-gray-800 rounded-xl px-8 h-11 font-bold text-sm"
+              >
+                Cerrar
+              </Button>
+            </div>
+          </CustomModalBody>
+        )}
+      </CustomModal>
     </div>
   );
 }

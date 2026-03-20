@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, CardBody, CardHeader, Divider } from '@heroui/react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function SkeletonDashboard() {
@@ -73,8 +73,8 @@ export function SkeletonDashboard() {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 {/* Main Insight Widget */}
                 <div className="lg:col-span-3">
-                    <Card className="border border-border/50 bg-card shadow-sm h-[400px]">
-                        <CardHeader className="p-5 flex items-center gap-4">
+                    <Card className="border border-border/50 bg-card shadow-sm h-[400px] overflow-hidden">
+                        <CardHeader className="p-5 flex flex-row items-center gap-4 space-y-0">
                             <Skeleton className="h-10 w-10 rounded-xl bg-accent/40" />
                             <div className="space-y-2 flex-1">
                                 <Skeleton className="h-5 w-40 rounded-md" />
@@ -85,8 +85,8 @@ export function SkeletonDashboard() {
                                 <Skeleton className="h-8 w-8 rounded-md opacity-50" />
                             </div>
                         </CardHeader>
-                        <Divider className="opacity-50" />
-                        <CardBody className="p-6 flex flex-col justify-between">
+                        <hr className="border-t border-border/50" />
+                        <CardContent className="p-6 flex flex-col justify-between h-[calc(400px-85px)]">
                             <div className="space-y-3">
                                 <Skeleton className="h-9 w-44 rounded-lg" />
                                 <Skeleton className="h-4 w-32 rounded-md opacity-60" />
@@ -100,22 +100,22 @@ export function SkeletonDashboard() {
                                     />
                                 ))}
                             </div>
-                        </CardBody>
+                        </CardContent>
                     </Card>
                 </div>
 
                 {/* Secondary List Widget */}
                 <div className="lg:col-span-2">
-                    <Card className="border border-border/50 bg-card shadow-sm h-[400px]">
-                        <CardHeader className="p-5 flex items-center gap-4">
+                    <Card className="border border-border/50 bg-card shadow-sm h-[400px] overflow-hidden">
+                        <CardHeader className="p-5 flex flex-row items-center gap-4 space-y-0">
                             <Skeleton className="h-10 w-10 rounded-xl bg-accent/40" />
                             <div className="space-y-2">
                                 <Skeleton className="h-5 w-36 rounded-md" />
                                 <Skeleton className="h-3.5 w-56 rounded-md opacity-60" />
                             </div>
                         </CardHeader>
-                        <Divider className="opacity-50" />
-                        <CardBody className="p-5 space-y-6">
+                        <hr className="border-t border-border/50" />
+                        <CardContent className="p-5 space-y-6">
                             {[1, 2, 3, 4, 5].map((i) => (
                                 <div key={i} className="flex items-center gap-4">
                                     <Skeleton className="h-11 w-11 rounded-full shrink-0 bg-accent/30" />
@@ -128,7 +128,7 @@ export function SkeletonDashboard() {
                                     </div>
                                 </div>
                             ))}
-                        </CardBody>
+                        </CardContent>
                     </Card>
                 </div>
             </div>

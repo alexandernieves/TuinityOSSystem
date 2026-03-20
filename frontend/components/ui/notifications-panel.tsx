@@ -254,7 +254,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
                   Notificaciones
                 </span>
                 {unreadCount > 0 && (
-                  <span className="inline rounded-full bg-brand-600 text-white text-xs px-1.5 ml-2">
+                  <span className="inline rounded-full bg-blue-600 text-white text-xs px-1.5 ml-2">
                     {unreadCount}
                   </span>
                 )}
@@ -262,7 +262,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-brand-400 hover:text-brand-300 cursor-pointer transition-colors"
+                  className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer transition-colors"
                 >
                   Marcar todo como leído
                 </button>
@@ -292,7 +292,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
                       {/* Unread dot */}
                       <div className="flex items-start pt-1.5 shrink-0 w-2">
                         {!notification.isRead && (
-                          <span className="h-2 w-2 rounded-full bg-brand-500 shrink-0" />
+                          <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
                         )}
                       </div>
 
@@ -338,7 +338,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
 
             {/* Footer */}
             <div className="px-4 py-2.5 border-t border-[#2a2a2a] text-center shrink-0">
-              <button className="text-xs text-brand-400 hover:text-brand-300 cursor-pointer transition-colors">
+              <button className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer transition-colors">
                 Ver todas las notificaciones
               </button>
             </div>

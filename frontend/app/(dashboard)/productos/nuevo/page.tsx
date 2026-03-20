@@ -5,20 +5,15 @@ import { useRouter } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Package, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { PRODUCT_GROUPS } from "@/lib/mock-data/products";
 import { api } from "@/lib/services/api";
+import { useEffect } from "react";
 
-const MOCK_SUPPLIERS = [
-  { id: "1", name: "GLOBAL BRANDS, S.A." },
-  { id: "2", name: "TRIPLE DOUBLE LIMITED" },
-  { id: "3", name: "DIAGEO PANAMA" },
-  { id: "4", name: "PERNOD RICARD" },
-];
+
 
 const initialFormState = {
   description: "",
   brand: "",
-  group: "",
+  categoryId: "",
   barcode: "",
   reference: "",
   supplier: "",
@@ -37,16 +32,37 @@ export default function NuevoProductoPage() {
   const router = useRouter();
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [cats, sups] = await Promise.all([
+          api.getCategories(),
+          api.getSuppliers()
+        ]);
+        setCategories(cats);
+        setSuppliers(sups);
+      } catch (err) {
+        toast.error("Error al cargar datos");
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleFormChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value };
+      return newData;
+    });
   };
 
   const handleCreateProduct = async () => {
     if (
       !formData.description ||
       !formData.brand ||
-      !formData.group ||
+      !formData.categoryId ||
       !formData.supplier
     ) {
       toast.error("Campos requeridos", {
@@ -56,7 +72,7 @@ export default function NuevoProductoPage() {
     }
 
     const supplierName =
-      MOCK_SUPPLIERS.find((s) => s.id === formData.supplier)?.name ||
+      suppliers.find((s) => s.id === formData.supplier)?.legalName ||
       formData.supplier;
     const newId = `EVL-${String(Date.now()).slice(-5)}`;
 
@@ -64,8 +80,8 @@ export default function NuevoProductoPage() {
       reference: formData.reference || newId, // Default to a generated reference if empty
       description: formData.description,
       brand: formData.brand,
-      group: formData.group,
-      subGroup: formData.group,
+      categoryId: formData.categoryId,
+      subcategoryId: null,
       supplier: supplierName,
       country: "",
       barcode: formData.barcode,
@@ -181,16 +197,16 @@ export default function NuevoProductoPage() {
                       Categoría <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={formData.group}
+                      value={formData.categoryId}
                       onChange={(e) =>
-                        handleFormChange("group", e.target.value)
+                        handleFormChange("categoryId", e.target.value)
                       }
                       className={inputClass}
                       required
                     >
-                      <option value="">Seleccionar</option>
-                      {PRODUCT_GROUPS.map((group) => (
-                        <option key={group.id} value={group.id}>{group.label}</option>
+                      <option value="">Seleccionar Categoría</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
                   </div>
@@ -268,8 +284,8 @@ export default function NuevoProductoPage() {
                     required
                   >
                     <option value="">Seleccionar</option>
-                    {MOCK_SUPPLIERS.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.legalName}</option>
                     ))}
                   </select>
                 </div>
@@ -417,7 +433,7 @@ export default function NuevoProductoPage() {
           <button
             onClick={() => router.back()}
             disabled={loading}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-100 transition-colors"
           >
             Cancelar
           </button>

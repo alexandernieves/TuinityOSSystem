@@ -1086,12 +1086,14 @@ export function updateInvoice(id: string, updates: Partial<Invoice>): void {
  * Format currency
  */
 export function formatCurrency(value: number): string {
-  const safeValue = isNaN(value) || value === null || value === undefined ? 0 : value;
+  if (value === undefined || value === null || isNaN(value)) {
+    return '$0.00';
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
-  }).format(safeValue);
+  }).format(value);
 }
 
 /**
@@ -1248,13 +1250,10 @@ export function getSalesStats(): SalesStats {
     borrador: _salesOrders.filter((o) => o.status === 'borrador').length,
     cotizado: _salesOrders.filter((o) => o.status === 'cotizado').length,
     pedido: _salesOrders.filter((o) => o.status === 'pedido').length,
-    aprobado: _salesOrders.filter((o) => o.status === 'aprobado' || o.status === 'aprobada').length,
-    aprobada: _salesOrders.filter((o) => o.status === 'aprobada').length,
+    aprobado: _salesOrders.filter((o) => o.status === 'aprobado').length,
     empacado: _salesOrders.filter((o) => o.status === 'empacado').length,
-    facturado: _salesOrders.filter((o) => o.status === 'facturado' || o.status === 'facturada').length,
-    facturada: _salesOrders.filter((o) => o.status === 'facturada').length,
-    cancelado: _salesOrders.filter((o) => o.status === 'cancelado' || o.status === 'cancelada').length,
-    cancelada: _salesOrders.filter((o) => o.status === 'cancelada').length,
+    facturado: _salesOrders.filter((o) => o.status === 'facturado').length,
+    cancelado: _salesOrders.filter((o) => o.status === 'cancelado').length,
   };
 
   return {

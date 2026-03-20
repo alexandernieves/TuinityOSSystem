@@ -1,544 +1,222 @@
 'use client';
-
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useStore } from '@/hooks/use-store';
-import { motion } from 'framer-motion';
-import {
-  BarChart3,
-  ChevronRight,
-  Download,
-  Printer,
-  Search,
-  FileSpreadsheet,
-  BookOpen,
-  PieChart,
-  GitCompareArrows,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/services/api';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/contexts/auth-context';
-import { cn } from '@/lib/utils/cn';
-import {
-  getTrialBalance,
-  getLedgerEntries,
-  getMonthlyPLSummaries,
-  MOCK_ACCOUNTS,
-  formatCurrencyAccounting,
-  subscribeAccounts,
-  getAccountsData,
-  subscribeJournalEntries,
-  getJournalEntriesData,
-} from '@/lib/mock-data/accounting';
-import {
-  ACCOUNT_TYPE_LABELS,
-  ACCOUNT_TYPE_COLORS,
-} from '@/lib/types/accounting';
+import { BarChart3, TrendingUp, TrendingDown, Landmark, PieChart, Filter, Calendar } from 'lucide-react';
 
-type ReportType = 'balance_comprobacion' | 'auxiliar_cuenta' | 'analisis_gastos' | 'comparativos';
+const fmt = (n: number) => n?.toLocaleString('es-PA', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }) ?? '$0.00';
 
-const REPORT_CARDS: { key: ReportType; label: string; description: string; icon: typeof FileSpreadsheet }[] = [
-  { key: 'balance_comprobacion', label: 'Balance de Comprobación', description: 'Saldos deudores y acreedores de todas las cuentas', icon: FileSpreadsheet },
-  { key: 'auxiliar_cuenta', label: 'Auxiliar por Cuenta', description: 'Detalle de movimientos por cuenta específica', icon: BookOpen },
-  { key: 'analisis_gastos', label: 'Análisis de Gastos', description: 'Distribución y análisis de gastos operativos', icon: PieChart },
-  { key: 'comparativos', label: 'Comparativos', description: 'Comparación mensual de ingresos y gastos', icon: GitCompareArrows },
-];
+type ReportTab = 'MONTHLY' | 'CHANNEL' | 'CASH_FLOW';
 
-export default function ReportesPage() {
-  const router = useRouter();
-  const { checkPermission } = useAuth();
-  const canViewFinancialStatements = checkPermission('canViewFinancialStatements');
+export default function ReportesContablesPage() {
+    const [tab, setTab] = useState<ReportTab>('MONTHLY');
+    const [loading, setLoading] = useState(true);
+    const [monthlyData, setMonthlyData] = useState<any>(null);
+    const [channelData, setChannelData] = useState<any>(null);
+    const [cashFlowData, setCashFlowData] = useState<any>(null);
+    const [year, setYear] = useState(new Date().getFullYear());
 
-  const accounts = useStore(subscribeAccounts, getAccountsData);
-  useStore(subscribeJournalEntries, getJournalEntriesData);
+    const load = async () => {
+        setLoading(true);
+        try {
+            if (tab === 'MONTHLY') setMonthlyData(await api.getMonthlyComparison(year));
+            if (tab === 'CHANNEL') setChannelData(await api.getChannelComparison());
+            if (tab === 'CASH_FLOW') setCashFlowData(await api.getCashFlowByBank());
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
-  const [accountSearch, setAccountSearch] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+    useEffect(() => { load(); }, [tab, year]);
 
-  const trialBalance = useMemo(() => getTrialBalance(), [accounts]);
-  const totalDebit = trialBalance.reduce((sum, l) => sum + l.debitBalance, 0);
-  const totalCredit = trialBalance.reduce((sum, l) => sum + l.creditBalance, 0);
+    const TABS = [
+        { id: 'MONTHLY', label: 'Comparativo Mensual', icon: BarChart3 },
+        { id: 'CHANNEL', label: 'Análisis por Canal (B2B/B2C)', icon: PieChart },
+        { id: 'CASH_FLOW', label: 'Flujo de Caja por Banco', icon: Landmark },
+    ];
 
-  const plSummaries = useMemo(() => getMonthlyPLSummaries(), []);
-
-  const gastoAccounts = useMemo(
-    () => MOCK_ACCOUNTS.filter((a) => a.type === 'gasto' && a.level === 3 && a.hasMovements),
-    [accounts]
-  );
-  const maxGasto = Math.max(...gastoAccounts.map((a) => a.balance));
-
-  const leafAccounts = useMemo(
-    () => MOCK_ACCOUNTS.filter((a) => a.level === 3 && a.isActive),
-    [accounts]
-  );
-
-  const filteredAccounts = useMemo(() => {
-    if (!accountSearch) return [];
-    const s = accountSearch.toLowerCase();
-    return leafAccounts.filter(
-      (a) => a.code.toLowerCase().includes(s) || a.name.toLowerCase().includes(s)
-    );
-  }, [leafAccounts, accountSearch]);
-
-  const selectedAccount = useMemo(
-    () => MOCK_ACCOUNTS.find((a) => a.id === selectedAccountId),
-    [selectedAccountId, accounts]
-  );
-
-  const ledgerEntries = useMemo(() => {
-    if (!selectedAccountId) return [];
-    let entries = getLedgerEntries(selectedAccountId);
-    if (dateFrom) entries = entries.filter((e) => e.date >= dateFrom);
-    if (dateTo) entries = entries.filter((e) => e.date <= dateTo);
-    return entries;
-  }, [selectedAccountId, dateFrom, dateTo]);
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-PA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-    });
-  };
-
-  const handleExport = () => {
-    toast.success('Exportando reporte', {
-      description: 'El archivo se descargará en breve.',
-    });
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/contabilidad')}
-            className="text-sm text-gray-500 dark:text-[#888888] hover:text-gray-700 dark:hover:text-white"
-          >
-            Contabilidad
-          </button>
-          <ChevronRight className="h-4 w-4 text-gray-400" />
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Reportes Financieros</h1>
-          </div>
-        </div>
-        {selectedReport && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExport}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-            >
-              <Download className="h-4 w-4" />
-              Exportar
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-            >
-              <Printer className="h-4 w-4" />
-              Imprimir
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Report Type Selector */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {REPORT_CARDS.map((report, index) => (
-          <motion.button
-            key={report.key}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            onClick={() => setSelectedReport(report.key)}
-            className={cn(
-              'rounded-xl border p-4 text-left transition-all hover:shadow-md',
-              selectedReport === report.key
-                ? 'border-purple-500 ring-1 ring-purple-500 bg-purple-50 dark:bg-purple-950/20'
-                : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] hover:border-gray-300 dark:hover:border-[#3a3a3a]'
-            )}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div
-                className={cn(
-                  'flex h-10 w-10 items-center justify-center rounded-lg',
-                  selectedReport === report.key
-                    ? 'bg-purple-100 dark:bg-purple-900'
-                    : 'bg-gray-100 dark:bg-[#1a1a1a]'
-                )}
-              >
-                <report.icon
-                  className={cn(
-                    'h-5 w-5',
-                    selectedReport === report.key
-                      ? 'text-purple-600 dark:text-purple-400'
-                      : 'text-gray-500 dark:text-gray-400'
-                  )}
-                />
-              </div>
-            </div>
-            <p
-              className={cn(
-                'text-sm font-semibold',
-                selectedReport === report.key
-                  ? 'text-purple-700 dark:text-purple-300'
-                  : 'text-gray-900 dark:text-white'
-              )}
-            >
-              {report.label}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-[#888888] mt-0.5">{report.description}</p>
-          </motion.button>
-        ))}
-      </div>
-
-      {/* Report Content */}
-      {selectedReport === 'balance_comprobacion' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]"
-        >
-          <div className="border-b border-gray-200 dark:border-[#2a2a2a] p-4 text-center">
-            <p className="text-xs text-gray-500 dark:text-[#888888]">EVOLUTION IMPORTADORA, S.A.</p>
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Balance de Comprobación</h3>
-            <p className="text-xs text-gray-400 dark:text-[#666666]">Al 26 de Febrero, 2026</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Código</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Cuenta</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Tipo</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Saldo Deudor</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Saldo Acreedor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                {trialBalance.map((line) => {
-                  const typeColor = ACCOUNT_TYPE_COLORS[line.accountType];
-                  return (
-                    <tr key={line.accountCode} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
-                      <td className="px-4 py-2.5 font-mono text-sm text-gray-600 dark:text-gray-400">{line.accountCode}</td>
-                      <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-white">{line.accountName}</td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={cn('rounded-md px-2 py-0.5 text-xs font-medium', typeColor.bg, typeColor.text)}>
-                          {ACCOUNT_TYPE_LABELS[line.accountType]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-sm text-gray-900 dark:text-white">
-                        {line.debitBalance > 0 ? formatCurrencyAccounting(line.debitBalance) : ''}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-sm text-gray-900 dark:text-white">
-                        {line.creditBalance > 0 ? formatCurrencyAccounting(line.creditBalance) : ''}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Totals */}
-                <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] font-bold">
-                  <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-white">TOTALES</td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-bold text-gray-900 dark:text-white">
-                    {formatCurrencyAccounting(totalDebit)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-bold text-gray-900 dark:text-white">
-                    {formatCurrencyAccounting(totalCredit)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="border-t border-gray-200 dark:border-[#2a2a2a] px-4 py-2 text-center">
-            <span
-              className={cn(
-                'text-xs font-medium',
-                Math.abs(totalDebit - totalCredit) < 0.01
-                  ? 'text-emerald-600'
-                  : 'text-red-600'
-              )}
-            >
-              {Math.abs(totalDebit - totalCredit) < 0.01
-                ? 'Balance cuadrado - Diferencia: $0.00'
-                : `Diferencia: ${formatCurrencyAccounting(Math.abs(totalDebit - totalCredit))}`}
-            </span>
-          </div>
-        </motion.div>
-      )}
-
-      {selectedReport === 'auxiliar_cuenta' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
-        >
-          {/* Account Selector */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-2 relative">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Cuenta</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar cuenta por código o nombre..."
-                  value={accountSearch}
-                  onChange={(e) => setAccountSearch(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
-              {accountSearch && filteredAccounts.length > 0 && (
-                <div className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] shadow-lg">
-                  {filteredAccounts.map((acc) => (
-                    <button
-                      key={acc.id}
-                      onClick={() => {
-                        setSelectedAccountId(acc.id);
-                        setAccountSearch('');
-                      }}
-                      className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-                    >
-                      <span className="font-mono text-xs text-gray-500 dark:text-[#888888]">{acc.code}</span>
-                      <span className="text-gray-900 dark:text-white">{acc.name}</span>
-                    </button>
-                  ))}
+    return (
+        <div className="p-6 max-w-7xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reportes Financieros Avanzados</h1>
+                    <p className="text-sm text-gray-500">Análisis comparativo, proyecciones y rentabilidad por canal</p>
                 </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Desde</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Hasta</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-700 dark:text-gray-300 focus:border-purple-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Selected Account Info */}
-          {selectedAccount && (
-            <div className="rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a] p-3">
-              <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">{selectedAccount.code}</span>
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{selectedAccount.name}</span>
-              <span
-                className={cn(
-                  'ml-2 rounded-md px-2 py-0.5 text-xs font-medium',
-                  ACCOUNT_TYPE_COLORS[selectedAccount.type].bg,
-                  ACCOUNT_TYPE_COLORS[selectedAccount.type].text
+                {tab === 'MONTHLY' && (
+                    <div className="flex items-center gap-3 bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2 shadow-sm">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <select value={year} onChange={e => setYear(Number(e.target.value))} className="text-sm font-bold bg-transparent focus:outline-none">
+                            <option value={2025}>Año 2025</option>
+                            <option value={2024}>Año 2024</option>
+                        </select>
+                    </div>
                 )}
-              >
-                {ACCOUNT_TYPE_LABELS[selectedAccount.type]}
-              </span>
             </div>
-          )}
 
-          {/* Ledger Table */}
-          {selectedAccountId && ledgerEntries.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Fecha</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Asiento</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Descripción</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Debe</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Haber</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Saldo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                    {ledgerEntries.map((entry, index) => (
-                      <tr key={`${entry.journalEntryId}-${index}`} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
-                        <td className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{formatDate(entry.date)}</td>
-                        <td className="px-4 py-2.5 font-mono text-sm text-purple-600 dark:text-purple-400">{entry.journalEntryId}</td>
-                        <td className="px-4 py-2.5 text-sm text-gray-900 dark:text-white">{entry.description}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-sm text-gray-900 dark:text-white">
-                          {entry.debit > 0 ? formatCurrencyAccounting(entry.debit) : ''}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono text-sm text-gray-900 dark:text-white">
-                          {entry.credit > 0 ? formatCurrencyAccounting(entry.credit) : ''}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrencyAccounting(entry.runningBalance)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            {/* Tabs */}
+            <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl w-fit">
+                {TABS.map(t => (
+                    <button
+                        key={t.id}
+                        onClick={() => setTab(t.id as ReportTab)}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                            tab === t.id ? 'bg-white dark:bg-[#1a1a1a] text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        <t.icon className="w-3.5 h-3.5" /> {t.label}
+                    </button>
+                ))}
             </div>
-          )}
 
-          {selectedAccountId && ledgerEntries.length === 0 && (
-            <div className="rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] p-8 text-center">
-              <p className="text-sm text-gray-500 dark:text-[#888888]">No hay movimientos para esta cuenta en el rango seleccionado</p>
-            </div>
-          )}
-
-          {!selectedAccountId && (
-            <div className="rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] p-12 text-center">
-              <BookOpen className="mx-auto mb-3 h-10 w-10 text-gray-400 dark:text-[#666666]" />
-              <p className="text-sm text-gray-500 dark:text-[#888888]">Selecciona una cuenta para ver sus movimientos</p>
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {selectedReport === 'analisis_gastos' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]"
-        >
-          <div className="border-b border-gray-200 dark:border-[#2a2a2a] p-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Análisis de Gastos Operativos</h3>
-            <p className="text-xs text-gray-500 dark:text-[#888888]">Distribución de gastos del período actual</p>
-          </div>
-          <div className="p-4 space-y-3">
-            {gastoAccounts
-              .sort((a, b) => b.balance - a.balance)
-              .map((account) => {
-                const percentage = (account.balance / gastoAccounts.reduce((s, a) => s + a.balance, 0)) * 100;
-                return (
-                  <div key={account.id} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-gray-500 dark:text-[#888888]">{account.code}</span>
-                        <span className="text-gray-900 dark:text-white">{account.name}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500 dark:text-[#888888]">{percentage.toFixed(1)}%</span>
-                        <span className="font-mono text-sm font-medium text-gray-900 dark:text-white w-24 text-right">
-                          {formatCurrencyAccounting(account.balance)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-3 w-full rounded-full bg-gray-100 dark:bg-[#1a1a1a] overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-amber-500 transition-all"
-                        style={{ width: `${(account.balance / maxGasto) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-          <div className="border-t border-gray-200 dark:border-[#2a2a2a] px-4 py-3 bg-gray-50 dark:bg-[#1a1a1a]">
-            <div className="flex items-center justify-between font-bold">
-              <span className="text-sm text-gray-900 dark:text-white">Total Gastos Operativos</span>
-              <span className="font-mono text-sm text-gray-900 dark:text-white">
-                {formatCurrencyAccounting(gastoAccounts.reduce((s, a) => s + a.balance, 0))}
-              </span>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {selectedReport === 'comparativos' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414]"
-        >
-          <div className="border-b border-gray-200 dark:border-[#2a2a2a] p-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Comparativo Mensual</h3>
-            <p className="text-xs text-gray-500 dark:text-[#888888]">Últimos 6 meses de actividad</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Mes</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Ingresos</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Gastos</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Utilidad Neta</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Margen %</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">Var. vs Anterior</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
-                {plSummaries.map((month, index) => {
-                  const prevMonth = index > 0 ? plSummaries[index - 1] : null;
-                  const variation = prevMonth
-                    ? ((month.netIncome - prevMonth.netIncome) / prevMonth.netIncome) * 100
-                    : 0;
-                  const margin = (month.netIncome / month.revenue) * 100;
-
-                  return (
-                    <tr key={month.month} className="transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]">
-                      <td className="px-4 py-2.5 text-sm font-medium text-gray-900 dark:text-white">{month.monthLabel} {month.month.split('-')[0]}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-sm text-emerald-600">{formatCurrencyAccounting(month.revenue)}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-sm text-red-600">{formatCurrencyAccounting(month.expenses)}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-sm font-semibold text-gray-900 dark:text-white">{formatCurrencyAccounting(month.netIncome)}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-sm text-gray-600 dark:text-gray-400">{margin.toFixed(1)}%</td>
-                      <td className="px-4 py-2.5 text-center">
-                        {index === 0 ? (
-                          <span className="text-xs text-gray-400 dark:text-[#666666]">-</span>
-                        ) : (
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                              variation >= 0
-                                ? 'bg-emerald-500/10 text-emerald-500'
-                                : 'bg-red-500/10 text-red-500'
-                            )}
-                          >
-                            {variation >= 0 ? '+' : ''}{variation.toFixed(1)}%
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#1a1a1a] font-bold">
-                  <td className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-white">PROMEDIO</td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-bold text-emerald-600">
-                    {formatCurrencyAccounting(plSummaries.reduce((s, m) => s + m.revenue, 0) / plSummaries.length)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-bold text-red-600">
-                    {formatCurrencyAccounting(plSummaries.reduce((s, m) => s + m.expenses, 0) / plSummaries.length)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-bold text-gray-900 dark:text-white">
-                    {formatCurrencyAccounting(plSummaries.reduce((s, m) => s + m.netIncome, 0) / plSummaries.length)}
-                  </td>
-                  <td colSpan={2} />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </motion.div>
-      )}
-
-      {/* No report selected */}
-      {!selectedReport && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#141414] py-16">
-          <BarChart3 className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
-          <h3 className="mb-1 text-lg font-medium text-gray-900 dark:text-white">Selecciona un tipo de reporte</h3>
-          <p className="text-sm text-gray-500 dark:text-[#888888]">Haz clic en una de las tarjetas para generar el reporte</p>
+            {loading ? <LoadingState /> : (
+                <div className="mt-4">
+                    {tab === 'MONTHLY' && monthlyData && <MonthlyComparisonView data={monthlyData} />}
+                    {tab === 'CHANNEL' && channelData && <ChannelComparisonView data={channelData} />}
+                    {tab === 'CASH_FLOW' && cashFlowData && <CashFlowByBankView data={cashFlowData} />}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
+}
+
+function LoadingState() {
+    return <div className="p-20 text-center text-gray-400 animate-pulse">Cargando reporte contable...</div>;
+}
+
+function MonthlyComparisonView({ data }: any) {
+    const maxVal = Math.max(...data.months.map((m: any) => m.totalRevenue), 1);
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-sm overflow-x-auto">
+                <h3 className="text-lg font-bold mb-8">Evolución de Ingresos y Gastos — {data.year}</h3>
+                <div className="min-w-[800px] flex items-end gap-6 h-64 border-b border-gray-100 dark:border-white/5 pb-6">
+                    {data.months.map((m: any) => (
+                        <div key={m.month} className="flex-1 space-y-3 group">
+                            <div className="flex items-end gap-1.5 h-full relative">
+                                <div className="flex-1 bg-blue-500 hover:bg-blue-600 rounded-t-lg transition-all" style={{ height: `${(m.totalRevenue/maxVal)*100}%` }}>
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{fmt(m.totalRevenue)}</span>
+                                </div>
+                                <div className="flex-1 bg-red-400 hover:bg-red-500 rounded-t-lg transition-all" style={{ height: `${(m.totalExpenses/maxVal)*100}%` }}>
+                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{fmt(m.totalExpenses)}</span>
+                                </div>
+                            </div>
+                            <p className="text-center text-[10px] font-bold text-gray-400 uppercase">{m.label}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full text-sm text-left">
+                    <thead>
+                        <tr className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10">
+                            <th className="px-6 py-4 font-bold text-gray-500 text-[10px]">Mes</th>
+                            <th className="px-6 py-4 font-bold text-gray-500 text-[10px]">Ingresos</th>
+                            <th className="px-6 py-4 font-bold text-gray-500 text-[10px]">Gastos</th>
+                            <th className="px-6 py-4 font-bold text-gray-500 text-[10px]">Utilidad neta</th>
+                            <th className="px-6 py-4 font-bold text-gray-500 text-[10px]">Margen</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                        {data.months.map((m: any) => (
+                            <tr key={m.month} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <td className="px-6 py-4 font-bold">{m.label}</td>
+                                <td className="px-6 py-4 font-mono">{fmt(m.totalRevenue)}</td>
+                                <td className="px-6 py-4 font-mono">{fmt(m.totalExpenses)}</td>
+                                <td className={`px-6 py-4 font-mono font-bold ${m.netIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fmt(m.netIncome)}</td>
+                                <td className="px-6 py-4">
+                                    <span className="text-gray-500 text-xs font-bold">
+                                        {m.totalRevenue > 0 ? ((m.netIncome/m.totalRevenue)*100).toFixed(1) : 0}%
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function ChannelComparisonView({ data }: any) {
+    const { b2b, b2c, consolidated } = data;
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ChannelCard title="Ventas B2B (Distribución)" data={b2b} color="blue" />
+            <ChannelCard title="Ventas B2C (Tienda / POS)" data={b2c} color="purple" />
+
+            <div className="md:col-span-2 bg-blue-50 dark:bg-blue-900/20 rounded-3xl p-8 border border-blue-100 dark:border-blue-900/30 flex justify-between items-center">
+                <div>
+                    <h3 className="text-xl font-bold text-blue-800 dark:text-blue-300">Punto de Equilibrio</h3>
+                    <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">Estimación basada en margen actual y gastos operativos consolidados.</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-3xl font-black text-blue-900 dark:text-blue-200">{fmt(consolidated.totalExpenses * 1.07)}</p>
+                    <p className="text-xs font-bold text-blue-600 opacity-70 uppercase tracking-widest mt-1">META DE VENTAS RECOMENDADA</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ChannelCard({ title, data, color }: any) {
+    const isBlue = color === 'blue';
+    return (
+        <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-sm space-y-6">
+            <h3 className={`text-lg font-bold ${isBlue ? 'text-blue-600' : 'text-purple-600'}`}>{title}</h3>
+            <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ingresos Brutos</p>
+                    <p className="text-xl font-mono font-bold">{fmt(data.totalRevenue)}</p>
+                </div>
+                <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Utilidad Estimada</p>
+                    <p className={`text-xl font-mono font-bold ${data.netIncome >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmt(data.netIncome)}</p>
+                </div>
+            </div>
+            <div className="h-4 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden flex">
+                 <div className={`${isBlue ? 'bg-blue-500' : 'bg-purple-500'} h-full transition-all`} style={{ width: '100%' }} />
+            </div>
+            <p className="text-xs text-gray-500 font-medium italic">Margen contribución: {data.totalRevenue > 0 ? ((data.netIncome/data.totalRevenue)*100).toFixed(1) : 0}%</p>
+        </div>
+    );
+}
+
+function CashFlowByBankView({ data }: any) {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.banks.map((b: any) => (
+                <div key={b.bank.id} className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg" style={{ backgroundColor: b.bank.color + '20', color: b.bank.color }}>
+                            {b.bank.bankName[0]}
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white leading-tight">{b.bank.name}</h3>
+                            <p className="text-xs text-gray-500">{b.bank.bankName} • {b.bank.accountNumber}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="flex items-center gap-1.5 text-emerald-600 font-bold"><TrendingUp className="w-3.5 h-3.5" /> Entradas</span>
+                            <span className="font-mono font-bold text-gray-900 dark:text-white">{fmt(b.cashIn)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="flex items-center gap-1.5 text-red-500 font-bold"><TrendingDown className="w-3.5 h-3.5" /> Salidas</span>
+                            <span className="font-mono font-bold text-gray-900 dark:text-white">{fmt(b.cashOut)}</span>
+                        </div>
+                        <div className="pt-3 border-t border-gray-100 dark:border-white/5 flex justify-between items-center">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Flujo Neto</span>
+                            <span className={`text-lg font-mono font-black ${b.netFlow >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-500'}`}>{fmt(b.netFlow)}</span>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 }

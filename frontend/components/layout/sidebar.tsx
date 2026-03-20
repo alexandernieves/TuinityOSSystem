@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  ChevronDown,
+  ChevronRight,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -13,29 +15,64 @@ import {
   Store,
   Ship,
   Users,
+  CreditCard,
   Calculator,
   History,
   BarChart3,
+  TrendingUp,
+  RotateCcw,
   Settings,
-  ChevronRight,
+  ChevronRight as ChevronRightIcon,
   LogOut,
   Menu,
   X,
+  Bell,
+  Layers,
 } from 'lucide-react';
-import { Tooltip } from '@heroui/react';
+import {
+  Badge
+} from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from '@/lib/contexts/auth-context';
-import { useSidebar } from '@/lib/contexts/sidebar-context';
+import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils/cn';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 interface NavItem {
   label: string;
-  href: string;
+  href?: string;
   icon: React.ReactNode;
   permission?: string;
   badge?: number;
+  subitems?: NavItem[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -48,6 +85,18 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Productos',
     href: '/productos',
     icon: <Package className="h-5 w-5" />,
+    subitems: [
+      {
+        label: 'Todos los Productos',
+        href: '/productos',
+        icon: <Package className="h-4 w-4" />,
+      },
+      {
+        label: 'Categorías',
+        href: '/productos/categorias',
+        icon: <Layers className="h-4 w-4" />,
+      },
+    ],
   },
   {
     label: 'Compras',
@@ -60,12 +109,44 @@ const NAV_ITEMS: NavItem[] = [
     href: '/inventario',
     icon: <Warehouse className="h-5 w-5" />,
     permission: 'canAccessInventory',
+    subitems: [
+      {
+        label: 'Inventario',
+        href: '/inventario',
+        icon: <Warehouse className="h-4 w-4" />,
+        permission: 'canAccessInventory',
+      },
+      {
+        label: 'Lotes / FEFO',
+        href: '/inventario/lotes',
+        icon: <Package className="h-4 w-4" />,
+        permission: 'canAccessInventory',
+      },
+      {
+        label: 'Kardex / Movs',
+        href: '/inventario/movimientos',
+        icon: <History className="h-4 w-4" />,
+        permission: 'canAccessInventory',
+      },
+    ],
   },
   {
     label: 'Proveedores',
     href: '/proveedores',
     icon: <Briefcase className="h-5 w-5" />,
     permission: 'canAccessCompras',
+    subitems: [
+      {
+        label: 'Todos los Proveedores',
+        href: '/proveedores',
+        icon: <Briefcase className="h-4 w-4" />,
+      },
+      {
+        label: 'CxP',
+        href: '/proveedores/cxp',
+        icon: <CreditCard className="h-4 w-4" />,
+      },
+    ],
   },
   {
     label: 'Ventas B2B',
@@ -73,10 +154,38 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Briefcase className="h-5 w-5" />,
   },
   {
+    label: 'Historial Ventas',
+    href: '/erp/ventas',
+    icon: <History className="h-5 w-5" />,
+  },
+  {
     label: 'Punto de Venta',
-    href: '/ventas/pos',
+    href: '/pos',
     icon: <Store className="h-5 w-5" />,
     permission: 'canAccessPOS',
+  },
+  {
+    label: 'Reportes',
+    href: '/reportes',
+    icon: <BarChart3 className="h-5 w-5" />,
+    permission: 'canViewReports',
+    subitems: [
+      {
+        label: 'Ventas',
+        href: '/reportes/ventas',
+        icon: <TrendingUp className="h-4 w-4" />,
+      },
+      {
+        label: 'Caja POS',
+        href: '/reportes/caja',
+        icon: <RotateCcw className="h-4 w-4" />,
+      },
+      {
+        label: 'Inventario',
+        href: '/reportes/inventario',
+        icon: <Package className="h-4 w-4" />,
+      },
+    ],
   },
   {
     label: 'Tráfico',
@@ -88,6 +197,18 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Clientes',
     href: '/clientes',
     icon: <Users className="h-5 w-5" />,
+    subitems: [
+      {
+        label: 'Todos los Clientes',
+        href: '/clientes',
+        icon: <Users className="h-4 w-4" />,
+      },
+      {
+        label: 'CxC',
+        href: '/clientes/cxc',
+        icon: <CreditCard className="h-4 w-4" />,
+      },
+    ],
   },
   {
     label: 'Contabilidad',
@@ -102,19 +223,20 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'canViewHistorial',
   },
   {
-    label: 'Reportes',
-    href: '/reportes',
-    icon: <BarChart3 className="h-5 w-5" />,
-    permission: 'canViewReports',
+    label: 'Notificaciones',
+    href: '/notificaciones',
+    icon: <Bell className="h-5 w-5" />,
   },
 ];
 
-export function Sidebar() {
+export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, checkPermission } = useAuth();
-  const { isCollapsed, setIsCollapsed, sidebarWidth, isMobile, isMobileOpen, setIsMobileOpen, toggleMobileOpen } = useSidebar();
+  const { state } = useSidebar();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Inventario']);
+  const isCollapsed = state === 'collapsed';
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -123,189 +245,210 @@ export function Sidebar() {
     return pathname.startsWith(href);
   };
 
+  const toggleExpanded = (label: string) => {
+    setExpandedItems(prev => 
+      prev.includes(label) 
+        ? prev.filter(item => item !== label)
+        : [...prev, label]
+    );
+  };
+
+  const isExpanded = (label: string) => {
+    return expandedItems.includes(label);
+  };
+
   const filteredNavItems = NAV_ITEMS.filter(
     (item) => !item.permission || checkPermission(item.permission as any)
   );
 
   const handleNavClick = () => {
-    if (isMobile) {
-      setIsMobileOpen(false);
-    }
+    // Navigation handling is now managed by shadcn sidebar
   };
 
   const handleLogoutClick = () => {
     setIsLogoutModalOpen(true);
-    if (isMobile) {
-      setIsMobileOpen(false);
-    }
   };
 
   const confirmLogout = async () => {
     setIsLogoutModalOpen(false);
 
-    toast.promise(logout(), {
-      loading: 'Cerrando sesión...',
-      success: 'Sesión cerrada con éxito',
-      error: 'Error al cerrar sesión',
-    });
+    try {
+      await logout();
+      toast.success('Sesión cerrada con éxito');
+    } catch {
+      toast.error('Error al cerrar sesión');
+    }
   };
 
-  // On mobile, show sidebar as overlay when isMobileOpen
-  // On desktop, show normally with animated width
-  const showExpanded = isMobile ? true : !isCollapsed;
-
-  const sidebarContent = (
-    <aside
-      className="w-[260px] min-w-[260px] bg-[#ebebeb] text-[#303030] flex flex-col h-full select-none relative"
-      style={{ borderTopLeftRadius: '16px', overflow: 'hidden' }}
-    >
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto pl-6 pr-6 pt-6 pb-2 relative">
-        <ul className="space-y-1">
-          {filteredNavItems.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={handleNavClick}
-                  className={cn(
-                    'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
-                    active
-                      ? 'bg-[#f7f7f7] text-[#1a1a1a]'
-                      : 'text-[#303030] hover:bg-[#e0e0e0]'
-                  )}
-                >
-                  <span className={cn(
-                    "shrink-0 transition-opacity",
-                    active ? "opacity-100" : "opacity-70"
-                  )}>
-                    {item.label === 'Dashboard' ? <LayoutDashboard size={17} strokeWidth={1.5} /> :
-                      item.label === 'Productos' ? <Package size={17} strokeWidth={1.5} /> :
-                        item.label === 'Compras' ? <ShoppingCart size={17} strokeWidth={1.5} /> :
-                          item.label === 'Inventario' ? <Warehouse size={17} strokeWidth={1.5} /> :
-                            item.label === 'Proveedores' ? <Briefcase size={17} strokeWidth={1.5} /> :
-                              item.label === 'Ventas B2B' ? <Briefcase size={17} strokeWidth={1.5} /> :
-                                item.label === 'Punto de Venta' ? <Store size={17} strokeWidth={1.5} /> :
-                                  item.label === 'Tráfico' ? <Ship size={17} strokeWidth={1.5} /> :
-                                    item.label === 'Clientes' ? <Users size={17} strokeWidth={1.5} /> :
-                                      item.label === 'Contabilidad' ? <Calculator size={17} strokeWidth={1.5} /> :
-                                        item.label === 'Historial' ? <History size={17} strokeWidth={1.5} /> :
-                                          item.label === 'Reportes' ? <BarChart3 size={17} strokeWidth={1.5} /> :
-                                            item.icon}
-                  </span>
-                  <span className="flex-1 text-left truncate">{item.label}</span>
-                  {item.badge && (
-                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#008060] px-1 text-[10px] font-bold text-white">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      {/* Bottom Section */}
-      <div className="p-4 border-t border-[#dcdcdc]">
-        <Link
-          href="/configuracion"
-          onClick={handleNavClick}
-          className={cn(
-            'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
-            isActive('/configuracion') ? 'bg-[#f7f7f7] text-[#1a1a1a]' : 'text-[#303030] hover:bg-[#e0e0e0]'
-          )}
-        >
-          <Settings size={17} strokeWidth={1.5} className="opacity-70" />
-          <span>Configuración</span>
-        </Link>
-        <button
-          onClick={handleLogoutClick}
-          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[13px] font-medium transition-colors text-[#303030] hover:bg-[#e0e0e0] mt-1"
-        >
-          <LogOut size={17} strokeWidth={1.5} className="opacity-70" />
-          <span>Cerrar sesión</span>
-        </button>
-      </div>
-    </aside>
-  );
-
   const logoutModal = (
-    <CustomModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)}>
-      <CustomModalHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
-            <LogOut className="h-5 w-5" />
+    <AlertDialog open={isLogoutModalOpen} onOpenChange={setIsLogoutModalOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+              <LogOut className="h-5 w-5" />
+            </div>
+            <div>
+              <AlertDialogTitle>Cerrar Sesión</AlertDialogTitle>
+              <AlertDialogDescription>
+                ¿Estás seguro que deseas salir? No recibirás más notificaciones hasta que vuelvas a entrar.
+              </AlertDialogDescription>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-text-primary">Cerrar Sesión</h3>
-            <p className="text-sm text-text-muted">¿Estás seguro que deseas salir?</p>
-          </div>
-        </div>
-      </CustomModalHeader>
-      <CustomModalBody>
-        <p className="text-sm text-text-secondary py-2">
-          No recibirás más notificaciones en el sistema hasta que vuelvas a iniciar sesión.
-        </p>
-      </CustomModalBody>
-      <CustomModalFooter>
-        <Button
-          variant="ghost"
-          onClick={() => setIsLogoutModalOpen(false)}
-          className="h-10 px-6 font-semibold"
-        >
-          Cancelar
-        </Button>
-        <Button
-          onClick={confirmLogout}
-          className="h-10 px-6 font-semibold bg-danger hover:bg-danger/90 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
-        >
-          Sí, cerrar sesión
-        </Button>
-      </CustomModalFooter>
-    </CustomModal>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={confirmLogout}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Sí, cerrar sesión
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 
-  // Mobile: show as overlay with backdrop
-  if (isMobile) {
-    return (
-      <>
-        <AnimatePresence>
-          {isMobileOpen && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-                onClick={() => setIsMobileOpen(false)}
-              />
-              {/* Sidebar panel */}
-              <motion.div
-                initial={{ x: -260 }}
-                animate={{ x: 0 }}
-                exit={{ x: -260 }}
-                transition={{ duration: 0.2, ease: 'easeInOut' }}
-                className="fixed left-0 top-0 z-50 h-full"
-              >
-                {sidebarContent}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-        {logoutModal}
-      </>
-    );
-  }
-
-  // Desktop: sidebar is a flex item in layout.tsx
   return (
     <>
-      {sidebarContent}
+      <Sidebar collapsible="icon" variant="sidebar">
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredNavItems.map((item) => {
+                  const active = item.href ? isActive(item.href) : false;
+                  const hasSubitems = item.subitems && item.subitems.length > 0;
+                  const expanded = isExpanded(item.label);
+                  
+                  if (hasSubitems && !isCollapsed) {
+                    return (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton
+                          isActive={active}
+                          tooltip={item.label}
+                          onClick={() => toggleExpanded(item.label)}
+                        >
+                          {item.label === 'Dashboard' ? <LayoutDashboard size={17} strokeWidth={1.5} /> :
+                            item.label === 'Productos' ? <Package size={17} strokeWidth={1.5} /> :
+                              item.label === 'Compras' ? <ShoppingCart size={17} strokeWidth={1.5} /> :
+                                item.label === 'Inventario' ? <Warehouse size={17} strokeWidth={1.5} /> :
+                                  item.label === 'Proveedores' ? <Briefcase size={17} strokeWidth={1.5} /> :
+                                    item.label === 'Ventas B2B' ? <Briefcase size={17} strokeWidth={1.5} /> :
+                                      item.label === 'Punto de Venta' ? <Store size={17} strokeWidth={1.5} /> :
+                                        item.label === 'Tráfico' ? <Ship size={17} strokeWidth={1.5} /> :
+                                          item.label === 'Clientes' ? <Users size={17} strokeWidth={1.5} /> :
+                                            item.label === 'Contabilidad' ? <Calculator size={17} strokeWidth={1.5} /> :
+                                              item.label === 'Historial' ? <History size={17} strokeWidth={1.5} /> :
+                                                item.label === 'Reportes' ? <BarChart3 size={17} strokeWidth={1.5} /> :
+                                                  item.icon}
+                          <span>{item.label}</span>
+                          {item.badge && (
+                            <Badge className="ml-auto flex h-5 w-5 items-center justify-center p-0 text-[10px]" variant="success">
+                              {item.badge}
+                            </Badge>
+                          )}
+                          <ChevronDown className={cn(
+                            "ml-auto h-4 w-4 transition-transform",
+                            expanded && "rotate-180"
+                          )} />
+                        </SidebarMenuButton>
+                        <AnimatePresence>
+                          {expanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="ml-4 mt-1 space-y-1">
+                                {item.subitems?.filter(subitem => 
+                                  !subitem.permission || checkPermission(subitem.permission as any)
+                                ).map((subitem) => {
+                                  const subActive = subitem.href ? isActive(subitem.href) : false;
+                                  return (
+                                    <div key={subitem.href} className="group/menu-item relative">
+                                      <SidebarMenuButton
+                                        asChild
+                                        isActive={subActive}
+                                        tooltip={subitem.label}
+                                      >
+                                        <Link href={subitem.href || '#'} className="pl-4">
+                                          {subitem.icon}
+                                          <span className="text-sm">{subitem.label}</span>
+                                        </Link>
+                                      </SidebarMenuButton>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </SidebarMenuItem>
+                    );
+                  }
+                  
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        tooltip={item.label}
+                      >
+                        <Link href={item.href || '#'}>
+                          {item.label === 'Dashboard' ? <LayoutDashboard size={17} strokeWidth={1.5} /> :
+                            item.label === 'Productos' ? <Package size={17} strokeWidth={1.5} /> :
+                              item.label === 'Compras' ? <ShoppingCart size={17} strokeWidth={1.5} /> :
+                                item.label === 'Inventario' ? <Warehouse size={17} strokeWidth={1.5} /> :
+                                  item.label === 'Proveedores' ? <Briefcase size={17} strokeWidth={1.5} /> :
+                                    item.label === 'Ventas B2B' ? <Briefcase size={17} strokeWidth={1.5} /> :
+                                      item.label === 'Punto de Venta' ? <Store size={17} strokeWidth={1.5} /> :
+                                        item.label === 'Tráfico' ? <Ship size={17} strokeWidth={1.5} /> :
+                                          item.label === 'Clientes' ? <Users size={17} strokeWidth={1.5} /> :
+                                            item.label === 'Contabilidad' ? <Calculator size={17} strokeWidth={1.5} /> :
+                                              item.label === 'Historial' ? <History size={17} strokeWidth={1.5} /> :
+                                                item.label === 'Reportes' ? <BarChart3 size={17} strokeWidth={1.5} /> :
+                                                  item.icon}
+                          <span>{item.label}</span>
+                          {item.badge && (
+                            <Badge className="ml-auto flex h-5 w-5 items-center justify-center p-0 text-[10px]" variant="success">
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            {checkPermission('canAccessConfiguracion') && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/configuracion')}>
+                  <Link href="/configuracion">
+                    <Settings size={18} strokeWidth={1.5} />
+                    <span>Configuración</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleLogoutClick}>
+                <LogOut size={17} strokeWidth={1.5} />
+                <span>Cerrar sesión</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
       {logoutModal}
     </>
   );
+
 }

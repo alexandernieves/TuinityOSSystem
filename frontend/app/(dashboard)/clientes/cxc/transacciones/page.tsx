@@ -4,11 +4,14 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
 import {
-  Button,
   Select,
+  SelectContent,
   SelectItem,
-} from '@heroui/react';
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Search,
@@ -72,7 +75,7 @@ export default function TransaccionesPage() {
         <Ban className="mb-4 h-12 w-12 text-gray-400 dark:text-[#666666]" />
         <h2 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Acceso restringido</h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-[#888888]">No tienes permisos para ver transacciones CxC.</p>
-        <Button color="primary" onPress={() => router.push('/clientes/cxc')} className="bg-brand-700">
+        <Button onClick={() => router.push('/clientes/cxc')} className="bg-blue-700 hover:bg-blue-800 text-white">
           Volver a CxC
         </Button>
       </div>
@@ -88,24 +91,27 @@ export default function TransaccionesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => router.push('/clientes/cxc')}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
+            className="h-9 w-9"
           >
             <ArrowLeft className="h-4 w-4" />
-          </button>
+          </Button>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Consulta de Transacciones</h1>
             <p className="text-sm text-gray-500 dark:text-[#888888]">Historial de movimientos de cuentas por cobrar</p>
           </div>
         </div>
-        <button
+        <Button
+          variant="outline"
           onClick={() => toast.info('Exportar', { description: 'La funcion de exportacion estara disponible proximamente.' })}
-          className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] px-3 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+          className="flex h-9 items-center gap-2"
         >
           <Download className="h-4 w-4" />
           Exportar
-        </button>
+        </Button>
       </div>
 
       {/* Filters Bar */}
@@ -119,24 +125,23 @@ export default function TransaccionesPage() {
               placeholder="Cliente, documento..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
         <div className="w-48">
           <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-[#888888]">Tipo</label>
-          <Select
-            placeholder="Todos"
-            variant="bordered"
-            size="sm"
-            selectedKeys={[typeFilter]}
-            onSelectionChange={(keys) => setTypeFilter(Array.from(keys)[0] as string)}
-          >
-            <SelectItem key="all">Todos</SelectItem>
-            <SelectItem key="factura">Factura</SelectItem>
-            <SelectItem key="cobro">Cobro</SelectItem>
-            <SelectItem key="nota_credito">Nota de Credito</SelectItem>
-            <SelectItem key="anulacion">Anulacion</SelectItem>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="factura">Factura</SelectItem>
+              <SelectItem value="cobro">Cobro</SelectItem>
+              <SelectItem value="nota_credito">Nota de Credito</SelectItem>
+              <SelectItem value="anulacion">Anulacion</SelectItem>
+            </SelectContent>
           </Select>
         </div>
         <div className="w-40">
@@ -145,7 +150,7 @@ export default function TransaccionesPage() {
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <div className="w-40">
@@ -154,7 +159,7 @@ export default function TransaccionesPage() {
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] px-3 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       </div>

@@ -2,17 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ClipboardList, Plus, Trash2, Package, Loader2 } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Plus, Trash2, Package, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { api } from '@/lib/services/api';
 import type { PurchaseOrder, PurchaseOrderLine } from '@/lib/types/purchase-order';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+  CustomModal,
+  CustomModalHeader,
+  CustomModalBody,
+  CustomModalFooter,
+} from "@/components/ui/custom-modal";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import { cn } from "@/lib/utils/cn";
 
 const initialOrderForm = {
   supplierId: '',
   bodegaId: '',
   supplierInvoice: '',
-  expectedArrivalDate: '',
+  expectedArrivalDate: null as Date | null,
   notes: '',
 };
 
@@ -30,12 +39,39 @@ export default function NuevaCompraPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Product search modal
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+
   // Form state
   const [orderFormData, setOrderFormData] = useState(initialOrderForm);
   const [orderLines, setOrderLines] = useState<PurchaseOrderLine[]>([]);
-  const [newLineProduct, setNewLineProduct] = useState('');
-  const [newLineQty, setNewLineQty] = useState('');
-  const [newLineCost, setNewLineCost] = useState('');
+
+  // Filter products for search
+  const filteredProducts = products.filter((p) => {
+    if (!productSearch) return true;
+    const searchLower = productSearch.toLowerCase();
+    return (
+      p.description.toLowerCase().includes(searchLower) ||
+      p.reference.toLowerCase().includes(searchLower) ||
+      p.barcode?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems: searchTotalItems,
+    rowsPerPage,
+    paginatedData: paginatedProducts,
+    handlePageChange,
+    handleRowsPerPageChange,
+  } = usePagination(filteredProducts, 10);
+
+  // Reset page when search changes
+  useEffect(() => {
+    handlePageChange(1);
+  }, [productSearch]);
 
   useEffect(() => {
     loadData();
@@ -59,37 +95,49 @@ export default function NuevaCompraPage() {
     }
   };
 
-  const handleFormChange = (field: string, value: string) => {
+  const handleFormChange = (field: string, value: any) => {
     setOrderFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddLine = () => {
-    if (!newLineProduct || !newLineQty) {
-      toast.error('Selecciona un producto y cantidad');
-      return;
-    }
-
-    const product = products.find((p) => p.id === newLineProduct);
+  const handleAddProduct = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
     if (!product) return;
 
-    const qty = parseInt(newLineQty);
-    const cost = parseFloat(newLineCost) || product.costFOB;
+    // Check if already added
+    if (orderLines.some((l) => l.productId === productId)) {
+      toast.error('Producto duplicado', {
+        description: 'Este producto ya está en la lista',
+      });
+      return;
+    }
 
     const newLine: PurchaseOrderLine = {
       id: `line-${Date.now()}`,
       productId: product.id,
       productReference: product.reference,
       productDescription: product.description,
-      quantity: qty,
+      quantity: 1,
       quantityReceived: 0,
-      unitCostFOB: cost,
-      totalFOB: qty * cost,
+      unitCostFOB: product.costFOB || 0,
+      totalFOB: product.costFOB || 0,
     };
 
     setOrderLines([...orderLines, newLine]);
-    setNewLineProduct('');
-    setNewLineQty('');
-    setNewLineCost('');
+    setIsSearchOpen(false);
+    setProductSearch("");
+  };
+
+  const handleUpdateLine = (lineId: string, field: keyof PurchaseOrderLine, value: any) => {
+    setOrderLines(prev => prev.map(line => {
+      if (line.id === lineId) {
+        const updatedLine = { ...line, [field]: value };
+        if (field === 'quantity' || field === 'unitCostFOB') {
+          updatedLine.totalFOB = updatedLine.quantity * updatedLine.unitCostFOB;
+        }
+        return updatedLine;
+      }
+      return line;
+    }));
   };
 
   const handleRemoveLine = (lineId: string) => {
@@ -233,11 +281,10 @@ export default function NuevaCompraPage() {
               </div>
               <div>
                 <label className={labelClass} style={labelStyle}>Llegada estimada</label>
-                <input
-                  type="date"
-                  value={orderFormData.expectedArrivalDate}
-                  onChange={(e) => handleFormChange('expectedArrivalDate', e.target.value)}
-                  className={inputClass}
+                <DatePicker
+                  date={orderFormData.expectedArrivalDate || undefined}
+                  setDate={(date) => handleFormChange('expectedArrivalDate', date)}
+                  placeholder="Seleccionar fecha de llegada"
                 />
               </div>
             </div>
@@ -255,55 +302,14 @@ export default function NuevaCompraPage() {
 
             {/* Products Section */}
             <div className="border-t border-gray-200 dark:border-[#2a2a2a] pt-6">
-              <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Productos</h3>
-
-              {/* Add Product Row */}
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
-                  <label className={labelClass} style={labelStyle}>Producto</label>
-                  <select
-                    value={newLineProduct}
-                    onChange={(e) => setNewLineProduct(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Seleccionar producto...</option>
-                    {products.slice(0, 50).map((product: any) => (
-                      <option key={product.id} value={product.id}>
-                        {product.description} - {product.reference}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="w-24">
-                  <label className={labelClass} style={labelStyle}>Cant.</label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={newLineQty}
-                    onChange={(e) => setNewLineQty(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                {canViewCosts && (
-                  <div className="w-28">
-                    <label className={labelClass} style={labelStyle}>Costo</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#8c9196]">$</span>
-                      <input
-                        type="number"
-                        placeholder="0.00"
-                        value={newLineCost}
-                        onChange={(e) => setNewLineCost(e.target.value)}
-                        className={inputClass + " pl-6"}
-                      />
-                    </div>
-                  </div>
-                )}
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Productos</h3>
                 <button
-                  onClick={handleAddLine}
-                  className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#008060] text-white shadow-[0_1px_0_rgba(0,0,0,0.1)] hover:bg-[#006e52] transition-colors"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-[#2a2a2a] px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 transition-all hover:bg-gray-200 dark:hover:bg-[#333]"
                 >
                   <Plus className="h-4 w-4" />
+                  Agregar Producto
                 </button>
               </div>
 
@@ -334,12 +340,24 @@ export default function NuevaCompraPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">{line.quantity}</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={line.quantity.toString()}
+                              onChange={(e) => handleUpdateLine(line.id, 'quantity', parseInt(e.target.value) || 0)}
+                              className={cn(inputClass, "w-20 ml-auto text-right")}
+                            />
                           </td>
                           {canViewCosts && (
                             <>
                               <td className="px-4 py-3 text-right">
-                                <span className="font-mono text-sm text-gray-600 dark:text-gray-400">{formatCurrency(line.unitCostFOB)}</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={line.unitCostFOB.toString()}
+                                  onChange={(e) => handleUpdateLine(line.id, 'unitCostFOB', parseFloat(e.target.value) || 0)}
+                                  className={cn(inputClass, "w-24 ml-auto text-right font-mono")}
+                                />
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(line.totalFOB)}</span>
@@ -404,6 +422,83 @@ export default function NuevaCompraPage() {
           </button>
         </div>
       </div>
+
+      {/* Product Search Modal */}
+      <CustomModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        size="xl"
+        scrollable
+      >
+        <CustomModalHeader onClose={() => setIsSearchOpen(false)}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950">
+              <Search className="h-5 w-5 text-[#008060]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Buscar Producto
+              </h2>
+            </div>
+          </div>
+        </CustomModalHeader>
+        <CustomModalBody className="space-y-4 pb-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              placeholder="Buscar por nombre, referencia o código de barras..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className={cn(inputClass, "pl-10")}
+            />
+          </div>
+          <div className="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
+            {paginatedProducts.map((product) => (
+              <button
+                key={product.id}
+                onClick={() => handleAddProduct(product.id)}
+                className="flex w-full items-center gap-3 rounded-lg border border-gray-200 dark:border-[#2a2a2a] p-3 text-left transition-all hover:border-[#008060] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 group"
+              >
+                <div className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 dark:bg-[#2a2a2a]" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#008060] transition-colors">
+                    {product.description}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-[#888888]">
+                    {product.reference} • Stock: {product.stock?.existence || 0}
+                  </p>
+                </div>
+                <Plus className="h-4 w-4 text-gray-400 group-hover:text-[#008060]" />
+              </button>
+            ))}
+            {paginatedProducts.length === 0 && (
+              <div className="py-12 text-center text-sm text-gray-500 dark:text-[#888888]">
+                <Package className="mx-auto h-8 w-8 mb-2 opacity-20" />
+                No se encontraron productos
+              </div>
+            )}
+          </div>
+        </CustomModalBody>
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1a1a1a]">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={searchTotalItems}
+            rowsPerPage={rowsPerPage}
+            onPageChange={handlePageChange}
+            onRowsPerPageChange={handleRowsPerPageChange}
+            itemName="productos"
+          />
+        </div>
+        <CustomModalFooter>
+          <button
+            onClick={() => setIsSearchOpen(false)}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+          >
+            Cerrar
+          </button>
+        </CustomModalFooter>
+      </CustomModal>
     </div>
   );
 }

@@ -1,21 +1,27 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Payment, PaymentDocument } from './schemas/payment.schema';
+import { PrismaService } from '../services/shared/prisma.service';
 import { ClientsService } from '../clients/clients.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { AccountingService } from '../accounting/accounting.service';
+import { AccountsReceivableService } from '../services/accounts-receivable/accounts-receivable.service';
+import { AccountsPayableService } from '../services/accounts-payable/accounts-payable.service';
+import { AccountsReceivableEntryType, AccountsPayableEntryType } from '@prisma/client';
+
+import { CommissionsService } from '../sales/commissions.service';
 
 @Injectable()
 export class PaymentsService {
     constructor(
-        @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
+        private prisma: PrismaService,
         @Inject(forwardRef(() => ClientsService)) private clientsService: ClientsService,
         @Inject(forwardRef(() => SuppliersService)) private suppliersService: SuppliersService,
         private accountingService: AccountingService,
+        private arService: AccountsReceivableService,
+        private apService: AccountsPayableService,
+        @Inject(forwardRef(() => CommissionsService)) private commissionsService: CommissionsService
     ) { }
 
-    async create(createPaymentDto: any): Promise<PaymentDocument> {
+    async create(createPaymentDto: any): Promise<any> {
         const { type, entityType, entityId, amount } = createPaymentDto;
 
         // Validación Básica
@@ -32,103 +38,145 @@ export class PaymentsService {
         }
 
         // 1. Guardar Pago
-        const newPayment = new this.paymentModel(createPaymentDto);
-        const savedPayment = await newPayment.save();
+        let savedPayment: any;
+        if (type === 'inbound') {
+            const count = await this.prisma.receipt.count();
+            savedPayment = await this.prisma.receipt.create({
+                data: {
+                    number: `REC-${Date.now()}-${count + 1}`,
+                    customerId: entityId,
+                    receiptDate: createPaymentDto.date || new Date(),
+                    method: 'CASH', // Default for now
+                    status: 'CONFIRMED',
+                    amount: amount,
+                    notes: createPaymentDto.notes,
+                    createdByUserId: createPaymentDto.createdBy
+                }
+            });
+        } else {
+            const count = await this.prisma.vendorPayment.count();
+            savedPayment = await this.prisma.vendorPayment.create({
+                data: {
+                    number: `PAG-${Date.now()}-${count + 1}`,
+                    supplierId: entityId,
+                    paymentDate: createPaymentDto.date || new Date(),
+                    method: 'BANK_TRANSFER',
+                    status: 'CONFIRMED',
+                    amount: amount,
+                    notes: createPaymentDto.notes,
+                    createdByUserId: createPaymentDto.createdBy
+                }
+            });
+        }
 
         // 2. Afectar Saldo de la Entidad
         try {
             if (entityType === 'client') {
-                // Un pago de cliente (inbound) disminuye su deuda (balance).
                 await this.clientsService.updateBalance(entityId, -amount);
+                
+                // Create AR entry
+                await this.arService.createAccountsReceivableEntry({
+                    customerId: entityId,
+                    receiptId: savedPayment.id,
+                    entryType: AccountsReceivableEntryType.PAYMENT,
+                    amount: amount,
+                    notes: createPaymentDto.notes || `Recibo ${savedPayment.number}`,
+                    createdByUserId: createPaymentDto.createdBy
+                });
+
             } else if (entityType === 'supplier') {
-                // Un pago a proveedor (outbound) disminuye nuestra deuda (balance).
                 await this.suppliersService.updateBalance(entityId, -amount);
+
+                // Create AP entry
+                await this.apService.createAccountsPayableEntry({
+                    supplierId: entityId,
+                    paymentId: savedPayment.id,
+                    entryType: AccountsPayableEntryType.PAYMENT,
+                    amount: amount,
+                    notes: createPaymentDto.notes || `Pago a Proveedor ${savedPayment.number}`,
+                    createdByUserId: createPaymentDto.createdBy
+                });
             }
         } catch (error) {
-            // Fallback or compensación (opcional en un MVP, pero ideal en prod)
             console.error('Error al actualizar el balance de la entidad:', error);
         }
 
         // 3. Generar Asiento Contable Automático
-        await this.createAccountingEntryForPayment(savedPayment);
+        this.createAccountingEntryForPayment(savedPayment, type, amount, entityId, createPaymentDto.createdBy).catch(err => {
+            console.error('Error creating accounting entry for payment:', err);
+        });
 
-        return savedPayment;
+        return { ...savedPayment, _id: savedPayment.id };
     }
 
-    private async createAccountingEntryForPayment(payment: PaymentDocument) {
+    private async createAccountingEntryForPayment(payment: any, type: 'inbound' | 'outbound', amount: number, entityId: string, userId?: string) {
         try {
-            const accounts = await this.accountingService.findAllAccounts();
-            const caja = accounts.find(a => a.code === '1010.01');
-            const cxc = accounts.find(a => a.code === '1020.01');
-            const cxp = accounts.find(a => a.code === '2010.01');
-
-            if (!caja) return;
-
-            const lines: any[] = [];
-            if (payment.type === 'inbound' && cxc) {
-                // Cobro a Cliente: Caja (D) / CxC (C)
-                lines.push({
-                    accountId: caja._id,
-                    accountCode: caja.code,
-                    accountName: caja.name,
-                    debit: payment.amount,
-                    credit: 0,
-                    memo: `Recibo de Caja ${payment._id}`
+            if (type === 'inbound') {
+                // Cobro cliente: Banco (Dr) vs CxC (Cr)
+                await this.accountingService.generateAutoEntry({
+                    operationType: 'B2B_COLLECTION',
+                    referenceId: payment.id,
+                    amount,
+                    memo: `Cobro Cliente - Recibo ${payment.number}`,
+                    userId
                 });
-                lines.push({
-                    accountId: cxc._id,
-                    accountCode: cxc.code,
-                    accountName: cxc.name,
-                    debit: 0,
-                    credit: payment.amount,
-                    memo: `Abono de cliente - Ref: ${payment._id}`
-                });
-            } else if (payment.type === 'outbound' && cxp) {
-                // Pago a Proveedor: CxP (D) / Caja (C)
-                lines.push({
-                    accountId: cxp._id,
-                    accountCode: cxp.code,
-                    accountName: cxp.name,
-                    debit: payment.amount,
-                    credit: 0,
-                    memo: `Pago a proveedor - Ref: ${payment._id}`
-                });
-                lines.push({
-                    accountId: caja._id,
-                    accountCode: caja.code,
-                    accountName: caja.name,
-                    debit: 0,
-                    credit: payment.amount,
-                    memo: `Egreso de caja ${payment._id}`
-                });
-            }
-
-            if (lines.length === 2) {
-                await this.accountingService.createEntry({
-                    date: payment.date || new Date(),
-                    description: `Pago ${payment.type === 'inbound' ? 'Recibido' : 'Emitido'} - Ref: ${payment._id}`,
-                    sourceType: 'payment',
-                    sourceId: payment._id.toString(),
-                    lines
+            } else {
+                // Pago proveedor: CxP (Dr) vs Banco (Cr)
+                await this.accountingService.generateAutoEntry({
+                    operationType: 'SUPPLIER_PAYMENT',
+                    referenceId: payment.id,
+                    amount,
+                    memo: `Pago Proveedor - ${payment.number}`,
+                    userId
                 });
             }
         } catch (e) {
-            console.error('Error automatically creating accounting entry for payment:', e);
+            console.error('Error generating accounting entry for payment:', e);
         }
     }
 
-    async findAll(filters: any = {}): Promise<PaymentDocument[]> {
-        const query: any = {};
-        if (filters.type) query.type = filters.type;
-        if (filters.entityType) query.entityType = filters.entityType;
-        if (filters.entityId) query.entityId = filters.entityId;
-
-        return this.paymentModel.find(query).sort({ date: -1, createdAt: -1 }).exec();
+    async applyReceipt(receiptId: string, invoiceId: string, amount: number, userId: string): Promise<any> {
+        const result = await this.arService.processReceiptApplication(receiptId, invoiceId, amount, userId);
+        
+        // Recalculate commissions after applying payment
+        this.commissionsService.recalculateEligibleCommission(invoiceId).catch(err => {
+            console.error('Error recalculating commission post-payment', err);
+        });
+        
+        return result;
     }
 
-    async findOne(id: string): Promise<PaymentDocument> {
-        const payment = await this.paymentModel.findById(id).exec();
+    async applyVendorPayment(paymentId: string, purchaseOrderId: string, amount: number, userId: string): Promise<any> {
+        return this.apService.processPaymentApplication(paymentId, purchaseOrderId, amount, userId);
+    }
+
+    async findAll(filters: any = {}): Promise<any[]> {
+        if (filters.type === 'inbound' || filters.entityType === 'client') {
+            return this.prisma.receipt.findMany({
+                where: {
+                    ...(filters.entityId ? { customerId: filters.entityId } : {})
+                },
+                orderBy: { receiptDate: 'desc' },
+                include: { customer: true }
+            });
+        } else {
+            return this.prisma.vendorPayment.findMany({
+                where: {
+                    ...(filters.entityId ? { supplierId: filters.entityId } : {})
+                },
+                orderBy: { paymentDate: 'desc' },
+                include: { supplier: true }
+            });
+        }
+    }
+
+    async findOne(id: string): Promise<any> {
+        // Try receipt first, then vendor payment
+        let payment = await this.prisma.receipt.findUnique({ where: { id }, include: { customer: true } }) as any;
+        if (!payment) {
+            payment = await this.prisma.vendorPayment.findUnique({ where: { id }, include: { supplier: true } });
+        }
         if (!payment) throw new NotFoundException(`Pago ${id} no encontrado`);
-        return payment;
+        return { ...payment, _id: payment.id };
     }
 }

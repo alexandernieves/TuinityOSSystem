@@ -1,31 +1,83 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Trash2, Building2, User, Loader2 } from 'lucide-react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { 
+  ArrowLeft, 
+  Save, 
+  Trash2, 
+  Building2, 
+  User, 
+  Loader2, 
+  CreditCard, 
+  History, 
+  FileText, 
+  Info,
+  DollarSign,
+  AlertCircle,
+  TrendingUp,
+  Search
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
 import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 import { cn } from '@/lib/utils/cn';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/format';
+import { Pagination } from '@/components/ui/pagination';
 
 export default function EditClientPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const clientId = params.id as string;
+  const initialTab = searchParams.get('tab') || 'general';
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [client, setClient] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [posHistory, setPosHistory] = useState<any>(null);
+  const [balanceData, setBalanceData] = useState<any>(null);
+
+  // Paginación por tab
+  const [comercialPage, setComercialPage] = useState(1);
+  const [cxcPage, setCxcPage] = useState(1);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [posPage, setPosPage] = useState(1);
+  const ROWS_PER_PAGE = 8;
+
+  // Modal Registrar Cobro
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'efectivo', reference: '', notes: '' });
 
   useEffect(() => {
-    const fetchClient = async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.getClientById(clientId);
-        setClient(data);
+        const [clientData, transactionsData, salesData, balData, posData] = await Promise.all([
+          api.getClientById(clientId),
+          api.getClientTransactions(clientId),
+          api.getSales({ clientId }),
+          api.getClientBalance(clientId),
+          api.getClientPOSHistory(clientId)
+        ]);
+        setClient(clientData);
+        setTransactions(transactionsData);
+        setHistory(salesData);
+        setBalanceData(balData);
+        setPosHistory(posData);
       } catch (error) {
         toast.error('Error al cargar datos del cliente');
         router.push('/clientes');
@@ -34,7 +86,7 @@ export default function EditClientPage() {
       }
     };
 
-    fetchClient();
+    fetchData();
   }, [clientId, router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -62,7 +114,6 @@ export default function EditClientPage() {
     try {
       await api.updateClient(clientId, data);
       toast.success('Cliente actualizado correctamente');
-      router.push('/clientes');
     } catch (error: any) {
       toast.error(error.message || 'Error al actualizar cliente');
     } finally {
@@ -83,290 +134,583 @@ export default function EditClientPage() {
     }
   };
 
+  const handleRegisterPayment = async () => {
+    const amount = parseFloat(paymentForm.amount);
+    if (!amount || amount <= 0) {
+      toast.error('Ingresa un monto válido');
+      return;
+    }
+    setIsRegisteringPayment(true);
+    try {
+      await api.createPayment({
+        type: 'inbound',
+        entityType: 'client',
+        entityId: clientId,
+        amount,
+        reference: paymentForm.reference,
+        notes: paymentForm.notes || `Cobro registrado manualmente`,
+      });
+      toast.success(`Cobro de ${formatCurrency(amount)} registrado correctamente`);
+      setIsPaymentOpen(false);
+      setPaymentForm({ amount: '', method: 'efectivo', reference: '', notes: '' });
+      // Refrescar todos los datos relevantes
+      const [transactionsData, salesData, balData] = await Promise.all([
+        api.getClientTransactions(clientId),
+        api.getSales({ clientId }),
+        api.getClientBalance(clientId)
+      ]);
+      setTransactions(transactionsData);
+      setHistory(salesData);
+      setBalanceData(balData);
+    } catch (error: any) {
+      toast.error(error.message || 'Error al registrar cobro');
+    } finally {
+      setIsRegisteringPayment(false);
+    }
+  };
+
   const inputClass = "w-full px-3 py-[7px] rounded-[8px] border border-[#c9cccf] bg-white text-[13px] text-[#1a1a1a] placeholder:text-[#8c9196] hover:border-[#8c9196] focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-[#008060] transition-all";
   const labelClass = "block text-[13px] font-semibold text-[#1a1a1a] mb-1.5";
-  const buttonPrimaryClass = "flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#253D6B] text-white font-semibold text-[13px] shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-2.5px_0_rgba(0,0,0,0.2)] hover:bg-[#1e3156] active:translate-y-[1px] active:shadow-[inset_0_1px_0_rgba(0,0,0,0.1)] transition-all disabled:opacity-50 disabled:cursor-not-allowed";
-  const buttonSecondaryClass = "px-4 py-2 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors disabled:opacity-50";
+  const buttonPrimaryClass = "flex items-center justify-center gap-2 px-6 py-2 rounded-[10px] bg-[#253D6B] text-white font-semibold text-[13px] shadow-sm hover:bg-[#1e3156] transition-all disabled:opacity-50";
 
-  if (isLoading) {
-    return <SkeletonDashboard />;
-  }
-
+  if (isLoading) return <SkeletonDashboard />;
   if (!client) return null;
 
+  const overdueAmount = balanceData ? (
+    Number(balanceData.aging.days30) + 
+    Number(balanceData.aging.days60) + 
+    Number(balanceData.aging.days90) + 
+    Number(balanceData.aging.days90Plus)
+  ) : 0;
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.back()}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 border border-transparent hover:border-gray-200 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all shadow-sm"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 text-gray-500" />
           </button>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Editar Cliente</h1>
-            <p className="text-sm text-gray-500">Cód: {client.reference} | Saldo: ${client.currentBalance.toFixed(2)}</p>
+            <div className="flex items-center gap-3">
+               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{client.name}</h1>
+               <span className={cn(
+                 "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                 client.status === 'active' ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
+               )}>
+                 {client.status === 'active' ? 'Activo' : 'Inactivo'}
+               </span>
+            </div>
+            <p className="text-sm text-gray-500">
+              Cód: {client.reference} | {client.type === 'b2b' ? 'B2B' : 'B2C'}
+            </p>
           </div>
         </div>
-        <button
-          onClick={() => setIsDeleteModalOpen(true)}
-          disabled={client.currentBalance > 0 || isSaving}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-        >
-          <Trash2 className="h-4 w-4" />
-          Eliminar
-        </button>
+        <div className="flex items-center gap-2">
+           <button
+            onClick={() => setIsDeleteModalOpen(true)}
+            disabled={Number(balanceData?.balance || 0) > 0 || isSaving}
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+           >
+             <Trash2 className="h-5 w-5" />
+           </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6 space-y-8">
-          {/* Información Principal */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#222] pb-2">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-                  {client.type === 'b2b' ? <Building2 className="h-4 w-4 text-[#008060]" /> : <User className="h-4 w-4 text-[#008060]" />}
-                </div>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">Información Principal</h2>
-              </div>
-
-              <div className="w-32">
-                <label className={labelClass}>Estado</label>
-                <select
-                  name="status"
-                  defaultValue={client.status}
-                  className={inputClass}
-                >
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </select>
-              </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-[#141414] p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Pendiente</p>
+          <div className="flex items-center justify-between mt-1">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(balanceData?.balance || 0)}</h3>
+            <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
+              <CreditCard className="h-4 w-4" />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className={labelClass}>Tipo de Cliente</label>
-                <select
-                  name="type"
-                  defaultValue={client.type}
-                  className={inputClass}
-                  required
-                >
-                  <option value="b2b">B2B (Empresa / Mayorista)</option>
-                  <option value="b2c">B2C (Consumidor Final)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Código / Referencia</label>
-                <input
-                  type="text"
-                  name="reference"
-                  defaultValue={client.reference}
-                  required
-                  readOnly
-                  className={cn(inputClass, "bg-gray-50 cursor-not-allowed")}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClass}>
-                  {client.type === 'b2b' ? 'Razón Social' : 'Nombre Completo'}
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  defaultValue={client.name}
-                  required
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>NIT / RUC / Doc. Identidad</label>
-                <input
-                  type="text"
-                  name="documentId"
-                  defaultValue={client.documentId}
-                  required
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Nombre del Contacto</label>
-                <input
-                  type="text"
-                  name="contactName"
-                  defaultValue={client.contactName}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Contacto & Ubicación */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-[#222] pb-2 mt-8">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">Contacto y Ubicación</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className={labelClass}>Correo Electrónico</label>
-                <input
-                  type="email"
-                  name="email"
-                  defaultValue={client.email}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Teléfono</label>
-                <input
-                  type="text"
-                  name="phone"
-                  defaultValue={client.phone}
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>País</label>
-                <input
-                  type="text"
-                  name="country"
-                  defaultValue={client.country}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Ciudad</label>
-                <input
-                  type="text"
-                  name="city"
-                  defaultValue={client.city}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClass}>Dirección Completa</label>
-                <textarea
-                  name="address"
-                  defaultValue={client.address}
-                  rows={3}
-                  className={cn(inputClass, "h-24 py-2 resize-none")}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Finanzas */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-gray-100 dark:border-[#222] pb-2 mt-8">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">Crédito y Finanzas</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className={labelClass}>Días de Crédito</label>
-                <input
-                  type="number"
-                  name="paymentTerms"
-                  defaultValue={client.paymentTerms?.toString() || "0"}
-                  min="0"
-                  className={inputClass}
-                />
-                <p className="mt-1 text-xs text-gray-500">0 = Pago de Contado</p>
-              </div>
-              <div>
-                <label className={labelClass}>Límite de Crédito ($)</label>
-                <input
-                  type="number"
-                  name="creditLimit"
-                  step="0.01"
-                  defaultValue={client.creditLimit?.toString() || "0.00"}
-                  min="0"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Notas */}
-          <div className="space-y-4 mt-8">
-            <label className={labelClass}>Notas Internas</label>
-            <textarea
-              name="notes"
-              defaultValue={client.notes}
-              placeholder="Información adicional sobre el cliente..."
-              rows={3}
-              className={cn(inputClass, "h-24 py-2 resize-none")}
-            />
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pb-8">
+        <div className="bg-white dark:bg-[#141414] p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Vencido</p>
+          <div className="flex items-center justify-between mt-1">
+            <h3 className={cn("text-xl font-bold", overdueAmount > 0 ? "text-red-600" : "text-gray-900 dark:text-white")}>
+              {formatCurrency(overdueAmount)}
+            </h3>
+            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", overdueAmount > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600")}>
+              <AlertCircle className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-[#141414] p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Crédito Disponible</p>
+          <div className="flex items-center justify-between mt-1">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {formatCurrency(Math.max(0, Number(client.creditLimit || 0) - Number(balanceData?.balance || 0)))}
+            </h3>
+            <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-gray-50/80 dark:bg-[#0f0f0f] rounded-xl border border-gray-200/60 dark:border-[#222] w-fit overflow-x-auto shadow-sm mb-6">
+        {[
+          { id: 'general', icon: Info, label: 'General' },
+          { id: 'comercial', icon: History, label: 'Historial Comercial' },
+          { id: 'cxc', icon: CreditCard, label: 'Cuentas por Cobrar' },
+          { id: 'ledger', icon: FileText, label: 'Estado de Cuenta' },
+          { id: 'pos', icon: Building2, label: 'Compras POS' },
+        ].map((tab) => (
           <button
-            type="button"
-            onClick={() => router.back()}
-            disabled={isSaving}
-            className={buttonSecondaryClass}
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={isSaving}
-            className={buttonPrimaryClass}
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all rounded-lg relative whitespace-nowrap",
+              activeTab === tab.id 
+                ? "text-brand-700 bg-white dark:bg-[#1a1a1a] shadow-sm dark:text-brand-400 border border-gray-200/50 dark:border-[#333]" 
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-[#1a1a1a]/50 border border-transparent"
             )}
-            Guardar Cambios
+          >
+            <tab.icon className={cn("h-4 w-4 transition-colors", activeTab === tab.id ? "text-brand-600 dark:text-brand-400" : "text-gray-400")} />
+            {tab.label}
           </button>
-        </div>
-      </form>
+        ))}
+      </div>
 
-      {/* Modal de Confirmación de Eliminación */}
-      <CustomModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
-        <CustomModalHeader onClose={() => setIsDeleteModalOpen(false)}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
+      <div className="min-h-[400px]">
+        {activeTab === 'general' && (
+          <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#141414] p-6 space-y-8 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                    <label className={labelClass}>Código / Referencia</label>
+                    <input type="text" name="reference" defaultValue={client.reference} readOnly className={cn(inputClass, "bg-gray-50")} />
+                 </div>
+                 <div>
+                    <label className={labelClass}>Estado</label>
+                    <select name="status" defaultValue={client.status} className={inputClass}>
+                      <option value="active">Activo</option>
+                      <option value="inactive">Inactivo</option>
+                    </select>
+                 </div>
+                 <div className="md:col-span-2">
+                    <label className={labelClass}>{client.type === 'b2b' ? 'Razón Social' : 'Nombre Completo'}</label>
+                    <input type="text" name="name" defaultValue={client.name} required className={inputClass} />
+                 </div>
+                 <div>
+                    <label className={labelClass}>Documento (RUC/NIT/ID)</label>
+                    <input type="text" name="documentId" defaultValue={client.documentId} className={inputClass} />
+                 </div>
+                 <div>
+                    <label className={labelClass}>Nombre del Contacto</label>
+                    <input type="text" name="contactName" defaultValue={client.contactName} className={inputClass} />
+                 </div>
+                 <div>
+                    <label className={labelClass}>Correo Electrónico</label>
+                    <input type="email" name="email" defaultValue={client.email} className={inputClass} />
+                 </div>
+                 <div>
+                    <label className={labelClass}>Teléfono</label>
+                    <input type="text" name="phone" defaultValue={client.phone} className={inputClass} />
+                 </div>
+                 <div className="md:col-span-2">
+                    <label className={labelClass}>Dirección</label>
+                    <textarea name="address" defaultValue={client.address} rows={2} className={cn(inputClass, "h-20 py-2 resize-none")} />
+                 </div>
+                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#222] md:col-span-2 grid grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelClass}>Días de Crédito</label>
+                        <input type="number" name="paymentTerms" defaultValue={client.paymentTerms || 0} className={inputClass} />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Límite de Crédito ($)</label>
+                        <input type="number" name="creditLimit" step="0.01" defaultValue={client.creditLimit || 0} className={inputClass} />
+                    </div>
+                 </div>
+              </div>
             </div>
+            <div className="flex justify-end pt-4">
+              <button type="submit" className={buttonPrimaryClass} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Actualizar Información
+              </button>
+            </div>
+          </form>
+        )}
+
+        {activeTab === 'comercial' && (() => {
+          const totalPages = Math.ceil(history.length / ROWS_PER_PAGE);
+          const paginated = history.slice((comercialPage - 1) * ROWS_PER_PAGE, comercialPage * ROWS_PER_PAGE);
+          return (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-[#141414] rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-[#222] bg-gray-50/50">
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Documento</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Fecha</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#222]">
+                    {paginated.length === 0 ? (
+                      <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-500">No hay registros comerciales.</td></tr>
+                    ) : (
+                      paginated.map((doc: any) => (
+                        <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white capitalize">{doc.documentType}: {doc.orderNumber}</p>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {new Date(doc.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                              doc.status === 'facturado' || doc.status === 'pagado' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
+                            )}>
+                              {doc.status.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(doc.total)}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {history.length > ROWS_PER_PAGE && (
+                <Pagination
+                  currentPage={comercialPage}
+                  totalPages={totalPages}
+                  totalItems={history.length}
+                  rowsPerPage={ROWS_PER_PAGE}
+                  onPageChange={setComercialPage}
+                  onRowsPerPageChange={() => {}}
+                  itemName="registros"
+                />
+              )}
+            </div>
+          );
+        })()}
+
+        {activeTab === 'cxc' && (() => {
+          const pendingInvoices = history.filter(d => d.documentType === 'factura' && d.status !== 'pagado');
+          const totalPages = Math.ceil(pendingInvoices.length / ROWS_PER_PAGE);
+          const paginated = pendingInvoices.slice((cxcPage - 1) * ROWS_PER_PAGE, cxcPage * ROWS_PER_PAGE);
+          return (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-[#141414] rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden">
+                <div className="p-4 bg-gray-50/50 border-b border-gray-100 dark:border-[#222] flex justify-between items-center">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Facturas Pendientes</h3>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsPaymentOpen(true)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm border-0"
+                  >
+                    <DollarSign className="h-3.5 w-3.5 mr-1.5" />
+                    Registrar Cobro
+                  </Button>
+                </div>
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-[#222]">
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Factura</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Vencimiento</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Días Mora</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#222]">
+                    {pendingInvoices.length === 0 ? (
+                      <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-500">No hay facturas pendientes.</td></tr>
+                    ) : (
+                      paginated.map((inv: any) => {
+                        const daysLate = Math.floor((Date.now() - new Date(inv.dueDate || inv.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                        return (
+                          <tr key={inv.id}>
+                            <td className="px-6 py-4 text-sm font-medium">{inv.orderNumber}</td>
+                            <td className="px-6 py-4 text-sm">{new Date(inv.dueDate || inv.createdAt).toLocaleDateString()}</td>
+                            <td className="px-6 py-4">
+                              <span className={cn("text-xs font-bold", daysLate > 0 ? "text-red-600" : "text-emerald-600")}>
+                                {daysLate > 0 ? `${daysLate} días` : 'Al día'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right font-bold">{formatCurrency(inv.total)}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {pendingInvoices.length > ROWS_PER_PAGE && (
+                <Pagination
+                  currentPage={cxcPage}
+                  totalPages={totalPages}
+                  totalItems={pendingInvoices.length}
+                  rowsPerPage={ROWS_PER_PAGE}
+                  onPageChange={setCxcPage}
+                  onRowsPerPageChange={() => {}}
+                  itemName="facturas"
+                />
+              )}
+            </div>
+          );
+        })()}
+
+        {activeTab === 'ledger' && (() => {
+          const totalPages = Math.ceil(transactions.length / ROWS_PER_PAGE);
+          const paginated = transactions.slice((ledgerPage - 1) * ROWS_PER_PAGE, ledgerPage * ROWS_PER_PAGE);
+          return (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-[#141414] rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/50">
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Fecha</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Detalle</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Debito</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Credito</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.length === 0 ? (
+                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">No hay movimientos contables.</td></tr>
+                    ) : (
+                      paginated.map((t: any) => (
+                        <tr key={t.id} className="text-[13px]">
+                          <td className="px-6 py-4">{new Date(t.occurredAt).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 font-medium">{t.notes}</td>
+                          <td className="px-6 py-4 text-right text-red-600">
+                            {t.entryType.includes('CHARGE') ? formatCurrency(t.amount) : ''}
+                          </td>
+                          <td className="px-6 py-4 text-right text-emerald-600">
+                            {t.entryType.includes('PAYMENT') || t.entryType.includes('APPLICATION') ? formatCurrency(t.amount) : ''}
+                          </td>
+                          <td className="px-6 py-4 text-right font-bold">{formatCurrency(t.balanceAfter)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {transactions.length > ROWS_PER_PAGE && (
+                <Pagination
+                  currentPage={ledgerPage}
+                  totalPages={totalPages}
+                  totalItems={transactions.length}
+                  rowsPerPage={ROWS_PER_PAGE}
+                  onPageChange={setLedgerPage}
+                  onRowsPerPageChange={() => {}}
+                  itemName="movimientos"
+                />
+              )}
+            </div>
+          );
+        })()}
+
+        {activeTab === 'pos' && (() => {
+          if (!posHistory) return null;
+          const { summary, sales } = posHistory;
+          const totalPages = Math.ceil(sales.length / ROWS_PER_PAGE);
+          const paginated = sales.slice((posPage - 1) * ROWS_PER_PAGE, posPage * ROWS_PER_PAGE);
+          
+          return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+               {/* Resumen POS */}
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Gastado (POS)</p>
+                   <p className="text-xl font-black font-mono mt-1 text-emerald-600">{formatCurrency(summary.totalSpent)}</p>
+                 </div>
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ticket Promedio</p>
+                   <p className="text-xl font-black font-mono mt-1 text-blue-600">{formatCurrency(summary.avgTicket)}</p>
+                 </div>
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tickets Cerrados</p>
+                   <p className="text-xl font-black font-mono mt-1 text-gray-900 dark:text-white">{summary.count}</p>
+                 </div>
+                 <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-sm">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Última Compra</p>
+                   <p className="text-xl font-black font-mono mt-1 text-gray-900 dark:text-white">
+                     {summary.lastPurchase ? new Date(summary.lastPurchase).toLocaleDateString() : 'N/A'}
+                   </p>
+                 </div>
+               </div>
+
+              {/* Lista de Venta POS */}
+              <div className="bg-white dark:bg-[#141414] rounded-xl border border-gray-200 dark:border-[#2a2a2a] shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/2">
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Ticket / Fecha</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Cajero</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Método</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                    {sales.length === 0 ? (
+                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">Este cliente no tiene compras en POS.</td></tr>
+                    ) : (
+                      paginated.map((s: any) => (
+                        <tr 
+                          key={s.id} 
+                          className="text-[13px] hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+                          onClick={() => router.push(`/pos/history/${s.id}`)}
+                        >
+                          <td className="px-6 py-4">
+                             <div className="flex flex-col">
+                                <span className="font-bold text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors">{s.number}</span>
+                                <span className="text-[10px] text-gray-400">{new Date(s.createdAt).toLocaleString()}</span>
+                             </div>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-gray-600 dark:text-gray-300">{s.createdByUser?.name || 'Sistema'}</td>
+                          <td className="px-6 py-4">
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                              {s.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                              {s.status === 'VOIDED' ? (
+                                <span className="text-red-500 font-bold text-xs bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md uppercase">Anulada</span>
+                              ) : s.status === 'RETURNED' || s.status === 'PARTIALLY_RETURNED' ? (
+                                <span className="text-orange-500 font-bold text-xs bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-md uppercase">Devolución</span>
+                              ) : (
+                                <span className="text-emerald-500 font-bold text-xs bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md uppercase">Pagada</span>
+                              )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                             <span className="font-black font-mono text-[14px] text-gray-900 dark:text-white">{formatCurrency(s.total)}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {sales.length > ROWS_PER_PAGE && (
+                <Pagination
+                  currentPage={posPage}
+                  totalPages={totalPages}
+                  totalItems={sales.length}
+                  rowsPerPage={ROWS_PER_PAGE}
+                  onPageChange={setPosPage}
+                  onRowsPerPageChange={() => {}}
+                  itemName="tickets"
+                />
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogTitle>Eliminar Cliente</DialogTitle>
+          <DialogDescription>¿Estás seguro de que deseas eliminar este cliente?</DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
+            <Button className="bg-red-600 text-white" onClick={handleDelete}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL REGISTRAR COBRO */}
+      <Dialog open={isPaymentOpen} onOpenChange={(open) => !isRegisteringPayment && setIsPaymentOpen(open)}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-brand-600" />
+              Registrar Cobro
+            </DialogTitle>
+            <DialogDescription>
+              Registra un pago recibido de <strong>{client?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Eliminar Cliente</h3>
-              <p className="text-sm text-gray-500">Esta acción no se puede deshacer.</p>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Monto a Cobrar *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
+                  className="w-full pl-7 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#0a0a0a] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Método de Pago</label>
+              <select
+                value={paymentForm.method}
+                onChange={(e) => setPaymentForm(p => ({ ...p, method: e.target.value }))}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#0a0a0a] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia Bancaria</option>
+                <option value="cheque">Cheque</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Referencia / N° Comprobante</label>
+              <input
+                type="text"
+                placeholder="Ej: TRF-00123"
+                value={paymentForm.reference}
+                onChange={(e) => setPaymentForm(p => ({ ...p, reference: e.target.value }))}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#0a0a0a] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Notas (opcional)</label>
+              <textarea
+                rows={2}
+                placeholder="Observaciones adicionales..."
+                value={paymentForm.notes}
+                onChange={(e) => setPaymentForm(p => ({ ...p, notes: e.target.value }))}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#0a0a0a] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+              />
             </div>
           </div>
-        </CustomModalHeader>
-        <CustomModalBody>
-          <p className="text-sm text-gray-600 py-2">
-            ¿Estás seguro de que deseas eliminar a <span className="font-semibold text-gray-900">{client.name}</span>?
-            Se perderá toda la información de contacto asociada a este registro.
-          </p>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button
-            variant="ghost"
-            onClick={() => setIsDeleteModalOpen(false)}
-            className="h-10 px-6 font-semibold"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleDelete}
-            className="h-10 px-6 font-semibold bg-red-600 hover:bg-red-700 text-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
-          >
-            Sí, eliminar cliente
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" disabled={isRegisteringPayment} onClick={() => setIsPaymentOpen(false)}>Cancelar</Button>
+            <button
+              type="button"
+              onClick={handleRegisterPayment}
+              disabled={isRegisteringPayment || !paymentForm.amount}
+              style={{ backgroundColor: '#16a34a', color: '#ffffff', fontWeight: 600, fontSize: '14px' }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity"
+            >
+              {isRegisteringPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+              {isRegisteringPayment ? 'Registrando...' : 'Confirmar Cobro'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

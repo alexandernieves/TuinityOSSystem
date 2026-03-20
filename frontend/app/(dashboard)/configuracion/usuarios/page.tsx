@@ -152,12 +152,21 @@ export default function UsuariosPage() {
     }
   };
 
-  const handleToggleUser = async (userId: string) => {
+  const handleToggleUser = async (user: User) => {
     try {
-      const newStatus = !userStatuses[userId];
-      await api.toggleUserActive(userId, newStatus);
-      setUserStatuses((prev) => ({ ...prev, [userId]: newStatus }));
-      toast.success(newStatus ? "Usuario activado" : "Usuario desactivado");
+      const newActiveState = !userStatuses[user.id];
+      
+      if (newActiveState && user.status === 'PENDING') {
+        // If activating a pending user, treat it as approval
+        await api.approveUser(user.id, user.role || 'vendedor');
+        toast.success(`Usuario aprobado: ${user.name}`);
+      } else {
+        await api.toggleUserActive(user.id, newActiveState);
+        toast.success(newActiveState ? "Usuario activado" : "Usuario desactivado");
+      }
+      
+      setUserStatuses((prev) => ({ ...prev, [user.id]: newActiveState }));
+      fetchUsers(); // Refresh to get updated status from backend
     } catch (err: any) {
       toast.error("Error al actualizar", { description: err.message });
     }
@@ -263,13 +272,16 @@ export default function UsuariosPage() {
                           Correo
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
+                          Estatus
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                           Rol
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                           Última Sesión
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
-                          Estado
+                          Aprobar / Estado
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-[#888888]">
                           Acciones
@@ -310,15 +322,39 @@ export default function UsuariosPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <span
+                              {user.status === 'PENDING' ? (
+                                <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                                  Pendiente
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                                  Activo
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={user.role}
+                                onChange={(e) => {
+                                  api.updateUser(user.id, { role: e.target.value }).then(() => {
+                                    toast.success('Rol actualizado');
+                                    fetchUsers();
+                                  }).catch(err => {
+                                    toast.error('Error al actualizar rol', { description: err.message });
+                                  });
+                                }}
                                 className={cn(
-                                  "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                                  "inline-flex rounded-full px-2.5 py-1 text-xs font-medium border-0 focus:ring-2 focus:ring-blue-500 cursor-pointer outline-none",
                                   roleColor?.bg || "bg-gray-100",
-                                  roleColor?.text || "text-gray-800",
+                                  roleColor?.text || "text-gray-800"
                                 )}
                               >
-                                {ROLE_LABELS[user.role] || user.role}
-                              </span>
+                                {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                                  <option key={value} value={value} className="bg-white text-gray-900">
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
                             </td>
                             <td className="px-4 py-3 text-center">
                               {session ? (
@@ -343,7 +379,7 @@ export default function UsuariosPage() {
                             <td className="px-4 py-3 text-center">
                               <Switch
                                 checked={isActive}
-                                onCheckedChange={() => handleToggleUser(user.id)}
+                                onCheckedChange={() => handleToggleUser(user)}
                               />
                             </td>
                             <td className="px-4 py-3 text-center">

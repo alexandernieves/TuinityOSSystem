@@ -428,7 +428,7 @@ export default function EditarClientePage() {
                     Contacto {idx + 1}
                   </span>
                   {contact.isPrimary && (
-                    <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600">PRINCIPAL</span>
+                    <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600">PRINCIPAL</span>
                   )}
                 </div>
                 {contacts.length > 1 && (

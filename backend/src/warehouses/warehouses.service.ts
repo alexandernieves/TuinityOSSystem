@@ -1,75 +1,86 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Warehouse, WarehouseDocument } from './schemas/warehouse.schema';
+import { PrismaService } from '../services/shared/prisma.service';
 
 @Injectable()
 export class WarehousesService {
     constructor(
-        @InjectModel(Warehouse.name) private warehouseModel: Model<WarehouseDocument>,
+        private prisma: PrismaService,
     ) { }
 
-    async findAll(): Promise<WarehouseDocument[]> {
-        return this.warehouseModel.find().exec();
+    async findAll(): Promise<any[]> {
+        return this.prisma.warehouse.findMany();
     }
 
-    async findOne(id: string): Promise<WarehouseDocument> {
-        const warehouse = await this.warehouseModel.findById(id).exec();
+    async findOne(id: string): Promise<any> {
+        const warehouse = await this.prisma.warehouse.findUnique({ where: { id } });
         if (!warehouse) {
             throw new NotFoundException(`Warehouse with ID ${id} not found`);
         }
         return warehouse;
     }
 
-    async create(createWarehouseDto: any): Promise<WarehouseDocument> {
-        console.log('Creating warehouse with data:', JSON.stringify(createWarehouseDto));
+    async create(createWarehouseDto: any): Promise<any> {
         try {
-            const newWarehouse = new this.warehouseModel(createWarehouseDto);
-            const saved = await newWarehouse.save();
-            console.log('Warehouse created successfully:', saved._id);
-            return saved;
-        } catch (error: any) {
-            console.error('Error in WarehousesService.create:', error);
-            if (error.code === 11000) {
-                throw new BadRequestException('El código de la sucursal ya existe.');
+            // Map type if needed
+            let type: any = createWarehouseDto.type;
+            if (!['B2B', 'B2C', 'TRANSIT', 'DAMAGE', 'OTHER'].includes(type)) {
+                type = 'OTHER';
             }
-            if (error.name === 'ValidationError') {
-                throw new BadRequestException('Error de validación: ' + Object.values(error.errors).map((e: any) => e.message).join(', '));
+
+            return await this.prisma.warehouse.create({
+                data: {
+                    ...createWarehouseDto,
+                    type,
+                    isHeadquarters: createWarehouseDto.isHeadquarters ?? false,
+                    isActive: createWarehouseDto.isActive ?? true,
+                }
+            });
+        } catch (error: any) {
+            if (error.code === 'P2002') {
+                throw new BadRequestException('El código o nombre de la sucursal ya existe.');
             }
             throw error;
         }
     }
 
-    async update(id: string, updateWarehouseDto: any): Promise<WarehouseDocument> {
-        const updatedWarehouse = await this.warehouseModel
-            .findByIdAndUpdate(id, updateWarehouseDto, { new: true })
-            .exec();
-        if (!updatedWarehouse) {
-            throw new NotFoundException(`Warehouse with ID ${id} not found`);
+    async update(id: string, updateWarehouseDto: any): Promise<any> {
+        try {
+            return await this.prisma.warehouse.update({
+                where: { id },
+                data: updateWarehouseDto
+            });
+        } catch (error: any) {
+            if (error.code === 'P2025') {
+                throw new NotFoundException(`Warehouse with ID ${id} not found`);
+            }
+            throw error;
         }
-        return updatedWarehouse;
     }
 
     async remove(id: string): Promise<any> {
-        const result = await this.warehouseModel.findByIdAndDelete(id).exec();
-        if (!result) {
-            throw new NotFoundException(`Warehouse with ID ${id} not found`);
+        try {
+            return await this.prisma.warehouse.delete({ where: { id } });
+        } catch (error: any) {
+            if (error.code === 'P2025') {
+                throw new NotFoundException(`Warehouse with ID ${id} not found`);
+            }
+            throw error;
         }
-        return result;
     }
 
-    async setMainBranch(id: string): Promise<WarehouseDocument> {
-        // Primero quitar el flag de todos
-        await this.warehouseModel.updateMany({}, { isHeadquarters: false }).exec();
+    async setMainBranch(id: string): Promise<any> {
+        return this.prisma.$transaction(async (tx) => {
+            // Primero quitar el flag de todos
+            await tx.warehouse.updateMany({
+                where: { isHeadquarters: true },
+                data: { isHeadquarters: false }
+            });
 
-        // Luego ponerlo solo al indicado
-        const main = await this.warehouseModel
-            .findByIdAndUpdate(id, { isHeadquarters: true }, { new: true })
-            .exec();
-
-        if (!main) {
-            throw new NotFoundException(`Warehouse with ID ${id} not found`);
-        }
-        return main;
+            // Luego ponerlo solo al indicado
+            return tx.warehouse.update({
+                where: { id },
+                data: { isHeadquarters: true }
+            });
+        });
     }
 }

@@ -4,13 +4,11 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Tabs,
-  Tab,
-} from "@heroui/react";
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Plus,
   ArrowRightLeft,
@@ -196,8 +194,8 @@ export default function TransferenciasPage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-              <ArrowRightLeft className="h-5 w-5 text-brand-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -212,7 +210,7 @@ export default function TransferenciasPage() {
         {canCreateTransfers && (
           <button
             onClick={handleNewTransfer}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-800"
+            className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-800"
           >
             <Plus className="h-4 w-4" />
             Nueva Transferencia
@@ -221,67 +219,32 @@ export default function TransferenciasPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs
-        selectedKey={selectedTab}
-        onSelectionChange={(key) => setSelectedTab(key as TabKey)}
-        color="primary"
-        variant="underlined"
-        classNames={{
-          tabList: "gap-6 border-b border-gray-200",
-          cursor: "bg-brand-600",
-          tab: "px-0 h-10",
-          tabContent: "group-data-[selected=true]:text-brand-600",
-        }}
-      >
-        <Tab
-          key="all"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Todas</span>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                {counts.all}
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 overflow-x-auto">
+        {[
+          { key: 'all' as TabKey, label: 'Todas', countKey: 'all' },
+          { key: 'enviada' as TabKey, label: 'Enviadas', countKey: 'enviada' },
+          { key: 'recibida' as TabKey, label: 'Recibidas', countKey: 'recibida' },
+          { key: 'recibida_discrepancia' as TabKey, label: 'Con Discrepancia', countKey: 'recibida_discrepancia' },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setSelectedTab(tab.key)}
+            className={cn(
+              'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all',
+              selectedTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            )}
+          >
+            {tab.label}
+            {counts[tab.countKey as keyof typeof counts] > 0 && (
+              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                {counts[tab.countKey as keyof typeof counts]}
               </span>
-            </div>
-          }
-        />
-        <Tab
-          key="enviada"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Enviadas</span>
-              {counts.enviada > 0 && (
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                  {counts.enviada}
-                </span>
-              )}
-            </div>
-          }
-        />
-        <Tab
-          key="recibida"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Recibidas</span>
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                {counts.recibida}
-              </span>
-            </div>
-          }
-        />
-        <Tab
-          key="recibida_discrepancia"
-          title={
-            <div className="flex items-center gap-2">
-              <span>Con Discrepancia</span>
-              {counts.recibida_discrepancia > 0 && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  {counts.recibida_discrepancia}
-                </span>
-              )}
-            </div>
-          }
-        />
-      </Tabs>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Search */}
       <div className="relative w-full sm:w-64">
@@ -291,7 +254,7 @@ export default function TransferenciasPage() {
           placeholder="Buscar transferencia..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -351,7 +314,7 @@ export default function TransferenciasPage() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleViewTransfer(transfer)}
-                        className="font-mono text-sm font-medium text-brand-600 hover:text-brand-700"
+                        className="font-mono text-sm font-medium text-blue-600 hover:text-blue-700"
                       >
                         {transfer.reference || transfer.id}
                       </button>
@@ -415,52 +378,25 @@ export default function TransferenciasPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <button className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
                             <MoreVertical className="h-4 w-4" />
                           </button>
-                        </DropdownTrigger>
-                        <DropdownMenu
-                          aria-label="Acciones"
-                          classNames={{
-                            base: "bg-white border border-gray-200 shadow-lg",
-                          }}
-                          items={[
-                            {
-                              key: "view",
-                              label: "Ver detalle",
-                              icon: Eye,
-                              action: () => handleViewTransfer(transfer),
-                              show: true,
-                              className: "",
-                            },
-                            {
-                              key: "confirm",
-                              label: "Confirmar recepción",
-                              icon: CheckCircle,
-                              action: () => handleConfirmTransfer(transfer),
-                              show:
-                                canConfirmTransfers &&
-                                transfer.status === "enviada",
-                              className: "text-emerald-600",
-                            },
-                          ].filter((menuItem) => menuItem.show)}
-                        >
-                          {(menuItem) => (
-                            <DropdownItem
-                              key={menuItem.key}
-                              startContent={
-                                <menuItem.icon className="h-4 w-4" />
-                              }
-                              onPress={menuItem.action}
-                              className={menuItem.className}
-                            >
-                              {menuItem.label}
-                            </DropdownItem>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewTransfer(transfer)} className="flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            Ver detalle
+                          </DropdownMenuItem>
+                          {canConfirmTransfers && transfer.status === 'enviada' && (
+                            <DropdownMenuItem onClick={() => handleConfirmTransfer(transfer)} className="flex items-center gap-2 text-emerald-600">
+                              <CheckCircle className="h-4 w-4" />
+                              Confirmar recepción
+                            </DropdownMenuItem>
                           )}
-                        </DropdownMenu>
-                      </Dropdown>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </motion.tr>
                 );
@@ -483,7 +419,7 @@ export default function TransferenciasPage() {
           {canCreateTransfers && (
             <button
               onClick={handleNewTransfer}
-              className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />
               Nueva Transferencia

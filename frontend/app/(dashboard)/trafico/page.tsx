@@ -4,11 +4,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-} from '@heroui/react';
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Ship,
   FileText,
@@ -230,66 +232,47 @@ export default function TraficoPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  typeFilter !== 'all'
-                    ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                    : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={typeFilter !== 'all' ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {typeFilter !== 'all' ? SHIPMENT_TYPE_LABELS[typeFilter] : 'Tipo'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={typeFilter !== 'all' ? [typeFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setTypeFilter(selected === typeFilter ? 'all' : (selected as TypeFilter));
-              }}
-            >
-              <DropdownItem key="salida">Salida</DropdownItem>
-              <DropdownItem key="entrada">Entrada</DropdownItem>
-              <DropdownItem key="traspaso">Traspaso</DropdownItem>
-              <DropdownItem key="transferencia">Transferencia</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'salida' ? 'all' : 'salida')}>Salida</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'entrada' ? 'all' : 'entrada')}>Entrada</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'traspaso' ? 'all' : 'traspaso')}>Traspaso</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTypeFilter(typeFilter === 'transferencia' ? 'all' : 'transferencia')}>Transferencia</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  statusFilter !== 'all'
-                    ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                    : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={statusFilter !== 'all' ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {statusFilter !== 'all' ? SHIPMENT_STATUS_LABELS[statusFilter] : 'Estado'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={statusFilter !== 'all' ? [statusFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setStatusFilter(selected === statusFilter ? 'all' : (selected as StatusFilter));
-              }}
-            >
-              <DropdownItem key="pendiente">Pendiente</DropdownItem>
-              <DropdownItem key="en_proceso">En Proceso</DropdownItem>
-              <DropdownItem key="documentado">Documentado</DropdownItem>
-              <DropdownItem key="despachado">Despachado</DropdownItem>
-              <DropdownItem key="en_transito">En Tránsito</DropdownItem>
-              <DropdownItem key="entregado">Entregado</DropdownItem>
-              <DropdownItem key="cancelado">Cancelado</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {['pendiente', 'en_proceso', 'documentado', 'despachado', 'en_transito', 'entregado', 'cancelado'].map((status) => (
+                <DropdownMenuItem 
+                  key={status} 
+                  onClick={() => setStatusFilter(statusFilter === status ? 'all' : status as StatusFilter)}
+                >
+                  {SHIPMENT_STATUS_LABELS[status as ShipmentStatus]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {hasActiveFilters && (
             <button

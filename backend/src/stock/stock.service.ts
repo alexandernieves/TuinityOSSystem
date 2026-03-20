@@ -1,94 +1,177 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Stock, StockDocument } from './schemas/stock.schema';
+import { PrismaService } from '../services/shared/prisma.service';
 
 @Injectable()
 export class StockService {
-    constructor(
-        @InjectModel(Stock.name) private stockModel: Model<StockDocument>,
-    ) { }
+    constructor(private prisma: PrismaService) { }
 
-    async findAll(): Promise<StockDocument[]> {
-        return this.stockModel.find().populate('productId').populate('warehouseId').exec();
+    async findAll(): Promise<any[]> {
+        return this.prisma.inventoryExistence.findMany({
+            include: {
+                product: true,
+                warehouse: true
+            }
+        });
     }
 
-    async findOne(productId: string, warehouseId: string): Promise<StockDocument | null> {
-        if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(warehouseId)) {
-            return null;
-        }
-        return this.stockModel.findOne({
-            productId: new Types.ObjectId(productId),
-            warehouseId: new Types.ObjectId(warehouseId)
-        }).exec();
+    async findOne(productId: string, warehouseId: string): Promise<any | null> {
+        return this.prisma.inventoryExistence.findUnique({
+            where: {
+                productId_warehouseId: { productId, warehouseId }
+            }
+        });
     }
 
-    async findByProduct(productId: string): Promise<StockDocument[]> {
-        return this.stockModel.find({ productId: new Types.ObjectId(productId) })
-            .populate('warehouseId')
-            .exec();
+    async findByProduct(productId: string): Promise<any[]> {
+        return this.prisma.inventoryExistence.findMany({
+            where: { productId },
+            include: { warehouse: true }
+        });
     }
 
-    async findByWarehouse(warehouseId: string): Promise<StockDocument[]> {
-        if (!Types.ObjectId.isValid(warehouseId)) return [];
-        return this.stockModel.find({ warehouseId: new Types.ObjectId(warehouseId) })
-            .populate('productId')
-            .exec();
+    async findByWarehouse(warehouseId: string): Promise<any[]> {
+        return this.prisma.inventoryExistence.findMany({
+            where: { warehouseId },
+            include: { product: true }
+        });
     }
 
     async getProductStockAggregate(productId: string): Promise<any> {
-        const stocks = await this.stockModel.find({ productId: new Types.ObjectId(productId) }).exec();
+        const result = await this.prisma.inventoryExistence.aggregate({
+            where: { productId },
+            _sum: {
+                existence: true,
+                arriving: true,
+                reserved: true,
+                available: true
+            }
+        });
 
-        if (stocks.length === 0) {
-            return { existence: 0, arriving: 0, reserved: 0, available: 0 };
-        }
-
-        return stocks.reduce((acc, curr) => ({
-            existence: acc.existence + curr.existence,
-            arriving: acc.arriving + curr.arriving,
-            reserved: acc.reserved + curr.reserved,
-            available: acc.available + curr.available,
-        }), { existence: 0, arriving: 0, reserved: 0, available: 0 });
+        return {
+            existence: Number(result._sum.existence || 0),
+            arriving: Number(result._sum.arriving || 0),
+            reserved: Number(result._sum.reserved || 0),
+            available: Number(result._sum.available || 0)
+        };
     }
 
-    async updateStock(productId: string, warehouseId: string, updateDto: any): Promise<StockDocument> {
-        if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(warehouseId)) {
-            throw new Error(`Invalid IDs provided for updateStock: product=${productId}, warehouse=${warehouseId}`);
-        }
-        const stock = await this.stockModel.findOneAndUpdate(
-            {
-                productId: new Types.ObjectId(productId),
-                warehouseId: new Types.ObjectId(warehouseId)
+    async updateStock(productId: string, warehouseId: string, updateDto: any): Promise<any> {
+        return this.prisma.inventoryExistence.upsert({
+            where: {
+                productId_warehouseId: { productId, warehouseId }
             },
-            { ...updateDto },
-            { new: true, upsert: true }
-        ).exec();
-
-        return stock;
+            create: {
+                productId,
+                warehouseId,
+                existence: updateDto.existence || 0,
+                arriving: updateDto.arriving || 0,
+                reserved: updateDto.reserved || 0,
+                available: updateDto.available || 0
+            },
+            update: {
+                existence: updateDto.existence,
+                arriving: updateDto.arriving,
+                reserved: updateDto.reserved,
+                available: updateDto.available
+            }
+        });
     }
 
     async getInventoryItems(): Promise<any[]> {
-        return this.stockModel.aggregate([
-            {
-                $group: {
-                    _id: '$productId',
-                    existence: { $sum: '$existence' },
-                    arriving: { $sum: '$arriving' },
-                    reserved: { $sum: '$reserved' },
-                    available: { $sum: '$available' },
-                }
-            },
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'product'
-                }
-            },
-            {
-                $unwind: '$product'
+        const products = await this.prisma.product.findMany({
+            include: {
+                existences: true,
+                group: true,
+                brand: true,
+                subgroup: true,
+                category: true,
+                subcategory: true,
+                prices: true,
             }
-        ]).exec();
+        });
+
+        return products.map(p => {
+            const existence = p.existences.reduce((sum, e) => sum + Number(e.existence), 0);
+            const available = p.existences.reduce((sum, e) => sum + Number(e.available), 0);
+            const reserved = p.existences.reduce((sum, e) => sum + Number(e.reserved), 0);
+            const arriving = p.existences.reduce((sum, e) => sum + Number(e.arriving), 0);
+
+            // Map prices array to object { A, B, C... }
+            const pricesObj: any = {};
+            p.prices.forEach(pr => {
+                pricesObj[pr.level] = Number(pr.price);
+            });
+
+            return {
+                productId: p.id,
+                id: p.id,
+                product: {
+                    ...p,
+                    prices: pricesObj,
+                    costAvgWeighted: Number(p.costAvgWeighted || 0),
+                    costCIF: Number(p.costCIF || 0),
+                    costFOB: Number(p.costFOB || 0),
+                },
+                existence,
+                available,
+                reserved,
+                arriving
+            };
+        });
+    }
+
+    async reserveStock(productId: string, warehouseId: string, quantity: number): Promise<any> {
+        const stock = await this.findOne(productId, warehouseId);
+        if (!stock) throw new NotFoundException('Stock not found for product in warehouse');
+
+        const existence = Number(stock.existence);
+        const arriving = Number(stock.arriving);
+        const reserved = Number(stock.reserved) + quantity;
+        const available = existence + arriving - reserved;
+
+        if (available < 0) {
+            throw new Error(`Insufficient stock for product ${productId}. Available: ${Number(stock.available)}`);
+        }
+
+        return this.updateStock(productId, warehouseId, {
+            existence,
+            arriving,
+            reserved,
+            available
+        });
+    }
+
+    async releaseStock(productId: string, warehouseId: string, quantity: number): Promise<any> {
+        const stock = await this.findOne(productId, warehouseId);
+        if (!stock) return;
+
+        const existence = Number(stock.existence);
+        const arriving = Number(stock.arriving);
+        const reserved = Math.max(0, Number(stock.reserved) - quantity);
+        const available = existence + arriving - reserved;
+
+        return this.updateStock(productId, warehouseId, {
+            existence,
+            arriving,
+            reserved,
+            available
+        });
+    }
+
+    async subtractStock(productId: string, warehouseId: string, quantity: number): Promise<any> {
+        const stock = await this.findOne(productId, warehouseId);
+        if (!stock) throw new NotFoundException('Stock not found for product in warehouse');
+
+        const existence = Math.max(0, Number(stock.existence) - quantity);
+        const arriving = Number(stock.arriving);
+        const reserved = Math.max(0, Number(stock.reserved) - quantity);
+        const available = existence + arriving - reserved;
+
+        return this.updateStock(productId, warehouseId, {
+            existence,
+            arriving,
+            reserved,
+            available
+        });
     }
 }

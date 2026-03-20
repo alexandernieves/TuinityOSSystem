@@ -1,0 +1,17 @@
+/Users/alexandernieves/Desktop/tuinity/backend/node_modules/@nestjs/common/pipes/file/file-type.validator.js:8
+const logger = new logger_service_1.Logger('FileTypeValidator');
+               ^
+
+TypeError: logger_service_1.Logger is not a constructor
+    at Object.<anonymous> (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/@nestjs/common/pipes/file/file-type.validator.js:8:16)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/Users/alexandernieves/Desktop/tuinity/backend/node_modules/@nestjs/common/pipes/file/index.js:4:22)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+
+Node.js v20.19.0

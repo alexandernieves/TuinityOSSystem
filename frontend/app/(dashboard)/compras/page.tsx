@@ -4,14 +4,32 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-} from '@heroui/react';
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CustomModal, CustomModalHeader, CustomModalBody, CustomModalFooter } from '@/components/ui/custom-modal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Search,
   Plus,
@@ -27,9 +45,14 @@ import {
   Trash2,
   X,
   Package,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
+import { Pagination } from '@/components/ui/pagination';
 import type { PurchaseOrder, PurchaseOrderStatus, PurchaseOrderStats } from '@/lib/types/purchase-order';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -72,6 +95,8 @@ export default function ComprasPage() {
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
   const [selectedBodega, setSelectedBodega] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Modal states
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -253,7 +278,7 @@ export default function ComprasPage() {
             onClick={() => setStatusFilter(statusFilter === stat.filter ? 'all' : stat.filter)}
             className={cn(
               'rounded-[12px] border-none bg-white p-3 text-left transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.1)_inset,0_1px_0_rgba(0,0,0,0.08),inset_0_-1px_0_rgba(0,0,0,0.2)] hover:bg-[#f7f7f7]',
-              statusFilter === stat.filter && 'ring-2 ring-brand-500 ring-offset-2'
+              statusFilter === stat.filter && 'ring-2 ring-blue-500 ring-offset-2'
             )}
           >
             <div className="flex items-center gap-3">
@@ -296,106 +321,86 @@ export default function ComprasPage() {
             placeholder="Buscar orden..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="h-9 w-full rounded-lg border border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-[#666666] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  statusFilter !== 'all'
-                    ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300'
-                    : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={statusFilter !== 'all' ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {statusFilter !== 'all' ? STATUS_CONFIG[statusFilter].label : 'Estado'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={statusFilter !== 'all' ? [statusFilter] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setStatusFilter(selected === statusFilter ? 'all' : (selected as StatusFilter));
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
-              <DropdownItem key="pendiente">Pendiente</DropdownItem>
-              <DropdownItem key="en_transito">En Tránsito</DropdownItem>
-              <DropdownItem key="en_recepcion">En Recepción</DropdownItem>
-              <DropdownItem key="completada">Completada</DropdownItem>
-              <DropdownItem key="cancelada">Cancelada</DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {['pendiente', 'en_transito', 'en_recepcion', 'completada', 'cancelada'].map((status) => (
+                <DropdownMenuItem 
+                  key={status} 
+                  onClick={() => setStatusFilter(statusFilter === status ? 'all' : status as StatusFilter)}
+                >
+                  {STATUS_CONFIG[status as PurchaseOrderStatus].label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Supplier Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  selectedSupplier
-                    ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300'
-                    : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedSupplier ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {selectedSupplier
                   ? suppliers.find((s) => s.id === selectedSupplier)?.name.slice(0, 15) + '...'
                   : 'Proveedor'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedSupplier ? [selectedSupplier] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedSupplier(selected === selectedSupplier ? null : selected);
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-64 overflow-auto w-64">
               {suppliers.map((supplier) => (
-                <DropdownItem key={supplier.id}>{supplier.name}</DropdownItem>
+                <DropdownMenuItem 
+                  key={supplier.id}
+                  onClick={() => setSelectedSupplier(selectedSupplier === supplier.id ? null : supplier.id)}
+                >
+                  {supplier.name}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Bodega Filter */}
-          <Dropdown>
-            <DropdownTrigger>
-              <button
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                  selectedBodega
-                    ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300'
-                    : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]'
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedBodega ? 'default' : 'secondary'}
+                size="sm"
+                className="gap-2"
               >
                 {selectedBodega
                   ? bodegas.find((b) => b.id === selectedBodega)?.name
                   : 'Bodega'}
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu
-              selectionMode="single"
-              selectedKeys={selectedBodega ? [selectedBodega] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as string;
-                setSelectedBodega(selected === selectedBodega ? null : selected);
-              }}
-              classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-            >
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               {bodegas.map((bodega) => (
-                <DropdownItem key={bodega.id}>{bodega.name}</DropdownItem>
+                <DropdownMenuItem 
+                  key={bodega.id}
+                  onClick={() => setSelectedBodega(selectedBodega === bodega.id ? null : bodega.id)}
+                >
+                  {bodega.name}
+                </DropdownMenuItem>
               ))}
-            </DropdownMenu>
-          </Dropdown>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Clear Filters */}
           {hasActiveFilters && (
@@ -470,7 +475,7 @@ export default function ComprasPage() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleViewOrder(order)}
-                        className="font-mono text-sm font-medium text-brand-600 dark:text-[#00D1B2] hover:text-brand-700 dark:hover:text-[#00E5C3] hover:underline"
+                        className="font-mono text-sm font-medium text-blue-600 dark:text-[#00D1B2] hover:text-blue-700 dark:hover:text-[#00E5C3] hover:underline"
                       >
                         {order.orderNumber}
                       </button>
@@ -526,8 +531,8 @@ export default function ComprasPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -535,30 +540,35 @@ export default function ComprasPage() {
                           >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
-                        </DropdownTrigger>
-                        <DropdownMenu
-                          aria-label="Acciones"
-                          classNames={{ base: 'bg-white border border-gray-200 shadow-lg' }}
-                          items={[
-                            { key: 'view', label: 'Ver detalle', icon: Eye, action: () => handleViewOrder(order), show: true },
-                            { key: 'receive', label: 'Recibir mercancía', icon: PackageCheck, action: () => handleReceiveOrder(order), show: order.status === 'en_transito' || order.status === 'en_recepcion' },
-                            { key: 'edit', label: 'Editar', icon: Edit, action: () => handleViewOrder(order), show: order.status === 'pendiente' },
-                            { key: 'delete', label: 'Cancelar orden', icon: Trash2, action: () => handleDeleteOrder(order), show: order.status !== 'completada' && order.status !== 'cancelada', danger: true },
-                          ].filter(item => item.show)}
-                        >
-                          {(item) => (
-                            <DropdownItem
-                              key={item.key}
-                              startContent={<item.icon className="h-4 w-4" />}
-                              className={item.danger ? 'text-danger' : ''}
-                              color={item.danger ? 'danger' : 'default'}
-                              onPress={item.action}
-                            >
-                              {item.label}
-                            </DropdownItem>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewOrder(order)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            <span>Ver detalle</span>
+                          </DropdownMenuItem>
+                          {(order.status === 'en_transito' || order.status === 'en_recepcion') && (
+                            <DropdownMenuItem onClick={() => handleReceiveOrder(order)}>
+                              <PackageCheck className="mr-2 h-4 w-4" />
+                              <span>Recibir mercancía</span>
+                            </DropdownMenuItem>
                           )}
-                        </DropdownMenu>
-                      </Dropdown>
+                          {order.status === 'pendiente' && (
+                            <DropdownMenuItem onClick={() => handleViewOrder(order)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              <span>Editar</span>
+                            </DropdownMenuItem>
+                          )}
+                          {(order.status !== 'completada' && order.status !== 'cancelada') && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteOrder(order)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Cancelar orden</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </motion.tr>
                 );
@@ -589,32 +599,39 @@ export default function ComprasPage() {
       }
 
       {/* Delete Confirmation Modal */}
-      <CustomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} size="sm">
-        <CustomModalHeader onClose={() => setIsDeleteOpen(false)}>Cancelar orden</CustomModalHeader>
-        <CustomModalBody className="space-y-4">
-          <p className="text-gray-600 dark:text-gray-400">
-            ¿Estás seguro de cancelar la orden{' '}
-            <span className="font-medium text-gray-900 dark:text-white">"{selectedOrder?.orderNumber}"</span>? Esta acción
-            no se puede deshacer.
-          </p>
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>
-            Volver
-          </Button>
-          <Button variant="destructive" onClick={confirmDelete}>
-            Cancelar Orden
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar orden</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de cancelar la orden <span className="font-medium text-gray-900 dark:text-white">"{selectedOrder?.orderNumber}"</span>? 
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancelar Orden
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Receive Merchandise Modal - Simplified for now */}
-      <CustomModal isOpen={isReceiveOpen} onClose={() => setIsReceiveOpen(false)} size="2xl">
-        <CustomModalHeader onClose={() => setIsReceiveOpen(false)}>
-          <PackageCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          Recibir Mercancía
-        </CustomModalHeader>
-        <CustomModalBody className="space-y-4">
+      <Dialog open={isReceiveOpen} onOpenChange={setIsReceiveOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              Recibir Mercancía
+            </DialogTitle>
+            <DialogDescription>
+              Confirma los detalles de la recepción para actualizar inventario y costos.
+            </DialogDescription>
+          </DialogHeader>
+
           {selectedOrder && (
             <div className="space-y-4">
               <div className="rounded-lg bg-sky-50 dark:bg-sky-950 p-4">
@@ -657,23 +674,24 @@ export default function ComprasPage() {
               )}
             </div>
           )}
-        </CustomModalBody>
-        <CustomModalFooter>
-          <Button variant="ghost" onClick={() => setIsReceiveOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => {
-              toast.success('Mercancía recibida', {
-                description: `La orden ${selectedOrder?.orderNumber} ha sido procesada.`,
-              });
-              setIsReceiveOpen(false);
-            }}
-          >
-            Confirmar Recepción
-          </Button>
-        </CustomModalFooter>
-      </CustomModal>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsReceiveOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                toast.success('Mercancía recibida', {
+                  description: `La orden ${selectedOrder?.orderNumber} ha sido procesada.`,
+                });
+                setIsReceiveOpen(false);
+              }}
+            >
+              Confirmar Recepción
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div >
   );
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { ROLE_LABELS } from '@/lib/constants/roles';
 import { cn } from '@/lib/utils/cn';
 import { motion } from 'framer-motion';
+import { api } from '@/lib/services/api';
 import {
   History,
   Search,
@@ -30,8 +31,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 
 // ============================================
 // TYPES
@@ -54,75 +57,9 @@ interface ActivityEntry {
   detail: string;
   timestamp: string;
   changes: ActivityChange | null;
+  oldData?: any;
+  newData?: any;
 }
-
-// ============================================
-// MOCK DATA (expanded to cover more days in Feb)
-// ============================================
-
-const ACTIVITY_LOG: ActivityEntry[] = [
-  // Feb 26 (Today)
-  { id: 'act-001', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'approved', module: 'ventas', target: 'Pedido PED-00023', detail: 'Aprobó pedido por $24,500 para WORLD DUTY FREE GROUP', timestamp: '2026-02-26T09:45:00', changes: null },
-  { id: 'act-002', userId: 'USR-004', userName: 'Celideth Dominguez', userRole: 'vendedor', action: 'created', module: 'ventas', target: 'Cotización COT-00089', detail: 'Creó cotización para MARIA DEL MAR PEREZ SV por $8,200', timestamp: '2026-02-26T09:30:00', changes: null },
-  { id: 'act-003', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'registered', module: 'cxc', target: 'Cobro COB-00008', detail: 'Registró cobro de $5,200 de CASA VERGARA PA (transferencia)', timestamp: '2026-02-26T09:15:00', changes: null },
-  { id: 'act-004', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'confirmed', module: 'inventario', target: 'Transferencia TR-00012', detail: 'Confirmó recepción de 45 cajas en Bodega Principal', timestamp: '2026-02-26T09:00:00', changes: null },
-  { id: 'act-005', userId: 'USR-003', userName: 'Jakeira Chavez', userRole: 'compras', action: 'created', module: 'compras', target: 'OC-00078', detail: 'Creó orden de compra a GLOBAL BRANDS por $32,100', timestamp: '2026-02-26T08:45:00', changes: null },
-  { id: 'act-006', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'modified', module: 'clientes', target: 'CLI-00009', detail: 'Modificó límite de crédito de CORPORACION FAVORITA EC: $80,000 → $120,000', timestamp: '2026-02-26T08:30:00', changes: { field: 'creditLimit', before: '$80,000', after: '$120,000' } },
-  { id: 'act-007', userId: 'USR-006', userName: 'Arnold Arenas', userRole: 'vendedor', action: 'created', module: 'ventas', target: 'Cotización COT-00088', detail: 'Creó cotización para DISTRIBUIDORA CENTRAL GT por $15,800', timestamp: '2026-02-26T08:15:00', changes: null },
-  { id: 'act-008', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'created', module: 'contabilidad', target: 'Asiento JE-00015', detail: 'Creó asiento manual de ajuste por depreciación $1,200', timestamp: '2026-02-26T08:00:00', changes: null },
-  { id: 'act-009', userId: 'USR-004', userName: 'Ariel Brome', userRole: 'trafico', action: 'updated', module: 'trafico', target: 'Embarque EMB-00034', detail: 'Actualizó ETA del contenedor MSKU-4829: 28 feb → 01 mar', timestamp: '2026-02-26T07:45:00', changes: { field: 'ETA', before: '28 Feb 2026', after: '01 Mar 2026' } },
-  { id: 'act-010', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'created', module: 'inventario', target: 'Conteo CF-00019', detail: 'Inició sesión de conteo en Bodega Colón ZL', timestamp: '2026-02-26T07:30:00', changes: null },
-  { id: 'act-025', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'login', module: 'sistema', target: 'Sesión', detail: 'Inició sesión desde 190.45.32.100', timestamp: '2026-02-26T07:00:00', changes: null },
-  { id: 'act-026', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'login', module: 'sistema', target: 'Sesión', detail: 'Inició sesión desde 190.45.32.105', timestamp: '2026-02-26T07:15:00', changes: null },
-  // Feb 25 (Yesterday)
-  { id: 'act-011', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'approved', module: 'inventario', target: 'Ajuste AJ-00044', detail: 'Aprobó ajuste de inventario de 12 cajas de Whisky Chivas', timestamp: '2026-02-25T17:00:00', changes: null },
-  { id: 'act-012', userId: 'USR-004', userName: 'Celideth Dominguez', userRole: 'vendedor', action: 'converted', module: 'ventas', target: 'PED-00022', detail: 'Convirtió cotización COT-00085 a pedido PED-00022', timestamp: '2026-02-25T16:30:00', changes: null },
-  { id: 'act-013', userId: 'USR-003', userName: 'Jakeira Chavez', userRole: 'compras', action: 'modified', module: 'productos', target: 'EVL-00015', detail: 'Actualizó precios de VODKA ABSOLUT: Nivel A $92→$95', timestamp: '2026-02-25T16:00:00', changes: { field: 'prices.A', before: '$92.00', after: '$95.00' } },
-  { id: 'act-014', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'reconciled', module: 'contabilidad', target: 'Conciliación Banesco', detail: 'Completó conciliación bancaria de enero - Banesco', timestamp: '2026-02-25T15:00:00', changes: null },
-  { id: 'act-015', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'packed', module: 'ventas', target: 'PED-00021', detail: 'Empacó pedido PED-00021 (15 cajas, 3 productos)', timestamp: '2026-02-25T14:30:00', changes: null },
-  { id: 'act-016', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'approved', module: 'cxc', target: 'Anulación ANU-00003', detail: 'Aprobó anulación de factura FAC-00018 por error de facturación', timestamp: '2026-02-25T14:00:00', changes: null },
-  { id: 'act-017', userId: 'USR-006', userName: 'Arnold Arenas', userRole: 'vendedor', action: 'created', module: 'clientes', target: 'CLI-00022', detail: 'Registró nuevo cliente: IMPORTADORA LÓPEZ CR', timestamp: '2026-02-25T13:00:00', changes: null },
-  { id: 'act-018', userId: 'USR-004', userName: 'Ariel Brome', userRole: 'trafico', action: 'created', module: 'inventario', target: 'Ajuste AJ-00043', detail: 'Creó ajuste por mercancía dañada en tránsito: 3 cajas', timestamp: '2026-02-25T12:00:00', changes: null },
-  // Feb 24
-  { id: 'act-019', userId: 'USR-003', userName: 'Jakeira Chavez', userRole: 'compras', action: 'created', module: 'compras', target: 'OC-00077', detail: 'Creó OC a TRIPLE DOUBLE TRADING por $28,500', timestamp: '2026-02-24T16:00:00', changes: null },
-  { id: 'act-020', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'closed', module: 'contabilidad', target: 'Cierre Enero 2026', detail: 'Ejecutó cierre contable del mes de enero 2026', timestamp: '2026-02-24T15:00:00', changes: null },
-  { id: 'act-021', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'modified', module: 'configuracion', target: 'Parámetros', detail: 'Modificó umbral de comisión: 10% → 12%', timestamp: '2026-02-24T14:00:00', changes: { field: 'commissionThreshold', before: '10%', after: '12%' } },
-  { id: 'act-022', userId: 'USR-004', userName: 'Celideth Dominguez', userRole: 'vendedor', action: 'sent', module: 'cxc', target: 'Estado de cuenta', detail: 'Envió estado de cuenta a 5 clientes (corte 24/02)', timestamp: '2026-02-24T11:00:00', changes: null },
-  { id: 'act-023', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'completed', module: 'inventario', target: 'Conteo CF-00018', detail: 'Finalizó conteo cíclico: 98.5% precisión, 3 diferencias', timestamp: '2026-02-24T10:00:00', changes: null },
-  { id: 'act-024', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'created', module: 'inventario', target: 'Transferencia TR-00011', detail: 'Creó transferencia de 80 cajas Colón ZL → Tienda PTY', timestamp: '2026-02-24T09:00:00', changes: null },
-  // Feb 23
-  { id: 'act-030', userId: 'USR-004', userName: 'Celideth Dominguez', userRole: 'vendedor', action: 'created', module: 'ventas', target: 'Cotización COT-00084', detail: 'Creó cotización para DUTY FREE AMERICAS por $42,000', timestamp: '2026-02-23T15:30:00', changes: null },
-  { id: 'act-031', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'registered', module: 'cxc', target: 'Cobro COB-00007', detail: 'Registró cobro de $12,800 de BRAND DISTRIBUIDOR CURACAO', timestamp: '2026-02-23T14:00:00', changes: null },
-  { id: 'act-032', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'approved', module: 'ventas', target: 'PED-00020', detail: 'Aprobó pedido por $18,200 para CARIBBEAN SPIRITS', timestamp: '2026-02-23T11:00:00', changes: null },
-  // Feb 20
-  { id: 'act-033', userId: 'USR-003', userName: 'Jakeira Chavez', userRole: 'compras', action: 'created', module: 'compras', target: 'OC-00076', detail: 'Creó OC a DIAGEO PANAMA por $45,000', timestamp: '2026-02-20T16:00:00', changes: null },
-  { id: 'act-034', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'confirmed', module: 'inventario', target: 'Transferencia TR-00010', detail: 'Confirmó recepción de 120 cajas de OC-00074', timestamp: '2026-02-20T10:00:00', changes: null },
-  { id: 'act-035', userId: 'USR-006', userName: 'Arnold Arenas', userRole: 'vendedor', action: 'created', module: 'ventas', target: 'Cotización COT-00083', detail: 'Creó cotización para ISLAND BEVERAGES CO por $9,500', timestamp: '2026-02-20T09:00:00', changes: null },
-  // Feb 19
-  { id: 'act-036', userId: 'USR-004', userName: 'Ariel Brome', userRole: 'trafico', action: 'updated', module: 'trafico', target: 'Embarque EMB-00033', detail: 'Registró arribo de contenedor CMAU-3821 en puerto Colón', timestamp: '2026-02-19T14:00:00', changes: null },
-  { id: 'act-037', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'created', module: 'contabilidad', target: 'Asiento JE-00014', detail: 'Registró provisión de gastos de importación $3,400', timestamp: '2026-02-19T11:00:00', changes: null },
-  // Feb 18
-  { id: 'act-038', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'approved', module: 'inventario', target: 'Ajuste AJ-00042', detail: 'Aprobó ajuste por merma: 8 cajas de Vodka Absolut', timestamp: '2026-02-18T16:00:00', changes: null },
-  { id: 'act-039', userId: 'USR-004', userName: 'Celideth Dominguez', userRole: 'vendedor', action: 'converted', module: 'ventas', target: 'PED-00019', detail: 'Convirtió cotización COT-00080 a pedido', timestamp: '2026-02-18T10:00:00', changes: null },
-  // Feb 17
-  { id: 'act-040', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'created', module: 'inventario', target: 'Conteo CF-00017', detail: 'Inició conteo cíclico en zona B - Ron y Tequila', timestamp: '2026-02-17T08:30:00', changes: null },
-  // Feb 14
-  { id: 'act-041', userId: 'USR-003', userName: 'Jakeira Chavez', userRole: 'compras', action: 'modified', module: 'productos', target: 'EVL-00003', detail: 'Actualizó costo FOB de JOHNNIE WALKER BLACK: $135→$142', timestamp: '2026-02-14T15:00:00', changes: { field: 'costFOB', before: '$135.00', after: '$142.00' } },
-  { id: 'act-042', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'registered', module: 'cxc', target: 'Cobro COB-00006', detail: 'Registró cobro de $22,100 de WORLD DUTY FREE GROUP', timestamp: '2026-02-14T12:00:00', changes: null },
-  // Feb 12
-  { id: 'act-043', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'approved', module: 'ventas', target: 'PED-00018', detail: 'Aprobó pedido especial con descuento 15% para DUTY FREE AMERICAS', timestamp: '2026-02-12T14:00:00', changes: null },
-  { id: 'act-044', userId: 'USR-006', userName: 'Arnold Arenas', userRole: 'vendedor', action: 'created', module: 'clientes', target: 'CLI-00021', detail: 'Registró nuevo cliente: BEBIDAS SELECTAS GT', timestamp: '2026-02-12T09:30:00', changes: null },
-  // Feb 10
-  { id: 'act-045', userId: 'USR-008', userName: 'Jesus Ferreira', userRole: 'bodega', action: 'packed', module: 'ventas', target: 'PED-00017', detail: 'Empacó pedido para DISTRIBUIDORA DEL MAR (28 cajas)', timestamp: '2026-02-10T11:00:00', changes: null },
-  // Feb 7
-  { id: 'act-046', userId: 'USR-004', userName: 'Ariel Brome', userRole: 'trafico', action: 'created', module: 'trafico', target: 'Embarque EMB-00032', detail: 'Registró nuevo embarque de BEAM SUNTORY - 200 cajas', timestamp: '2026-02-07T15:00:00', changes: null },
-  { id: 'act-047', userId: 'USR-003', userName: 'Jakeira Chavez', userRole: 'compras', action: 'created', module: 'compras', target: 'OC-00075', detail: 'Creó OC a BACARDI GLOBAL por $18,900', timestamp: '2026-02-07T10:00:00', changes: null },
-  // Feb 5
-  { id: 'act-048', userId: 'USR-002', userName: 'Astelvia Watts', userRole: 'contabilidad', action: 'reconciled', module: 'contabilidad', target: 'Conciliación BAC', detail: 'Completó conciliación bancaria de diciembre - BAC', timestamp: '2026-02-05T16:00:00', changes: null },
-  // Feb 3
-  { id: 'act-049', userId: 'USR-001', userName: 'Javier Lange', userRole: 'gerencia', action: 'modified', module: 'configuracion', target: 'Usuarios', detail: 'Activó permisos de facturación para Astelvia Watts', timestamp: '2026-02-03T09:00:00', changes: null },
-  { id: 'act-050', userId: 'USR-004', userName: 'Celideth Dominguez', userRole: 'vendedor', action: 'created', module: 'ventas', target: 'Cotización COT-00078', detail: 'Creó cotización para CASA VERGARA PA por $6,800', timestamp: '2026-02-03T14:00:00', changes: null },
-];
 
 // ============================================
 // ACTION CONFIG
@@ -167,8 +104,6 @@ const MODULE_CONFIG: Record<string, { label: string; color: string }> = {
 // HELPERS
 // ============================================
 
-const REFERENCE_TODAY = new Date('2026-02-26T12:00:00');
-
 function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -176,8 +111,9 @@ function toDateKey(date: Date): string {
 function getDateLabel(dateStr: string): string {
   const date = new Date(dateStr);
   const entryKey = toDateKey(date);
-  const todayKey = toDateKey(REFERENCE_TODAY);
-  const yesterday = new Date(REFERENCE_TODAY);
+  const now = new Date();
+  const todayKey = toDateKey(now);
+  const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayKey = toDateKey(yesterday);
 
@@ -204,8 +140,9 @@ interface MiniCalendarProps {
 }
 
 function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalendarProps) {
-  const [viewMonth, setViewMonth] = useState(REFERENCE_TODAY.getMonth());
-  const [viewYear, setViewYear] = useState(REFERENCE_TODAY.getFullYear());
+  const now = new Date();
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [viewYear, setViewYear] = useState(now.getFullYear());
 
   const prevMonth = useCallback(() => {
     if (viewMonth === 0) {
@@ -225,33 +162,27 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
     }
   }, [viewMonth]);
 
-  // Build calendar grid
   const calendarDays = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1);
     const lastDay = new Date(viewYear, viewMonth + 1, 0);
     const daysInMonth = lastDay.getDate();
 
-    // Monday-based week (0=Mon, 6=Sun)
     let startDow = firstDay.getDay() - 1;
     if (startDow < 0) startDow = 6;
 
     const cells: (number | null)[] = [];
-    // Leading empty cells
     for (let i = 0; i < startDow; i++) cells.push(null);
-    // Day cells
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    // Trailing empty cells to complete last row
     while (cells.length % 7 !== 0) cells.push(null);
 
     return cells;
   }, [viewMonth, viewYear]);
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-  const todayKey = toDateKey(REFERENCE_TODAY);
+  const todayKey = toDateKey(now);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-[#2a2a2a] dark:bg-[#141414]">
-      {/* Month nav */}
       <div className="mb-3 flex items-center justify-between">
         <button onClick={prevMonth} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] dark:text-[#666]">
           <ChevronLeft className="h-4 w-4" />
@@ -262,7 +193,6 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
         </button>
       </div>
 
-      {/* Day-of-week headers */}
       <div className="mb-1 grid grid-cols-7 gap-0">
         {DAYS_OF_WEEK.map((d) => (
           <div key={d} className="py-1 text-center text-[10px] font-medium uppercase text-gray-400 dark:text-[#666]">
@@ -271,18 +201,15 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
         ))}
       </div>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-0">
         {calendarDays.map((day, idx) => {
-          if (day === null) {
-            return <div key={`empty-${idx}`} className="h-9" />;
-          }
+          if (day === null) return <div key={`empty-${idx}`} className="h-9" />;
 
           const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const activityCount = activityDates.get(dateKey) || 0;
           const isToday = dateKey === todayKey;
           const isSelected = dateKey === selectedDate;
-          const isFuture = new Date(dateKey) > REFERENCE_TODAY;
+          const isFuture = new Date(dateKey + 'T23:59:59') > now;
 
           return (
             <button
@@ -296,41 +223,22 @@ function MiniCalendar({ activityDates, selectedDate, onSelectDate }: MiniCalenda
                 'relative flex h-9 w-full flex-col items-center justify-center rounded-lg text-sm transition-all',
                 isFuture && 'cursor-default text-gray-300 dark:text-[#333]',
                 !isFuture && !isSelected && !isToday && 'text-gray-700 hover:bg-gray-100 dark:text-[#ccc] dark:hover:bg-[#1a1a1a]',
-                !isFuture && isToday && !isSelected && 'font-bold text-brand-600 dark:text-brand-400',
-                isSelected && 'bg-brand-600 font-bold text-white',
+                !isFuture && isToday && !isSelected && 'font-bold text-blue-600 dark:text-blue-400',
+                isSelected && 'bg-blue-600 font-bold text-white',
               )}
             >
               <span className="leading-none">{day}</span>
-              {/* Activity dot */}
               {activityCount > 0 && !isFuture && (
                 <span
                   className={cn(
-                    'absolute bottom-0.5 h-1 w-1 rounded-full',
-                    isSelected ? 'bg-white' : activityCount >= 5 ? 'bg-brand-500' : activityCount >= 3 ? 'bg-brand-400' : 'bg-brand-300 dark:bg-brand-600',
+                    'absolute bottom-1 h-2 w-2 rounded-full shadow-sm',
+                    isSelected ? 'bg-white' : 'bg-blue-600',
                   )}
                 />
               )}
             </button>
           );
         })}
-      </div>
-
-      {/* Legend */}
-      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-[#2a2a2a]">
-        <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-[#666]">
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-brand-300 dark:bg-brand-600" />1-2</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-brand-400" />3-4</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-brand-500" />5+</span>
-        </div>
-        {selectedDate && (
-          <button
-            onClick={() => onSelectDate(null)}
-            className="flex items-center gap-1 text-[10px] font-medium text-brand-500 hover:text-brand-600"
-          >
-            <X className="h-3 w-3" />
-            Limpiar
-          </button>
-        )}
       </div>
     </div>
   );
@@ -348,8 +256,50 @@ export default function HistorialPage() {
   const [moduleFilter, setModuleFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  const [logs, setLogs] = useState<ActivityEntry[]>([]);
+  const [platformUsers, setPlatformUsers] = useState<{ id: string; name: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Permission check
+  // Load real data
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const [auditRes, usersRes] = await Promise.all([
+          api.getAuditLogs({ limit: 500 }),
+          api.getUsers()
+        ]);
+        
+        // Map backend logs to frontend interface
+        const mappedLogs = (auditRes.logs || []).map((log: any) => ({
+          id: log.id,
+          userId: log.userId,
+          userName: log.user?.name || 'Sistema',
+          userRole: log.user?.roles?.[0]?.role?.name || 'sistema',
+          action: log.action.toLowerCase(),
+          module: log.entity.toLowerCase(),
+          target: `${log.entity} ${log.entityId || ''}`,
+          detail: `Acción: ${log.action} en ${log.entity}`,
+          timestamp: log.createdAt,
+          changes: log.newData || log.oldData ? { field: 'Datos', before: 'Anterior', after: 'Nuevo' } : null,
+          oldData: log.oldData,
+          newData: log.newData
+        }));
+        
+        setLogs(mappedLogs);
+        setPlatformUsers(usersRes || []);
+      } catch (error) {
+        console.error('Error loading history:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // PERMISSION CHECK
   if (!checkPermission('canViewHistorial')) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
@@ -364,33 +314,23 @@ export default function HistorialPage() {
     );
   }
 
-  // Activity dates map (dateKey → count)
   const activityDates = useMemo(() => {
     const map = new Map<string, number>();
-    ACTIVITY_LOG.forEach((entry) => {
+    logs.forEach((entry) => {
       const key = toDateKey(new Date(entry.timestamp));
       map.set(key, (map.get(key) || 0) + 1);
     });
     return map;
-  }, []);
+  }, [logs]);
 
-  // Unique users for filter
-  const uniqueUsers = useMemo(() => {
-    const map = new Map<string, string>();
-    ACTIVITY_LOG.forEach((a) => map.set(a.userId, a.userName));
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, []);
-
-  // Unique action types for filter
   const uniqueActions = useMemo(() => {
     const set = new Set<string>();
-    ACTIVITY_LOG.forEach((a) => set.add(a.action));
+    logs.forEach((a) => set.add(a.action));
     return Array.from(set).sort();
-  }, []);
+  }, [logs]);
 
-  // Filtered entries
   const filteredEntries = useMemo(() => {
-    return ACTIVITY_LOG.filter((entry) => {
+    return logs.filter((entry) => {
       if (searchQuery && !entry.detail.toLowerCase().includes(searchQuery.toLowerCase()) && !entry.target.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
@@ -403,9 +343,8 @@ export default function HistorialPage() {
       }
       return true;
     }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [searchQuery, userFilter, moduleFilter, actionFilter, selectedDate]);
+  }, [logs, searchQuery, userFilter, moduleFilter, actionFilter, selectedDate]);
 
-  // Group by day
   const groupedEntries = useMemo(() => {
     const groups: { label: string; entries: ActivityEntry[] }[] = [];
     let currentLabel = '';
@@ -423,43 +362,39 @@ export default function HistorialPage() {
     return groups;
   }, [filteredEntries]);
 
-  // Stats
   const stats = useMemo(() => {
-    const todayEntries = ACTIVITY_LOG.filter((e) => e.timestamp.startsWith('2026-02-26'));
+    const todayStr = toDateKey(new Date());
+    const todayEntries = logs.filter((e) => toDateKey(new Date(e.timestamp)) === todayStr);
     const todayUsers = new Set(todayEntries.map((e) => e.userId));
     const moduleCounts: Record<string, number> = {};
     todayEntries.forEach((e) => {
       moduleCounts[e.module] = (moduleCounts[e.module] || 0) + 1;
     });
     const topModule = Object.entries(moduleCounts).sort((a, b) => b[1] - a[1])[0];
-    const lastAction = ACTIVITY_LOG.reduce((latest, entry) =>
-      new Date(entry.timestamp) > new Date(latest.timestamp) ? entry : latest
-    );
+    const lastAction = logs[0];
 
     return {
       todayActions: todayEntries.length,
       activeUsers: todayUsers.size,
       topModule: topModule ? MODULE_CONFIG[topModule[0]]?.label || topModule[0] : '-',
-      lastActionTime: formatTime(lastAction.timestamp),
+      lastActionTime: lastAction ? formatTime(lastAction.timestamp) : '-',
     };
-  }, []);
+  }, [logs]);
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100">
-          <History className="h-5 w-5 text-brand-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+          <History className="h-5 w-5 text-blue-600" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Historial de Actividad</h1>
           <p className="text-sm text-gray-500 dark:text-[#888888]">
-            Registro completo de acciones realizadas por todos los usuarios
+            Registro completo de acciones realizadas por los usuarios de la plataforma
           </p>
         </div>
       </div>
 
-      {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-[#666]" />
@@ -468,23 +403,23 @@ export default function HistorialPage() {
             placeholder="Buscar actividad..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-[#666]"
+            className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white dark:placeholder-[#666]"
           />
         </div>
         <select
           value={userFilter}
           onChange={(e) => setUserFilter(e.target.value)}
-          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
         >
           <option value="all">Todos los usuarios</option>
-          {uniqueUsers.map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
+          {platformUsers.map((user) => (
+            <option key={user.id} value={user.id}>{user.name}</option>
           ))}
         </select>
         <select
           value={moduleFilter}
           onChange={(e) => setModuleFilter(e.target.value)}
-          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
         >
           <option value="all">Todos los módulos</option>
           {Object.entries(MODULE_CONFIG).map(([key, cfg]) => (
@@ -494,28 +429,18 @@ export default function HistorialPage() {
         <select
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
-          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-brand-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
+          className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 outline-none transition-colors focus:border-blue-500 dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-[#ccc]"
         >
           <option value="all">Todas las acciones</option>
           {uniqueActions.map((action) => (
             <option key={action} value={action}>{ACTION_CONFIG[action]?.label || action}</option>
           ))}
         </select>
-        {selectedDate && (
-          <button
-            onClick={() => setSelectedDate(null)}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-400"
-          >
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
 
-      {/* Stats Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Acciones Hoy', value: stats.todayActions, icon: Activity, color: 'text-brand-500', bgColor: 'bg-brand-100' },
+          { label: 'Acciones Hoy', value: stats.todayActions, icon: Activity, color: 'text-blue-500', bgColor: 'bg-blue-100' },
           { label: 'Usuarios Activos', value: stats.activeUsers, icon: Users, color: 'text-emerald-500', bgColor: 'bg-emerald-50 dark:bg-emerald-950' },
           { label: 'Módulo Más Activo', value: stats.topModule, icon: TrendingUp, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' },
           { label: 'Última Acción', value: stats.lastActionTime, icon: Clock, color: 'text-amber-500', bgColor: 'bg-amber-50 dark:bg-amber-950' },
@@ -538,9 +463,7 @@ export default function HistorialPage() {
         ))}
       </div>
 
-      {/* Main content: Calendar sidebar + Timeline */}
       <div className="flex gap-6">
-        {/* Calendar sidebar */}
         <div className="hidden w-[280px] shrink-0 lg:block">
           <div className="sticky top-20">
             <MiniCalendar
@@ -548,57 +471,26 @@ export default function HistorialPage() {
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
-            {/* Selected date info */}
-            {selectedDate && (
-              <motion.div
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-[#2a2a2a] dark:bg-[#141414]"
-              >
-                <p className="text-xs font-medium text-gray-500 dark:text-[#888]">Actividad del día</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                  {filteredEntries.length} <span className="text-sm font-normal text-gray-500 dark:text-[#888]">{filteredEntries.length === 1 ? 'acción' : 'acciones'}</span>
-                </p>
-                {/* Module breakdown for selected date */}
-                <div className="mt-2 space-y-1">
-                  {(() => {
-                    const counts: Record<string, number> = {};
-                    filteredEntries.forEach((e) => {
-                      counts[e.module] = (counts[e.module] || 0) + 1;
-                    });
-                    return Object.entries(counts)
-                      .sort((a, b) => b[1] - a[1])
-                      .slice(0, 5)
-                      .map(([mod, count]) => {
-                        const cfg = MODULE_CONFIG[mod];
-                        return (
-                          <div key={mod} className="flex items-center justify-between text-xs">
-                            <span className={cn('inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium', cfg?.color || 'text-gray-400')}>
-                              {cfg?.label || mod}
-                            </span>
-                            <span className="text-gray-500 dark:text-[#888]">{count}</span>
-                          </div>
-                        );
-                      });
-                  })()}
-                </div>
-              </motion.div>
-            )}
           </div>
         </div>
 
-        {/* Timeline */}
         <div className="min-w-0 flex-1 space-y-6">
-          {groupedEntries.length === 0 && (
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <RefreshCw className="h-10 w-10 animate-spin text-blue-500" />
+              <p className="text-sm text-gray-500 dark:text-[#888]">Cargando historial real...</p>
+            </div>
+          )}
+
+          {!isLoading && groupedEntries.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
               <Search className="h-10 w-10 text-gray-300 dark:text-[#444]" />
-              <p className="text-sm text-gray-500 dark:text-[#888]">No se encontraron actividades con los filtros seleccionados.</p>
+              <p className="text-sm text-gray-500 dark:text-[#888]">No se encontraron actividades registradas.</p>
             </div>
           )}
 
           {groupedEntries.map((group) => (
             <div key={group.label}>
-              {/* Date Header */}
               <div className="mb-3 flex items-center gap-3">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{group.label}</h3>
                 <div className="h-px flex-1 bg-gray-200 dark:bg-[#2a2a2a]" />
@@ -607,11 +499,10 @@ export default function HistorialPage() {
                 </span>
               </div>
 
-              {/* Entries */}
               <div className="space-y-2">
                 {group.entries.map((entry, entryIndex) => {
                   const actionCfg = ACTION_CONFIG[entry.action] || ACTION_CONFIG.created;
-                  const moduleCfg = MODULE_CONFIG[entry.module];
+                  const moduleCfg = MODULE_CONFIG[entry.module] || MODULE_CONFIG.sistema;
                   const ActionIcon = actionCfg.icon;
 
                   return (
@@ -620,44 +511,84 @@ export default function HistorialPage() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: entryIndex * 0.03 }}
-                      className="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300 dark:border-[#2a2a2a] dark:bg-[#141414] dark:hover:border-[#3a3a3a]"
+                      className={cn(
+                        "group flex flex-col rounded-xl border border-gray-200 bg-white transition-all hover:border-blue-200 dark:border-[#2a2a2a] dark:bg-[#141414] overflow-hidden cursor-pointer",
+                        expandedId === entry.id && "ring-1 ring-blue-500 border-blue-200 shadow-md"
+                      )}
+                      onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
                     >
-                      {/* Action Icon */}
-                      <div className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full', actionCfg.bgColor)}>
-                        <ActionIcon className={cn('h-4 w-4', actionCfg.color)} />
-                      </div>
-
-                      {/* Content */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline gap-1 text-sm">
-                          <span className="font-semibold text-gray-900 dark:text-white">{entry.userName}</span>
-                          <span className="text-gray-500 dark:text-[#888]">{actionCfg.label.toLowerCase()}</span>
-                          <span className="font-medium text-gray-900 dark:text-white">{entry.target}</span>
+                      <div className="flex items-start gap-3 p-4">
+                        <div className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full', actionCfg.bgColor)}>
+                          <ActionIcon className={cn('h-4 w-4', actionCfg.color)} />
                         </div>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-[#888] line-clamp-1">{entry.detail}</p>
 
-                        {/* Changes diff */}
-                        {entry.changes && (
-                          <div className="mt-2 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs dark:bg-[#1a1a1a]">
-                            <span className="font-mono text-red-400 line-through">{entry.changes.before}</span>
-                            <ArrowRight className="h-3 w-3 text-gray-400 dark:text-[#666]" />
-                            <span className="font-mono text-emerald-400">{entry.changes.after}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-baseline gap-1 text-sm">
+                            <span className="font-bold text-gray-900 dark:text-white">{entry.userName}</span>
+                            <span className="text-gray-500 dark:text-[#888]">{actionCfg.label.toLowerCase()}</span>
+                            <span className="font-bold text-blue-600 dark:text-blue-400">{entry.target}</span>
                           </div>
-                        )}
-                      </div>
+                          <p className="mt-0.5 text-xs text-gray-500 dark:text-[#888] font-medium">{entry.detail}</p>
+                        </div>
 
-                      {/* Right side */}
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        {moduleCfg && (
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
                           <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', moduleCfg.color)}>
                             {moduleCfg.label}
                           </span>
-                        )}
-                        <span className="text-xs text-gray-400 dark:text-[#666]">{formatTime(entry.timestamp)}</span>
-                        <span className="text-[10px] text-gray-400 dark:text-[#555]">
-                          {ROLE_LABELS[entry.userRole as keyof typeof ROLE_LABELS] || entry.userRole}
-                        </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 dark:text-[#666]">{formatTime(entry.timestamp)}</span>
+                            <ChevronDown className={cn("h-3.5 w-3.5 text-gray-400 transition-transform", expandedId === entry.id && "rotate-180")} />
+                          </div>
+                        </div>
                       </div>
+
+                      <AnimatePresence>
+                        {expandedId === entry.id && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-gray-50/50 border-t border-gray-100 dark:bg-black/20 dark:border-[#2a2a2a]"
+                          >
+                            <div className="p-4 pt-2 space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Datos Anteriores</h4>
+                                  <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-[#333] dark:bg-[#1a1a1a] overflow-x-auto">
+                                    {entry.oldData ? (
+                                      <pre className="whitespace-pre-wrap font-sans text-gray-600 dark:text-gray-400">
+                                        {JSON.stringify(entry.oldData, null, 2)}
+                                      </pre>
+                                    ) : (
+                                      <span className="italic text-gray-400">Sin datos previos (Creación)</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Datos Nuevos</h4>
+                                  <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-[#333] dark:bg-[#1a1a1a] overflow-x-auto text-emerald-600 dark:text-emerald-400">
+                                    {entry.newData ? (
+                                      <pre className="whitespace-pre-wrap font-sans">
+                                        {JSON.stringify(entry.newData, null, 2)}
+                                      </pre>
+                                    ) : (
+                                      <span className="italic text-gray-400">Sin datos nuevos (Eliminación)</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-100 pt-3 dark:border-[#2a2a2a]">
+                                <div className="flex gap-4">
+                                   <span>ID Registro: <span className="font-mono">{entry.id}</span></span>
+                                   <span>Módulo: {moduleCfg.label}</span>
+                                </div>
+                                <button className="text-blue-500 hover:underline">Ver registro completo</button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   );
                 })}

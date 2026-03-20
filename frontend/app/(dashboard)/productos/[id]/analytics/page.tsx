@@ -15,6 +15,9 @@ import {
 import { SEED_PRODUCTS, PRODUCT_GROUPS } from '@/lib/mock-data/products';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/services/api';
+import { SkeletonDashboard } from '@/components/ui/skeleton-dashboard';
 
 // ============================================================================
 // HELPERS
@@ -172,10 +175,34 @@ export default function ProductAnalyticsPage() {
   const canView = checkPermission('canViewProductAnalytics');
 
   const productId = params.id as string;
-  const product = SEED_PRODUCTS.find((p) => p.id === productId);
-  const groupLabel = product
-    ? PRODUCT_GROUPS.find((g) => g.id === product.group)?.label || product.group
-    : '';
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const data = await api.getProductById(productId);
+        setProduct(data);
+      } catch (err) {
+        console.error("Error fetching product for analytics:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [productId]);
+
+  const getLabel = (value: any) => {
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object') {
+      return value.name || value.label || value.code || 'Desconocido';
+    }
+    return '-';
+  };
+
+  const groupLabel = product ? getLabel(product.group) : "";
+
+  if (loading) return <SkeletonDashboard />;
 
   // ── Permission gate ──
   if (!canView) {
@@ -188,7 +215,7 @@ export default function ProductAnalyticsPage() {
         </p>
         <button
           onClick={() => router.back()}
-          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+          className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
         >
           Volver
         </button>
@@ -207,7 +234,7 @@ export default function ProductAnalyticsPage() {
         </p>
         <button
           onClick={() => router.push('/productos')}
-          className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+          className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
         >
           Volver a Productos
         </button>
@@ -258,7 +285,7 @@ export default function ProductAnalyticsPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold text-foreground">{product.description}</h1>
-              <span className="inline-flex items-center rounded-full bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-500">
+              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-500">
                 {groupLabel}
               </span>
             </div>
@@ -314,7 +341,7 @@ export default function ProductAnalyticsPage() {
         ].map((stat) => {
           const Icon = stat.icon;
           const colorMap: Record<string, string> = {
-            brand: 'bg-brand-500/10 text-brand-500',
+            brand: 'bg-blue-500/10 text-blue-500',
             info: 'bg-sky-500/10 text-sky-500',
             success: 'bg-emerald-500/10 text-emerald-500',
             warning: 'bg-amber-500/10 text-amber-500',
@@ -540,7 +567,7 @@ export default function ProductAnalyticsPage() {
                   >
                     <td className="py-2.5 pr-4">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/10 text-[10px] font-bold text-brand-500">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-[10px] font-bold text-blue-500">
                           {i + 1}
                         </span>
                         <span className="text-xs font-medium text-foreground">{client.name}</span>
@@ -553,7 +580,7 @@ export default function ProductAnalyticsPage() {
                       <div className="flex items-center justify-end gap-2">
                         <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full rounded-full bg-brand-500"
+                            className="h-full rounded-full bg-blue-500"
                             style={{ width: `${client.percent}%` }}
                           />
                         </div>

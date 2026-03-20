@@ -15,9 +15,9 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canApproveSales: ['gerencia'],
   canViewReports: ['gerencia', 'contabilidad'],
   canManageUsers: ['gerencia'],
-  canAccessPOS: ['gerencia', 'vendedor', 'bodega'],
+  canAccessPOS: ['gerencia', 'vendedor', 'bodega', 'pos_cajero', 'pos_encargado'],
   canAccessTrafico: ['gerencia', 'contabilidad', 'trafico'],
-  canAccessInventory: ['gerencia', 'compras', 'bodega'],
+  canAccessInventory: ['gerencia', 'compras', 'bodega', 'pos_encargado'],
   canAccessCompras: ['gerencia', 'contabilidad', 'compras'],
   // Inventory module permissions
   canCreateAdjustments: ['gerencia', 'compras', 'bodega', 'trafico'],
@@ -53,10 +53,10 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canAccessTreasury: ['gerencia', 'contabilidad'],
   canViewBankBalances: ['gerencia', 'contabilidad'],
   // Configuración permissions
-  canAccessConfiguracion: ['gerencia'],
-  canManageRoles: ['gerencia'],
-  canManageCatalogs: ['gerencia', 'contabilidad', 'compras'],
-  canViewAuditLog: ['gerencia'],
+  canAccessConfiguracion: [],
+  canManageRoles: [],
+  canManageCatalogs: ['contabilidad', 'compras'],
+  canViewAuditLog: [],
   // Historial
   canViewHistorial: ['gerencia'],
   // Tráfico y Documentación
@@ -64,17 +64,17 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canCreateBL: ['gerencia', 'trafico'],
   canCreateCertificates: ['gerencia', 'trafico'],
   canAnnulTrafficDocs: ['gerencia', 'trafico'],
-  canConfigureTrafico: ['gerencia'],
+  canConfigureTrafico: [],
   // Punto de Venta B2C
-  canSellPOS: ['gerencia', 'vendedor', 'bodega'],
-  canOpenCloseCash: ['gerencia', 'vendedor', 'bodega'],
-  canApplyPOSDiscount: ['gerencia'],
-  canProcessPOSReturn: ['gerencia', 'vendedor', 'bodega'],
-  canAnnulPOSSale: ['gerencia'],
-  canViewPOSReports: ['gerencia', 'contabilidad', 'vendedor'],
+  canSellPOS: ['gerencia', 'vendedor', 'bodega', 'pos_cajero', 'pos_encargado'],
+  canOpenCloseCash: ['gerencia', 'vendedor', 'bodega', 'pos_cajero', 'pos_encargado'],
+  canApplyPOSDiscount: ['gerencia', 'pos_encargado'],
+  canProcessPOSReturn: ['gerencia', 'vendedor', 'bodega', 'pos_encargado'],
+  canAnnulPOSSale: ['gerencia', 'pos_encargado'],
+  canViewPOSReports: ['gerencia', 'contabilidad', 'vendedor', 'pos_encargado'],
   canViewPOSMargins: ['gerencia'],
   canConfigurePOSPrices: ['gerencia'],
-  canRequestReplenishment: ['gerencia', 'bodega'],
+  canRequestReplenishment: ['gerencia', 'bodega', 'pos_encargado'],
   // Doc09 Feature Permissions
   canConfigureReorderPoints: ['gerencia', 'compras'],
   canViewInventoryAlerts: ['gerencia', 'compras', 'bodega'],
@@ -82,7 +82,7 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canManageBarcodes: ['gerencia', 'compras', 'bodega'],
   canManageExpiryDates: ['gerencia', 'compras', 'bodega'],
   canViewExpiryAlerts: ['gerencia', 'compras', 'bodega'],
-  canConfigureApprovalChains: ['gerencia'],
+  canConfigureApprovalChains: [],
   canApproveEscalated: ['gerencia'],
   canCreateB2BtoB2CTransfer: ['gerencia', 'compras', 'bodega'],
   canReceiveB2CTransfer: ['gerencia', 'bodega'],
@@ -93,37 +93,44 @@ export const PERMISSIONS: Record<PermissionKey, UserRole[]> = {
   canProrateCosts: ['gerencia', 'compras'],
   canViewCostAlerts: ['gerencia', 'compras', 'contabilidad'],
   canViewProductAnalytics: ['gerencia', 'compras', 'contabilidad'],
-  canConfigureBrandProtection: ['gerencia'],
+  canConfigureBrandProtection: [],
 };
 
 /**
  * Role display names in Spanish
  */
 export const ROLE_LABELS: Record<UserRole, string> = {
+  owner: 'Dueño',
   gerencia: 'Gerencia',
   contabilidad: 'Contabilidad',
   compras: 'Compras',
   vendedor: 'Vendedor B2B',
   trafico: 'Tráfico',
   bodega: 'Bodega',
+  pos_cajero: 'Cajero POS',
+  pos_encargado: 'Encargado de Tienda',
 };
 
 /**
  * Role colors for badges and UI
  */
 export const ROLE_COLORS: Record<UserRole, { bg: string; text: string }> = {
-  gerencia: { bg: 'bg-brand-100', text: 'text-brand-800' },
-  contabilidad: { bg: 'bg-info-bg', text: 'text-info' },
-  compras: { bg: 'bg-success-bg', text: 'text-success' },
-  vendedor: { bg: 'bg-warning-bg', text: 'text-warning' },
-  trafico: { bg: 'bg-brand-50', text: 'text-brand-600' },
-  bodega: { bg: 'bg-surface-tertiary', text: 'text-text-secondary' },
+  owner: { bg: 'bg-blue-500', text: 'text-white' },
+  gerencia: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  contabilidad: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  compras: { bg: 'bg-green-50', text: 'text-green-600' },
+  vendedor: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  trafico: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  bodega: { bg: 'bg-accent', text: 'text-muted-foreground' },
+  pos_cajero: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  pos_encargado: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
 };
 
 /**
  * Check if a role has a specific permission
  */
 export function hasPermission(role: UserRole, permission: PermissionKey): boolean {
+  if (role === 'owner') return true;
   const allowedRoles = PERMISSIONS[permission];
   if (!allowedRoles) return false;
   return allowedRoles.includes(role);
