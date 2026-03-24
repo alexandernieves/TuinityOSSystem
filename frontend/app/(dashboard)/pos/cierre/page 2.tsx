@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LogOut, Loader2, CheckCircle2, AlertTriangle, Receipt } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/services/api';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { toast } from 'sonner';
@@ -50,22 +49,8 @@ export default function CierreCAjaPage() {
   };
 
   if (loading) return (
-    <div className="max-w-6xl mx-auto xl:px-4 space-y-6 pb-20 p-2">
-      <Skeleton className="h-6 w-24 rounded-full" />
-      <div>
-        <Skeleton className="h-8 w-64 rounded-lg mb-2" />
-        <Skeleton className="h-4 w-96 rounded-lg" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-        <div className="md:col-span-5 space-y-6">
-          <Skeleton className="h-48 w-full rounded-2xl" />
-          <Skeleton className="h-64 w-full rounded-2xl" />
-          <Skeleton className="h-80 w-full rounded-2xl" />
-        </div>
-        <div className="md:col-span-7">
-          <Skeleton className="h-[70vh] w-full rounded-2xl" />
-        </div>
-      </div>
+    <div className="flex items-center justify-center h-full min-h-[60vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
     </div>
   );
 
@@ -110,7 +95,7 @@ export default function CierreCAjaPage() {
       </button>
 
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Cierre de Caja Detallado</h1>
+        <h1 className="text-3xl font-black tracking-tight">Cierre de Caja Detallado</h1>
         <p className="text-gray-500 text-sm mt-1">Revisa el resumen de ventas, transacciones y confirma el arqueo de tu turno.</p>
       </div>
 
@@ -119,26 +104,26 @@ export default function CierreCAjaPage() {
         {/* Left Column: Register Form */}
         <div className="md:col-span-5 space-y-6">
           
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-6">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Información del Turno</h3>
+          <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-sm">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Información del Turno</h3>
             <div className="space-y-3">
-               <div className="flex justify-between items-center bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-50 dark:border-white/5">
-                 <span className="text-sm text-gray-500 font-bold">Cajero</span>
-                 <span className="text-sm font-extrabold text-gray-900 dark:text-white">{session.userName}</span>
+               <div className="flex justify-between items-center bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                 <span className="text-sm text-gray-500 font-medium">Cajero</span>
+                 <span className="text-sm font-bold text-gray-900 dark:text-white">{session.userName}</span>
                </div>
-               <div className="flex justify-between items-center bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-50 dark:border-white/5">
-                 <span className="text-sm text-gray-500 font-bold">Apertura</span>
-                 <span className="text-sm font-extrabold text-gray-900 dark:text-white">{new Date(session.openedAt).toLocaleString()}</span>
+               <div className="flex justify-between items-center bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                 <span className="text-sm text-gray-500 font-medium">Apertura</span>
+                 <span className="text-sm font-bold text-gray-900 dark:text-white">{new Date(session.openedAt).toLocaleString()}</span>
                </div>
-               <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100/10">
+               <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
                  <span className="text-sm text-emerald-700 dark:text-emerald-400 font-bold">Fondo Apertura</span>
-                 <span className="text-sm font-extrabold text-emerald-700 dark:text-emerald-400">{fmt(Number(session.openingAmount))}</span>
+                 <span className="text-sm font-black font-mono text-emerald-700 dark:text-emerald-400">{fmt(Number(session.openingAmount))}</span>
                </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-6">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Desglose de Ingresos</h3>
+          <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-sm">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Desglose de Ingresos</h3>
             <div className="space-y-3">
               {[
                 { label: 'Efectivo', value: Number(session.cashSales || 0), color: 'text-emerald-600' },
@@ -147,24 +132,24 @@ export default function CierreCAjaPage() {
               ].map(s => (
                 <div key={s.label} className="flex justify-between items-center py-1">
                   <span className="text-sm text-gray-500 font-medium">{s.label}</span>
-                  <span className={cn("text-lg font-extrabold", s.color)}>{fmt(s.value)}</span>
+                  <span className={cn("text-lg font-black font-mono", s.color)}>{fmt(s.value)}</span>
                 </div>
               ))}
               <div className="border-t border-gray-100 dark:border-white/10 border-dashed pt-4 mt-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-gray-700 dark:text-gray-300">Ventas Totales</span>
-                  <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{fmt(Number(session.totalSales || 0))}</span>
+                  <span className="text-2xl font-black font-mono text-gray-900 dark:text-white">{fmt(Number(session.totalSales || 0))}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#0A0A0A] border border-emerald-500/20 rounded-2xl p-6 space-y-5">
-            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2">Arqueo y Cierre</h3>
+          <div className="bg-white dark:bg-[#141414] border border-emerald-200 dark:border-emerald-500/20 rounded-3xl p-6 space-y-5 shadow-sm">
+            <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-2">Arqueo y Cierre</h3>
             
-            <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-4 flex justify-between items-center">
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 flex justify-between items-center">
                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Efectivo Teórico (Esperado)</span>
-               <span className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400">{fmt(expectedCash)}</span>
+               <span className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-400">{fmt(expectedCash)}</span>
             </div>
 
             <div className="space-y-4">
@@ -234,10 +219,10 @@ export default function CierreCAjaPage() {
 
         {/* Right Column: Transactions List */}
         <div className="md:col-span-7">
-           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl overflow-hidden h-full max-h-[90vh] flex flex-col">
-              <div className="p-6 border-b border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 flex justify-between items-center">
-                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Listado de Transacciones</h3>
-                 <span className="bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-bold">
+           <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm h-full max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/2 flex justify-between items-center">
+                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Listado de Transacciones</h3>
+                 <span className="bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-bold font-mono">
                    {session.posSales?.length || 0} Txns
                  </span>
               </div>

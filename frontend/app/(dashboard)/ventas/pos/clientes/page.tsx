@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -10,7 +10,7 @@ import { ArrowLeft, Search, Users, Plus, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { cn } from '@/lib/utils/cn';
-import { MOCK_POS_CLIENTS, subscribePosClients, getPosClientsData } from '@/lib/mock-data/pos';
+import { api } from '@/lib/services/api';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('es-PA', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -26,10 +26,10 @@ export default function ClientesPOSPage() {
   const router = useRouter();
   const { checkPermission } = useAuth();
 
-  useStore(subscribePosClients, getPosClientsData);
-
   const [searchQuery, setSearchQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // New client form state
   const [formName, setFormName] = useState('');
@@ -39,32 +39,68 @@ export default function ClientesPOSPage() {
   const [formEmail, setFormEmail] = useState('');
   const [formAddress, setFormAddress] = useState('');
 
+  const fetchClients = async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getPOSClients();
+      setClients(data);
+    } catch (error) {
+      toast.error('Error al cargar clientes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
   const filteredClients = useMemo(() => {
-    if (!searchQuery) return MOCK_POS_CLIENTS;
+    if (!searchQuery) return clients;
     const searchLower = searchQuery.toLowerCase();
-    return MOCK_POS_CLIENTS.filter(
+    return clients.filter(
       (client) =>
-        client.id.toLowerCase().includes(searchLower) ||
-        client.name.toLowerCase().includes(searchLower) ||
-        client.documentNumber.toLowerCase().includes(searchLower) ||
+        (client.code || '').toLowerCase().includes(searchLower) ||
+        (client.name || '').toLowerCase().includes(searchLower) ||
+        (client.taxId || '').toLowerCase().includes(searchLower) ||
         (client.email && client.email.toLowerCase().includes(searchLower)) ||
         (client.phone && client.phone.includes(searchQuery))
     );
-  }, [searchQuery]);
+  }, [searchQuery, clients]);
 
-  const handleCreateClient = () => {
+  const handleCreateClient = async () => {
     if (!formName || !formDocNum) {
       toast.error('Nombre y documento son obligatorios', { id: 'client-error' });
       return;
     }
-    toast.success('Cliente registrado exitosamente', { id: 'create-client', description: formName });
-    setIsOpen(false);
-    setFormName('');
-    setFormDocType('cedula');
-    setFormDocNum('');
-    setFormPhone('');
-    setFormEmail('');
-    setFormAddress('');
+
+    try {
+      await api.createClient({
+        name: formName,
+        taxId: formDocNum,
+        taxIdType: formDocType, // Add taxIdType
+        email: formEmail,
+        phone: formPhone,
+        address: formAddress,
+        type: 'B2C',
+        code: `B2C-${Date.now().toString().slice(-6)}`
+      });
+
+      toast.success('Cliente registrado exitosamente', { id: 'create-client', description: formName });
+      setIsOpen(false);
+      
+      // Reset form
+      setFormName('');
+      setFormDocType('cedula');
+      setFormDocNum('');
+      setFormPhone('');
+      setFormEmail('');
+      setFormAddress('');
+      
+      fetchClients();
+    } catch (error) {
+      toast.error('Error al registrar cliente');
+    }
   };
 
   if (!checkPermission('canAccessPOS')) {

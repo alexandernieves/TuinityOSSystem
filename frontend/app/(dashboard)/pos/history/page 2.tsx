@@ -88,9 +88,9 @@ export default function SalesHistoryPage() {
 
       {/* Filters Card */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.99 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-6"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-sm"
       >
         <form onSubmit={handleFilter} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="space-y-1.5">
@@ -100,7 +100,7 @@ export default function SalesHistoryPage() {
               <input 
                 type="text"
                 placeholder="POS-2024..."
-                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-emerald-500 outline-none transition-all"
                 value={filters.ticketNumber}
                 onChange={e => setFilters({...filters, ticketNumber: e.target.value})}
               />
@@ -110,7 +110,7 @@ export default function SalesHistoryPage() {
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Método de Pago</label>
             <select 
-              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 outline-none transition-all appearance-none"
+              className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 outline-none transition-all appearance-none"
               value={filters.paymentMethod}
               onChange={e => setFilters({...filters, paymentMethod: e.target.value})}
             >
@@ -125,7 +125,7 @@ export default function SalesHistoryPage() {
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Desde</label>
             <input 
               type="date"
-              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 outline-none"
+              className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 outline-none"
               value={filters.startDate}
               onChange={e => setFilters({...filters, startDate: e.target.value})}
             />
@@ -135,7 +135,7 @@ export default function SalesHistoryPage() {
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Hasta</label>
             <input 
               type="date"
-              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 outline-none"
+              className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm focus:border-emerald-500 outline-none"
               value={filters.endDate}
               onChange={e => setFilters({...filters, endDate: e.target.value})}
             />
@@ -144,7 +144,7 @@ export default function SalesHistoryPage() {
           <div className="flex items-end">
             <button 
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
               <Filter className="h-4 w-4" />
               Filtrar
@@ -154,11 +154,11 @@ export default function SalesHistoryPage() {
       </motion.div>
 
       {/* Table Section */}
-      <div className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-gray-50 dark:bg-white/5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-white/5">
+              <tr className="bg-gray-50 dark:bg-white/5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-white/5">
                 <th className="px-6 py-4">Ticket</th>
                 <th className="px-6 py-4">Fecha/Hora</th>
                 <th className="px-6 py-4">Cajero</th>
@@ -170,15 +170,12 @@ export default function SalesHistoryPage() {
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-white/5">
               {loading ? (
-                Array.from({ length: Math.max(5, limit) }).map((_, i) => (
-                  <tr key={i} className="animate-pulse bg-gray-50/50 dark:bg-white/5">
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <td key={j} className="px-6 py-4">
-                        <div className="h-4 bg-gray-200 dark:bg-white/10 rounded w-full"></div>
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={7} className="px-6 py-20 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Cargando transacciones...</p>
+                  </td>
+                </tr>
               ) : sales.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-20 text-center">
@@ -193,12 +190,12 @@ export default function SalesHistoryPage() {
                 sales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className="text-xs font-extrabold text-emerald-600">{sale.number}</span>
+                      <span className="text-xs font-mono font-bold text-emerald-600">{sale.number}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{new Date(sale.createdAt).toLocaleDateString()}</span>
-                        <span className="text-[10px] text-gray-400 font-bold">{new Date(sale.createdAt).toLocaleTimeString()}</span>
+                        <span className="text-xs font-medium">{new Date(sale.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">{new Date(sale.createdAt).toLocaleTimeString()}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -212,11 +209,11 @@ export default function SalesHistoryPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
                         <CreditCard className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="text-xs font-bold">{sale.paymentMethod}</span>
+                        <span className="text-xs font-medium">{sale.paymentMethod}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-extrabold">{fmt(Number(sale.total))}</span>
+                      <span className="text-sm font-black font-mono">{fmt(Number(sale.total))}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(
@@ -230,14 +227,14 @@ export default function SalesHistoryPage() {
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => router.push(`/pos/history/${sale.id}`)}
-                          className="h-8 w-8 bg-transparent border border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center text-gray-500 hover:text-emerald-500 hover:border-emerald-500 transition-all"
+                          className="h-8 w-8 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center text-gray-500 hover:text-emerald-500 hover:border-emerald-500 transition-all shadow-sm"
                           title="Ver Detalle"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         {sale.status !== 'VOIDED' && (
                           <button 
-                            className="h-8 w-8 bg-transparent border border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-500 transition-all"
+                            className="h-8 w-8 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-500 transition-all shadow-sm"
                             title="Devolución"
                           >
                             <RotateCcw className="h-4 w-4" />

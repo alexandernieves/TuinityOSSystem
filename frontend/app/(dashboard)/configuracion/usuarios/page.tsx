@@ -46,7 +46,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function UsuariosPage() {
   const router = useRouter();
-  const { checkPermission } = useAuth();
+  const { user, checkPermission } = useAuth();
   const canManageRoles = checkPermission("canManageRoles");
 
   const [users, setUsers] = useState<User[]>([]);
@@ -73,7 +73,10 @@ export default function UsuariosPage() {
     email: "",
     role: "vendedor" as UserRole,
     password: "",
+    warehouseId: "" as string | null,
   });
+
+  const [warehouses, setWarehouses] = useState<any[]>([]);
 
   // Users with active status (mock)
   const [userStatuses, setUserStatuses] = useState<Record<string, boolean>>({});
@@ -98,6 +101,7 @@ export default function UsuariosPage() {
 
   useEffect(() => {
     fetchUsers();
+    api.getWarehouses().then(setWarehouses).catch(console.error);
   }, []);
 
   const filteredUsers = users.filter((user) => {
@@ -121,10 +125,11 @@ export default function UsuariosPage() {
         email: user.email,
         role: user.role,
         password: "",
+        warehouseId: (user as any).warehouseId || "",
       });
     } else {
       setEditingUser(null);
-      setUserForm({ name: "", email: "", role: "vendedor", password: "" });
+      setUserForm({ name: "", email: "", role: "vendedor", password: "", warehouseId: "" });
     }
     setIsUserModalOpen(true);
   };
@@ -649,6 +654,29 @@ export default function UsuariosPage() {
                 className={inputClass}
               />
             </div>
+            
+            {user?.role === 'owner' && (
+              <div className="space-y-1.5">
+                <label className={labelClass} style={labelStyle}>
+                  Bodega / Sucursal Asignada
+                </label>
+                <select
+                  value={userForm.warehouseId || ""}
+                  onChange={(e) =>
+                    setUserForm({ ...userForm, warehouseId: e.target.value || null })
+                  }
+                  className={inputClass}
+                >
+                  <option value="">Sin bodega asignada</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Esta es la bodega que usará el usuario por defecto en el POS.
+                </p>
+              </div>
+            )}
           </div>
         </CustomModalBody>
         <CustomModalFooter>
