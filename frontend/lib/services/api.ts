@@ -49,8 +49,8 @@ const mapProduct = (p: any) => ({
 
 export const api = {
     // Products
-    getProducts: async () => {
-        const products = await fetcher('/products');
+    getProducts: async (warehouseId?: string) => {
+        const products = await fetcher(`/products${warehouseId ? `?warehouseId=${warehouseId}` : ''}`);
         return (products || []).map(mapProduct);
     },
     getProductById: async (id: string) => {
@@ -415,7 +415,7 @@ export const api = {
     createWarehouse: (data: any) => fetcher('/warehouses', { method: 'POST', body: JSON.stringify(data) }),
     updateWarehouse: (id: string, data: any) => fetcher(`/warehouses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     deleteWarehouse: (id: string) => fetcher(`/warehouses/${id}`, { method: 'DELETE' }),
-    setMainBranch: (id: string) => fetcher(`/warehouses/${id}/set-main`, { method: 'POST' }),
+    setMainBranch: (id: string) => fetcher(`/warehouses/${id}/set-main`, { method: 'PATCH' }),
 
     // Settings
     getCommercialParams: () => fetcher('/settings/commercial-params'),
@@ -426,7 +426,7 @@ export const api = {
     // POS
     getPOSInvoices: () => fetcher('/pos/invoices'),
     createPOSInvoice: (data: any) => fetcher('/pos/invoices', { method: 'POST', body: JSON.stringify(data) }),
-    getPOSClients: () => fetcher('/pos/clients'),
+    getPOSClients: () => fetcher('/clients?type=B2C'),
     getPOSProducts: () => fetcher('/pos/products'),
     getCashRegisterStatus: () => fetcher('/pos/cash-register/status'),
     openCashRegister: (data: any) => fetcher('/pos/cash-register/open', { method: 'POST', body: JSON.stringify(data) }),
@@ -435,7 +435,7 @@ export const api = {
 
     // Stock
     getStocks: (warehouseId?: string) => fetcher(`/stock${warehouseId ? `?warehouseId=${warehouseId}` : ''}`),
-    getInventoryItems: () => fetcher('/stock/items'),
+    getInventoryItems: (warehouseId?: string) => fetcher(`/stock/items${warehouseId ? `?warehouseId=${warehouseId}` : ''}`),
 
     // ERP Prisma Inventory
     getLots: async (filters: any = {}) => {
@@ -446,9 +446,14 @@ export const api = {
         const query = new URLSearchParams(filters).toString();
         return fetcher(`/erp/inventory/movements${query ? `?${query}` : ''}`);
     },
+    batchTransfer: (data: { sourceWarehouseId: string; destinationWarehouseId: string; items: { productId: string; quantity: number }[]; userId?: string }) => 
+        fetcher('/erp/inventory/batch-transfer', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
 
     // Adjustments
-    getAdjustments: () => fetcher('/adjustments'),
+    getAdjustments: (warehouseId?: string) => fetcher(`/adjustments${warehouseId ? `?warehouseId=${warehouseId}` : ''}`),
     getAdjustmentById: (id: string) => fetcher(`/adjustments/${id}`),
     createAdjustment: (data: any) => fetcher('/adjustments', {
         method: 'POST',
@@ -492,7 +497,7 @@ export const api = {
     prefillBL: (expedientId: string) => fetcher(`/traffic/expedients/${expedientId}/prefill-bl`, { method: 'POST' }),
 
     // POS
-    posStartSession: (data: { userId: string; openingAmount: number }) =>
+    posStartSession: (data: { userId: string; openingAmount: number; warehouseId?: string }) =>
         fetcher('/pos/session/start', { method: 'POST', body: JSON.stringify(data) }),
     posCloseSession: (id: string, data: { closingAmount: number; notes?: string }) =>
         fetcher(`/pos/session/close/${id}`, { method: 'POST', body: JSON.stringify(data) }),

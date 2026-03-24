@@ -84,7 +84,8 @@ export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [selectedClient] = useState<string>('Consumidor Final');
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [clients, setClients] = useState<any[]>([]);
 
   // Modals / Payment States
   const [isOpeningModal, setIsOpeningModal] = useState(false);
@@ -104,29 +105,35 @@ export default function POSPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [regStatus, allProducts, allStock] = await Promise.all([
-        api.getPOSRegisterStatus(),
+      const regStatus = await api.getPOSRegisterStatus();
+      setRegister(regStatus);
+
+      const [allProducts, allStock, allClients] = await Promise.all([
         api.getProducts(),
-        api.getStocks()
+        api.getStocks(regStatus?.warehouseId),
+        api.getPOSClients()
       ]);
 
-      setRegister(regStatus);
+      setClients(allClients);
+      if (allClients.length > 0) {
+        setSelectedClient(allClients.find((c: any) => c.taxId === '000-000-000') || allClients[0]);
+      }
 
       // Map real products to StoreInventoryItem
       const inventoryItems: StoreInventoryItem[] = allProducts.map((p: any) => {
-        const stockInfo = allStock.find((s: any) => (s.productId._id || s.productId) === p.id);
-        const units = stockInfo?.available || 0;
+        const stockInfo = allStock.find((s: any) => s.productId === p.id);
+        const units = parseFloat(stockInfo?.available) || 0;
         return {
           productId: p.id,
-          productName: p.description,
-          productCode: p.reference,
-          productGroup: p.group || 'General',
-          priceB2C: p.priceB2C || p.pricePublic || 0,
+          productName: p.description || p.name,
+          productCode: p.reference || p.sku,
+          productGroup: p.group?.name || p.group || 'General',
+          priceB2C: p.prices?.POS || p.pricePublic || 0,
           stockUnits: units,
-          minimumStock: 5,
-          unitsPerCase: 12,
-          stockStatus: units <= 0 ? 'agotado' : units < 5 ? 'bajo' : 'ok',
-          barcode: p.barcode
+          minimumStock: p.minimumQuantity || 5,
+          unitsPerCase: p.unitsPerBox || 12,
+          stockStatus: units <= 0 ? 'agotado' : units < (p.minimumQuantity || 5) ? 'bajo' : 'ok',
+          barcode: p.barcodes?.[0]?.barcode || p.barcode
         };
       });
 
@@ -254,23 +261,26 @@ export default function POSPage() {
     setIsProcessing(true);
     try {
       const saleData = {
+        createdBy: user?.id,
         lines: cart.map(l => ({
           productId: l.productId,
           productReference: l.productCode,
           productDescription: l.productName,
           quantity: l.quantity,
-          unitPrice: l.unitPrice,
+          price: l.unitPrice,
           total: l.subtotal
         })),
         paymentMethod,
         subtotal: cartTotal,
         total: cartTotal,
-        clientName: selectedClient,
+        clientId: selectedClient?.id,
+        clientName: selectedClient?.name || selectedClient?.legalName,
         cashReceived: cashReceivedNum,
         changeGiven: changeAmount,
         paymentReference: paymentMethod === 'efectivo' ? null : (cardRef || transferRef),
         orderNumber: `POS-${Date.now().toString().slice(-6)}`,
-        type: 'pos'
+        type: 'pos',
+        warehouseId: register?.warehouseId
       };
 
       await api.processPOSSale(saleData);

@@ -79,6 +79,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { getProductColumns } from "./columns";
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
+import { TransferModal } from "./TransferModal";
 
 interface ProductCardProps {
   product: Product;
@@ -308,6 +309,8 @@ export default function ProductosPage() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
@@ -325,6 +328,7 @@ export default function ProductosPage() {
   const [rowSelection, setRowSelection] = useState({});
   const [selectedProductsForBulk, setSelectedProductsForBulk] = useState<Product[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   // Pagination state
   const [pageIndex, setPageIndex] = useState(0);
@@ -338,7 +342,17 @@ export default function ProductosPage() {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+    loadWarehouses();
+  }, [selectedWarehouse]);
+
+  const loadWarehouses = async () => {
+    try {
+      const data = await api.getWarehouses();
+      setWarehouses(data);
+    } catch (err: any) {
+      console.error("Error loading warehouses:", err);
+    }
+  };
 
   useEffect(() => {
     setPageIndex(0);
@@ -349,7 +363,7 @@ export default function ProductosPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const data = await api.getProducts();
+      const data = await api.getProducts(selectedWarehouse || undefined);
       setProducts(data);
     } catch (err: any) {
       setError(err.message);
@@ -947,6 +961,15 @@ export default function ProductosPage() {
               className="flex items-center gap-2"
             >
               <Button
+                variant="default"
+                size="sm"
+                className="h-9 bg-brand-500 hover:bg-brand-600 text-white"
+                onClick={() => setIsTransferModalOpen(true)}
+              >
+                <Truck className="mr-2 h-4 w-4" />
+                Transferir {selectedProductsForBulk.length}
+              </Button>
+              <Button
                 variant="destructive"
                 size="sm"
                 className="h-9"
@@ -1007,6 +1030,35 @@ export default function ProductosPage() {
                   onClick={() => setSelectedBrand(selectedBrand === brand ? null : brand)}
                 >
                   {brand}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors",
+                  selectedWarehouse
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                    : "bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]",
+                )}
+              >
+                {selectedWarehouse ? warehouses.find(w => w.id === selectedWarehouse)?.name : "Bodega"}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-white border border-gray-200 shadow-lg">
+              <DropdownMenuItem onClick={() => setSelectedWarehouse(null)}>
+                Inventario Consolidado (Todas)
+              </DropdownMenuItem>
+              {warehouses.map((w) => (
+                <DropdownMenuItem
+                  key={w.id}
+                  onClick={() => setSelectedWarehouse(selectedWarehouse === w.id ? null : w.id)}
+                >
+                  {w.name} ({w.type})
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -1726,6 +1778,18 @@ export default function ProductosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Transfer Modal */}
+      <TransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        selectedProducts={selectedProductsForBulk}
+        onSuccess={() => {
+          setRowSelection({});
+          setSelectedProductsForBulk([]);
+          loadProducts();
+        }}
+      />
     </div>
   );
 }

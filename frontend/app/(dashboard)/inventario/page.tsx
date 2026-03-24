@@ -111,19 +111,23 @@ export default function InventarioPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
 
   useEffect(() => {
+    setIsLoading(true);
     Promise.all([
-      api.getInventoryItems(),
-      api.getAdjustments()
+      api.getInventoryItems(selectedWarehouse || undefined),
+      api.getAdjustments(selectedWarehouse || undefined),
+      api.getWarehouses()
     ])
-      .then(([items, adjustments]) => {
+      .then(([items, adjustments, whs]) => {
         setRealItems(items);
         setRealAdjustments(adjustments);
+        setWarehouses(whs);
       })
       .catch(err => console.error('Error fetching inventory data:', err))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [selectedWarehouse]);
 
   const normalizedItems = useMemo(() => {
     return realItems.map((item: any) => {
@@ -145,8 +149,8 @@ export default function InventarioPage() {
         subGroup: p.subgroup?.name || p.subcategory?.name || 'General',
         brand: p.brand?.name || 'General',
         supplier: p.supplierName || 'Varios',
-        warehouseId: 'ALL',
-        warehouseName: 'Inventario Consolidado',
+        warehouseId: item.warehouseId || 'ALL',
+        warehouseName: item.warehouseId ? warehouses.find(w => w.id === item.warehouseId)?.name || 'Sucursal' : 'Inventario Consolidado',
         existence: item.existence || 0,
         arriving: item.arriving || 0,
         reserved: item.reserved || 0,
@@ -555,12 +559,15 @@ export default function InventarioPage() {
                 size="sm"
                 className="gap-2"
               >
-                {selectedWarehouse ? MOCK_WAREHOUSES.find((w) => w.id === selectedWarehouse)?.name : 'Bodega'}
+                {selectedWarehouse ? warehouses.find((w) => w.id === selectedWarehouse)?.name : 'Bodega'}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {MOCK_WAREHOUSES.map((warehouse) => (
+              <DropdownMenuItem onClick={() => setSelectedWarehouse(null)}>
+                Inventario Consolidado (Todas)
+              </DropdownMenuItem>
+              {warehouses.map((warehouse) => (
                 <DropdownMenuItem 
                   key={warehouse.id}
                   onClick={() => setSelectedWarehouse(selectedWarehouse === warehouse.id ? null : warehouse.id)}
