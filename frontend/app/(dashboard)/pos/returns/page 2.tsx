@@ -15,7 +15,6 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -118,7 +117,7 @@ export default function ReturnsPage() {
       <div className="flex items-center gap-4">
         <button 
           onClick={() => router.back()}
-          className="h-10 w-10 bg-transparent border border-gray-200 dark:border-white/10 rounded-xl flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
+          className="h-10 w-10 bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-xl flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -132,8 +131,8 @@ export default function ReturnsPage() {
         {/* Left: Search & Original Sale */}
         <div className="lg:col-span-2 space-y-6">
           <motion.div 
-             initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-             className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-6"
+             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+             className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-sm"
           >
             <form onSubmit={handleSearch} className="flex gap-3">
               <div className="relative flex-1">
@@ -141,7 +140,7 @@ export default function ReturnsPage() {
                 <input 
                   type="text"
                   placeholder="Busca el número de ticket (ej: POS-2024-0001)..."
-                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl pl-10 pr-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all"
+                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-mono"
                   value={ticketNumber}
                   onChange={e => setTicketNumber(e.target.value)}
                 />
@@ -149,7 +148,7 @@ export default function ReturnsPage() {
               <button 
                 type="submit"
                 disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 rounded-xl transition-all flex items-center gap-2"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 rounded-xl transition-all shadow-lg shadow-emerald-500/10 flex items-center gap-2"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 Buscar
@@ -162,14 +161,14 @@ export default function ReturnsPage() {
               <motion.div 
                  key="sale-info"
                  initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-                 className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl overflow-hidden"
+                 className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm"
               >
-                 <div className="px-6 py-4 border-b border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 flex items-center justify-between">
+                 <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                        <Receipt className="h-5 w-5 text-emerald-500" />
-                       <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Ticket Original: {sale.number}</h3>
+                       <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500">Ticket Original: {sale.number}</h3>
                     </div>
-                    <span className="text-xs font-bold text-gray-400">{new Date(sale.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs font-mono text-gray-400">{new Date(sale.createdAt).toLocaleDateString()}</span>
                  </div>
 
                  <div className="p-0 overflow-x-auto">
@@ -217,22 +216,10 @@ export default function ReturnsPage() {
                    </table>
                  </div>
               </motion.div>
-            ) : loading ? (
-              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-6">
-                 <div className="flex items-center justify-between pb-4 border-b border-gray-50 dark:border-white/5 mb-4">
-                    <Skeleton className="h-6 w-48 rounded-md" />
-                    <Skeleton className="h-4 w-24 rounded-md" />
-                 </div>
-                 <div className="space-y-3">
-                    <Skeleton className="h-12 w-full rounded-xl" />
-                    <Skeleton className="h-12 w-full rounded-xl" />
-                    <Skeleton className="h-12 w-full rounded-xl" />
-                 </div>
-              </div>
-            ) : (
-              <div className="h-40 flex flex-col items-center justify-center text-gray-400 border border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
+            ) : !loading && (
+              <div className="h-40 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 dark:border-white/5 rounded-3xl">
                 <Receipt className="h-10 w-10 mb-2 opacity-20" />
-                <p className="text-sm font-bold">Ingresa un ticket para ver sus detalles</p>
+                <p className="text-sm">Ingresa un ticket para ver sus detalles</p>
               </div>
             )}
           </AnimatePresence>
@@ -242,11 +229,11 @@ export default function ReturnsPage() {
         <div className="space-y-6">
           <motion.div 
              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-             className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-6 flex flex-col gap-5 sticky top-6"
+             className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-sm flex flex-col gap-5 sticky top-6"
           >
             <div className="flex items-center gap-2">
               <RotateCcw className="h-5 w-5 text-emerald-500" />
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Resumen de Retorno</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest ">Resumen de Retorno</h3>
             </div>
 
             <div className="space-y-3 min-h-[100px]">
@@ -260,12 +247,12 @@ export default function ReturnsPage() {
                          <button onClick={() => toggleItem(item)} className="text-gray-400 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
                       </div>
                       <div className="flex items-center justify-between">
-                         <div className="flex items-center bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-white/5 px-1">
-                            <button onClick={() => updateQty(item.productId, -1)} className="p-1 hover:text-emerald-500 transition-colors"><Minus className="h-3 w-3" /></button>
-                            <span className="w-8 text-center text-xs font-extrabold">{item.returnQty}</span>
-                            <button onClick={() => updateQty(item.productId, 1)} className="p-1 hover:text-emerald-500 transition-colors"><Plus className="h-3 w-3" /></button>
+                         <div className="flex items-center bg-white dark:bg-black/40 rounded-lg border border-gray-200 dark:border-white/10 px-1">
+                            <button onClick={() => updateQty(item.productId, -1)} className="p-1 hover:text-emerald-500"><Minus className="h-3 w-3" /></button>
+                            <span className="w-8 text-center text-xs font-bold font-mono">{item.returnQty}</span>
+                            <button onClick={() => updateQty(item.productId, 1)} className="p-1 hover:text-emerald-500"><Plus className="h-3 w-3" /></button>
                          </div>
-                         <span className="text-xs font-extrabold text-emerald-600">{fmt(Number(item.unitPrice) * item.returnQty)}</span>
+                         <span className="text-xs font-mono font-bold text-emerald-600">{fmt(Number(item.unitPrice) * item.returnQty)}</span>
                       </div>
                    </div>
                  ))
@@ -298,13 +285,13 @@ export default function ReturnsPage() {
 
                <div className="flex justify-between items-center py-2">
                  <span className="text-sm font-medium text-gray-500">A Devolver</span>
-                 <span className="text-xl font-extrabold text-emerald-600">{fmt(calculateTotal())}</span>
+                 <span className="text-xl font-black font-mono text-emerald-600">{fmt(calculateTotal())}</span>
                </div>
 
                <button 
                  onClick={handleSubmit}
                  disabled={isSubmitting || returnItems.length === 0}
-                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2"
+                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2"
                >
                  {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <RotateCcw className="h-5 w-5" />}
                  Procesar Devolución

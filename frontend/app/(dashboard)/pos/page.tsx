@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ShoppingCart, Trash2, Plus, Minus, CreditCard,
   Banknote, ArrowLeftRight, CheckCircle2, X, Loader2,
-  Monitor, Package, User, LogOut, Receipt, Keyboard, History, RotateCcw, AlertTriangle, ChevronRight
+  Monitor, Package, User, LogOut, Receipt, Keyboard, History, RotateCcw, AlertTriangle, ChevronRight,
+  Warehouse
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/services/api';
@@ -13,6 +14,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { SkeletonGrid } from '@/components/ui/skeleton-grid';
 
 interface CartItem {
   productId: string;
@@ -56,6 +58,7 @@ export default function POSPage() {
 
   // Products
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [allWarehouses, setAllWarehouses] = useState<any[]>([]);
   const [defaultWarehouseId, setDefaultWarehouseId] = useState('');
@@ -95,21 +98,33 @@ export default function POSPage() {
   const cartTotal = cart.reduce((s, i) => s + i.subtotal, 0);
   const change = Math.max(0, parseFloat(amountReceived || '0') - cartTotal);
 
-  // Load session on mount
   useEffect(() => {
     if (!user?.id) return;
+    setLoadingProducts(true);
     api.posGetActiveSession(user.id)
-      .then(s => setSession(s))
-      .catch(() => setSession(null))
+      .then(s => {
+        setSession(s);
+        if (s?.warehouseId) {
+          api.getProducts(s.warehouseId).then(setAllProducts).finally(() => setLoadingProducts(false));
+        } else {
+          setLoadingProducts(false);
+        }
+      })
+      .catch(() => {
+        setSession(null);
+        setLoadingProducts(false);
+      })
       .finally(() => setLoadingSession(false));
   }, [user?.id]);
 
   // Load products + warehouses
   useEffect(() => {
     api.getProducts().then(setAllProducts).catch(() => {});
-    api.getWarehouses().then(ws => {
-      setAllWarehouses(ws);
-      if (ws.length > 0) setDefaultWarehouseId(ws[0].id);
+    api.getWarehouses().then((ws: any[]) => {
+      // B2C / POS never shows Principal warehouse
+      const filtered = ws.filter(w => !w.name.toLowerCase().includes('principal'));
+      setAllWarehouses(filtered);
+      if (filtered.length > 0) setDefaultWarehouseId(filtered[0].id);
     }).catch(() => {});
     api.getClients().then(setClientsData).catch(() => {});
   }, []);
@@ -136,9 +151,11 @@ export default function POSPage() {
   }, [query, allProducts]);
 
   const addToCart = useCallback((product: Product) => {
-    const warehouseId = defaultWarehouseId;
-    const posPrice = (Array.isArray(product.prices) && product.prices.find(p => p.priceLevel === 'POS')?.price)
-      || (Array.isArray(product.prices) && product.prices[0]?.price)
+    const warehouseId = session?.warehouseId || defaultWarehouseId;
+    const pPrices: any = product.prices;
+    const posPrice = (Array.isArray(pPrices) && pPrices.find((p: any) => p.priceLevel === 'POS')?.price)
+      || (Array.isArray(pPrices) && pPrices[0]?.price)
+      || (typeof pPrices === 'object' && (pPrices.POS || pPrices.C || pPrices.A))
       || product.unitPrice
       || 0;
 
@@ -191,7 +208,7 @@ export default function POSPage() {
         customerId: selectedClient?.id,
         items: cart.map(i => ({
           productId: i.productId,
-          warehouseId: i.warehouseId,
+          warehouseId: session?.warehouseId || i.warehouseId,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
         })),
@@ -215,10 +232,12 @@ export default function POSPage() {
   const startSession = async () => {
     if (!user?.id) return;
     setStartingSession(true);
+    const warehouseId = (allWarehouses.find(w => w.id === defaultWarehouseId) || allWarehouses[0])?.id;
     try {
       const s = await api.posStartSession({
         userId: user.id,
         openingAmount: parseFloat(openingAmount) || 0,
+        warehouseId
       });
       setSession(s);
       toast.success('Sesión de caja iniciada');
@@ -262,44 +281,78 @@ export default function POSPage() {
 
   // ---- APERTURA DE CAJA ----
   if (!session) {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl text-center"
-        >
-          <div className="h-16 w-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Monitor className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <h1 className="text-2xl font-bold mb-1">Punto de Venta</h1>
-          <p className="text-sm text-gray-500 mb-6">Abre la sesión de caja para empezar a vender</p>
+    const defaultWarehouse = allWarehouses.find(w => w.id === defaultWarehouseId) || allWarehouses[0];
 
-          <div className="space-y-4 text-left mb-6">
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Monto de Apertura ($)</label>
-              <input
-                type="number"
-                value={openingAmount}
-                onChange={e => setOpeningAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-lg font-mono bg-gray-50 dark:bg-black/20 focus:outline-none"
-              />
+    return (
+      <div className="flex items-center justify-center min-h-[80vh] relative overflow-hidden bg-white dark:bg-[#0A0A0A]">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md relative z-10"
+        >
+          <div className="bg-white dark:bg-[#0A0A0A] border-none p-10 text-center">
+            <div className="flex flex-col items-center">
+              <div className="mb-6">
+                <Monitor className="h-16 w-16 text-emerald-500" />
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-gray-900 dark:text-white">Terminal de Venta</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-10 max-w-[280px]">
+                Inicie el turno de trabajo estableciendo el fondo de caja inicial.
+              </p>
+            </div>
+
+            <div className="space-y-6 mb-10 text-left">
+              {/* Terminal Info */}
+              <div className="flex items-center gap-4 px-2">
+                <Warehouse className="h-6 w-6 text-emerald-500" />
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sucursal / Bodega</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {defaultWarehouse?.name || 'Cargando...'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <div className="relative">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-bold text-gray-900 dark:text-white">$</div>
+                  <input
+                    type="number"
+                    value={openingAmount}
+                    onChange={e => setOpeningAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full border-b-2 border-gray-100 dark:border-white/5 focus:border-emerald-500 rounded-none pl-8 pr-2 py-4 text-4xl font-extrabold bg-transparent focus:outline-none transition-all placeholder:text-gray-200"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={startSession}
+              disabled={startingSession}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 dark:disabled:bg-white/5 text-white py-5 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 active:scale-95 group"
+            >
+              {startingSession ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <>
+                  <span>Abrir Caja Registradora</span>
+                  <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+
+            <div className="mt-12 text-center">
+              <p className="text-xs text-gray-400 font-medium tracking-wide">
+                OPERADOR: <span className="text-gray-900 dark:text-gray-200 font-bold uppercase">{user?.name}</span>
+              </p>
             </div>
           </div>
-
-          <button
-            onClick={startSession}
-            disabled={startingSession}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2"
-          >
-            {startingSession ? <Loader2 className="h-5 w-5 animate-spin" /> : <Monitor className="h-5 w-5" />}
-            Abrir Caja
-          </button>
         </motion.div>
       </div>
     );
   }
+
 
   // ---- LAST TICKET ----
   if (lastSale) {
@@ -308,7 +361,7 @@ export default function POSPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-sm bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl"
+          className="w-full max-w-sm bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-8"
         >
           <div className="text-center mb-6">
             <div className="h-14 w-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -357,7 +410,7 @@ export default function POSPage() {
       <div className="flex items-center justify-center min-h-[70vh]">
         <motion.div
            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-           className="w-full max-w-md bg-white dark:bg-[#141414] border border-red-200 dark:border-red-900/30 rounded-3xl p-8 shadow-2xl text-center"
+           className="w-full max-w-md bg-white dark:bg-[#141414] border border-red-200 dark:border-red-900/30 rounded-2xl p-8 text-center"
         >
            <div className="h-16 w-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-600">
              <AlertTriangle className="h-8 w-8" />
@@ -369,7 +422,7 @@ export default function POSPage() {
            </p>
            <button
              onClick={() => router.push('/pos/cierre')}
-             className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+             className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2"
            >
              <LogOut className="h-5 w-5" />
              Ir al Cierre de Caja
@@ -380,42 +433,49 @@ export default function POSPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0A0A0A]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
-            <Monitor className="h-5 w-5 text-emerald-600" />
-          </div>
+      <div className="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-white/5 pb-6 pt-2">
+        <div className="flex items-center gap-4">
+          <Monitor className="h-8 w-8 text-emerald-600" />
           <div>
-            <h1 className="text-lg font-bold leading-none">Punto de Venta</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Cajero: {user?.name}</p>
+            <h1 className="text-xl font-extrabold tracking-tight leading-none text-gray-900 dark:text-white uppercase tracking-widest">Terminal POS</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                CAJERO: <span className="text-gray-900 dark:text-gray-200">{user?.name}</span> • <span className="text-emerald-600">{(allWarehouses.find(w => w.id === (session?.warehouseId))?.name) || 'Colón'}</span>
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 mr-4">
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Turno</p>
+              <p className="text-base font-extrabold text-gray-900 dark:text-white">{fmt(Number(session?.totalSales || 0))}</p>
+            </div>
+          </div>
           <button
             onClick={() => router.push('/pos/history')}
-            className="text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-xl flex items-center gap-2 font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all shadow-sm"
+            className="h-10 px-4 bg-transparent border border-gray-100 dark:border-white/5 rounded-xl flex items-center gap-2 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95"
           >
             <History className="h-4 w-4 text-orange-500" />
-            Historial
+            <span className="hidden sm:inline">Historial</span>
           </button>
           <button
             onClick={() => router.push('/pos/returns')}
-            className="text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 px-4 py-2 rounded-xl flex items-center gap-2 font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all shadow-sm"
+            className="h-10 px-4 bg-transparent border border-gray-100 dark:border-white/5 rounded-xl flex items-center gap-2 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95"
           >
             <RotateCcw className="h-4 w-4 text-blue-500" />
-            Devoluciones
+            <span className="hidden sm:inline">Devoluciones</span>
           </button>
-          <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1" />
-          <span className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-full font-semibold">
-            Sesión activa
-          </span>
+          <div className="w-px h-8 bg-gray-100 dark:bg-white/10 mx-1" />
           <button
             onClick={() => router.push('/pos/cierre')}
-            className="text-xs text-gray-500 hover:text-red-600 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/10 flex items-center gap-1 transition-colors"
+            className="h-10 px-4 text-red-600 rounded-xl flex items-center gap-2 text-xs font-bold border border-red-100 dark:border-red-900/20 hover:bg-red-600 hover:text-white transition-all active:scale-95 group"
           >
-            <LogOut className="h-3.5 w-3.5" /> Cerrar Caja
+            <LogOut className="h-4 w-4" />
+            Cerrar Turno
           </button>
         </div>
       </div>
@@ -425,7 +485,7 @@ export default function POSPage() {
         {/* LEFT: Product Catalog (8 cols) */}
         <div className="lg:col-span-8 flex flex-col gap-4 min-h-0">
           {/* Scanner / Search Bar */}
-          <div className="flex items-center gap-3 bg-white dark:bg-[#141414] border-2 border-emerald-400 rounded-2xl px-5 py-4 shadow-lg shadow-emerald-500/10">
+          <div className="flex items-center gap-3 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5 rounded-2xl px-5 py-4">
             <Keyboard className="h-6 w-6 text-emerald-500 flex-shrink-0" />
             <input
               ref={searchRef}
@@ -449,37 +509,46 @@ export default function POSPage() {
 
           {/* Product Grid */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+            {loadingProducts ? (
+              <div className="p-1">
+                <SkeletonGrid items={12} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
               <AnimatePresence mode="popLayout">
-                {paginatedData.map((p) => {
-                  const pricePos = (Array.isArray(p.prices) && p.prices.find(pr => pr.priceLevel === 'POS')?.price)
-                    || (Array.isArray(p.prices) && p.prices[0]?.price)
+                {paginatedData.map((p: any) => {
+                  const pPrices: any = p.prices;
+                  const pricePos = (Array.isArray(pPrices) && pPrices.find((pr: any) => pr.priceLevel === 'POS')?.price)
+                    || (Array.isArray(pPrices) && pPrices[0]?.price)
+                    || (typeof pPrices === 'object' && (pPrices.POS || pPrices.C || pPrices.A))
                     || p.unitPrice || 0;
                   
                   return (
                     <motion.button
                       layout
                       key={p.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
                       onClick={() => addToCart(p)}
-                      className="flex flex-col bg-white dark:bg-[#141414] border border-gray-100 dark:border-white/5 rounded-2xl p-4 text-left transition-all hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/5 group relative overflow-hidden active:scale-95"
+                      className="flex flex-col bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/5 rounded-2xl p-4 text-left transition-all hover:bg-gray-50 dark:hover:bg-white/5 group relative overflow-hidden active:scale-95"
                     >
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus className="h-5 w-5 text-emerald-500" />
+                      <div className="h-10 w-10 flex items-center justify-center mb-4">
+                        <Package className="h-6 w-6 text-gray-300" />
                       </div>
-                      <div className="h-12 w-12 bg-gray-50 dark:bg-white/5 rounded-xl flex items-center justify-center mb-4 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/20 transition-colors">
-                        <Package className="h-6 w-6 text-gray-400 group-hover:text-emerald-500 transition-colors" />
-                      </div>
+                      
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate mb-1 text-gray-900 dark:text-gray-100">{p.name}</p>
-                        <p className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">{p.sku}</p>
+                        <p className="text-sm font-extrabold truncate mb-1 text-gray-900 dark:text-gray-100">{p.name}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">{p.sku}</p>
                       </div>
-                      <div className="mt-4 pt-3 border-t border-gray-50 dark:border-white/5 flex items-center justify-between">
-                        <span className="text-base font-black text-emerald-600 font-mono">{fmt(Number(pricePos))}</span>
-                        <div className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                          <Plus className="h-3 w-3 text-emerald-600" />
+                      
+                      <div className="mt-4 pt-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between">
+                        <span className="text-base font-extrabold text-emerald-600">{fmt(Number(pricePos))}</span>
+                        <div className="flex flex-col items-end">
+                           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Stock</p>
+                           <p className="text-xs font-bold text-gray-900 dark:text-gray-200">
+                             {p.stock?.available ?? (p.existences?.find((e: any) => e.warehouseId === (session?.warehouseId))?.available || 0)}
+                           </p>
                         </div>
                       </div>
                     </motion.button>
@@ -487,6 +556,7 @@ export default function POSPage() {
                 })}
               </AnimatePresence>
             </div>
+            )}
           </div>
 
           {/* Pagination */}
@@ -507,7 +577,7 @@ export default function POSPage() {
         <div className="lg:col-span-4 flex flex-col gap-4 min-h-0 overflow-hidden">
           
           {/* Client Selection */}
-          <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-emerald-500 transition-colors"
+          <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-emerald-500 transition-colors"
                onClick={() => setShowClientModal(true)}
           >
              <div className="flex items-center gap-3">
@@ -542,7 +612,7 @@ export default function POSPage() {
           </div>
 
           {/* Cart */}
-          <div className="flex-1 bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden flex flex-col min-h-0 shadow-sm">
+          <div className="flex-1 bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden flex flex-col min-h-0">
             <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5">
               <ShoppingCart className="h-5 w-5 text-emerald-500" />
               <span className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Carrito Actual</span>
@@ -573,26 +643,26 @@ export default function POSPage() {
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate text-gray-800 dark:text-gray-200">{item.name}</p>
-                        <p className="text-[11px] text-gray-400 font-mono mt-0.5">{fmt(item.unitPrice)} c/u</p>
+                        <p className="text-[11px] text-gray-400 font-bold mt-0.5">{fmt(item.unitPrice)} c/u</p>
                       </div>
 
                       <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 p-1 rounded-xl">
                         <button
                           onClick={() => updateQty(idx, -1)}
-                          className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/20 transition-colors shadow-sm"
+                          className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/20 transition-colors"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className="text-xs font-black w-6 text-center tabular-nums">{item.quantity}</span>
                         <button
                           onClick={() => updateQty(idx, 1)}
-                          className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/20 transition-colors shadow-sm"
+                          className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/20 transition-colors"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
 
-                      <span className="text-sm font-black font-mono w-16 text-right text-emerald-600">
+                      <span className="text-sm font-extrabold w-20 text-right text-emerald-600">
                         {fmt(item.subtotal)}
                       </span>
 
@@ -610,24 +680,34 @@ export default function POSPage() {
 
             {/* Subtotal summary above big button */}
             {cart.length > 0 && (
-              <div className="p-4 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-bold text-gray-400 uppercase">Subtotal Neto</span>
-                  <span className="text-lg font-black font-mono text-gray-900 dark:text-white">{fmt(cartTotal)}</span>
+              <div className="p-6 border-t border-gray-100 dark:border-white/5">
+                <div className="space-y-2 mb-6 text-sm">
+                  <div className="flex justify-between items-center text-gray-500">
+                    <span className="font-bold uppercase tracking-widest text-[10px]">Base Imponible</span>
+                    <span className="font-extrabold">{fmt(cartTotal / 1.15)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-500">
+                    <span className="font-bold uppercase tracking-widest text-[10px]">Impuestos (15%)</span>
+                    <span className="font-extrabold">{fmt(cartTotal - (cartTotal / 1.15))}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-white/5 mt-4">
+                    <span className="font-bold uppercase tracking-widest text-[10px] text-gray-900 dark:text-white">Total a Pagar</span>
+                    <span className="text-3xl font-black text-emerald-600 tracking-tighter">{fmt(cartTotal)}</span>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => setCart([])}
-                    className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white dark:bg-white/5 border border-red-200 dark:border-red-900/30 text-red-500 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                    className="flex items-center justify-center gap-2 py-4 rounded-xl border border-gray-200 dark:border-white/10 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95"
                   >
                     <Trash2 className="h-4 w-4" /> Vaciar
                   </button>
                   <button
                     onClick={() => { setShowPayment(true); setAmountReceived(String(cartTotal.toFixed(2))); }}
-                    className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                    className="flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95"
                   >
-                    <Banknote className="h-4 w-4" /> Cobrar
+                    <Banknote className="h-4 w-4" /> Procesar Pago
                   </button>
                 </div>
               </div>
@@ -635,23 +715,21 @@ export default function POSPage() {
           </div>
           
           {/* Quick Stats / Session Info */}
-          <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
-             <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-50 dark:border-white/5">
-               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Resumen del Turno</span>
-               <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="p-5 border-t border-gray-100 dark:border-white/5">
+             <div className="flex items-center justify-between mb-4">
+               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumen del Turno</span>
              </div>
              <div className="space-y-3">
                {[
-                 { label: 'Ingresos Efectivo', value: Number(session.cashSales || 0), icon: Banknote, color: 'text-emerald-500' },
-                 { label: 'Pagos Tarjeta', value: Number(session.cardSales || 0), icon: CreditCard, color: 'text-blue-500' },
-                 { label: 'Ventas Totales', value: Number(session.totalSales || 0), icon: Receipt, color: 'text-gray-900 dark:text-white' },
+                 { label: 'Efectivo', value: Number(session.cashSales || 0), icon: Banknote, color: 'text-emerald-500' },
+                 { label: 'Tarjeta', value: Number(session.cardSales || 0), icon: CreditCard, color: 'text-blue-500' },
+                 { label: 'Total', value: Number(session.totalSales || 0), icon: Receipt, color: 'text-gray-900 dark:text-white' },
                ].map(s => (
-                 <div key={s.label} className="flex justify-between items-center text-sm">
+                 <div key={s.label} className="flex justify-between items-center text-xs">
                    <div className="flex items-center gap-2">
-                     <s.icon className={cn("h-4 w-4", s.color)} />
-                     <span className="text-gray-500 line-clamp-1">{s.label}</span>
+                     <span className="text-gray-500 font-bold uppercase tracking-tighter text-[9px]">{s.label}</span>
                    </div>
-                   <span className="font-black font-mono">{fmt(s.value)}</span>
+                   <span className="font-extrabold">{fmt(s.value)}</span>
                  </div>
                ))}
              </div>
@@ -662,74 +740,81 @@ export default function POSPage() {
       {/* PAYMENT MODAL */}
       <AnimatePresence>
         {showPayment && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#141414] rounded-3xl shadow-2xl w-full max-w-md p-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/10 rounded-2xl w-full max-w-md p-10 relative overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">Registrar Pago</h2>
-                <button onClick={() => setShowPayment(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="h-5 w-5" />
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                   <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white uppercase tracking-widest leading-none">Procesar Pago</h2>
+                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-2">Método y Monto</p>
+                </div>
+                <button 
+                  onClick={() => setShowPayment(false)} 
+                  className="h-10 w-10 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 
-              {/* Total */}
-              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-4 mb-5 text-center">
-                <p className="text-xs font-bold text-gray-400 uppercase mb-1">Total</p>
-                <p className="text-4xl font-black font-mono text-gray-900 dark:text-white">{fmt(cartTotal)}</p>
+              {/* Total Display */}
+              <div className="py-8 mb-8 text-center border-b border-gray-100 dark:border-white/5">
+                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.3em] mb-2">Monto Total</p>
+                <p className="text-5xl font-extrabold text-emerald-600 tracking-tighter">{fmt(cartTotal)}</p>
               </div>
 
               {/* Payment method */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-3 gap-3 mb-8">
                 {PAYMENT_METHODS.map(m => (
                   <button
                     key={m.id}
                     onClick={() => setPayMethod(m.id)}
                     className={cn(
-                      'flex flex-col items-center gap-1.5 py-3 rounded-xl text-white text-xs font-bold transition-all',
-                      payMethod === m.id ? m.color : 'bg-gray-100 dark:bg-white/10 text-gray-500'
+                      'flex flex-col items-center justify-center gap-2 py-5 rounded-xl transition-all border',
+                      payMethod === m.id 
+                        ? 'bg-emerald-600 border-emerald-600 text-white' 
+                        : 'bg-transparent border-gray-100 dark:border-white/5 text-gray-400 hover:border-emerald-200'
                     )}
                   >
-                    <m.icon className="h-5 w-5" />
-                    {m.label}
+                    <m.icon className={cn("h-6 w-6", payMethod === m.id ? "text-white" : "text-gray-300")} />
+                    <span className="text-[9px] font-black uppercase tracking-widest">{m.label}</span>
                   </button>
                 ))}
               </div>
 
               {/* Amount received */}
-              <div className="space-y-3 mb-5">
-                <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Monto Recibido</label>
+              <div className="space-y-6 mb-10">
+                <div className="relative">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-bold text-gray-900 dark:text-white">$</div>
                   <input
                     type="number"
                     value={amountReceived}
                     onChange={e => setAmountReceived(e.target.value)}
                     placeholder="0.00"
-                    className="w-full border-2 border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-2xl font-mono font-bold bg-gray-50 dark:bg-black/20 focus:outline-none focus:border-emerald-400"
+                    className="w-full border-b-2 border-gray-100 dark:border-white/5 focus:border-emerald-500 pl-8 pr-2 py-4 text-4xl font-extrabold bg-transparent focus:outline-none transition-all placeholder:text-gray-200"
                     autoFocus
                   />
                 </div>
 
                 {payMethod !== 'CASH' && (
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Referencia / # Operación</label>
+                  <div className="relative">
                     <input
                       type="text"
                       value={reference}
                       onChange={e => setReference(e.target.value)}
-                      placeholder="TX-12345..."
-                      className="w-full border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm bg-gray-50 dark:bg-black/20 focus:outline-none"
+                      placeholder="Referencia de Operación"
+                      className="w-full border-b border-gray-100 dark:border-white/5 py-3 text-sm font-bold bg-transparent focus:outline-none focus:border-blue-500 transition-all"
                     />
                   </div>
                 )}
 
                 {payMethod === 'CASH' && change > 0 && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl px-4 py-3 flex justify-between items-center">
-                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">Vuelto</span>
-                    <span className="text-xl font-black font-mono text-blue-700 dark:text-blue-400">{fmt(change)}</span>
+                  <div className="py-4 flex justify-between items-center border-t border-gray-100 dark:border-white/5">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cambio / Vuelto</span>
+                    <span className="text-2xl font-extrabold text-blue-600 leading-none">{fmt(change)}</span>
                   </div>
                 )}
               </div>
@@ -737,10 +822,10 @@ export default function POSPage() {
               <button
                 onClick={confirmSale}
                 disabled={processing || (payMethod === 'CASH' && parseFloat(amountReceived || '0') < cartTotal)}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 dark:disabled:bg-white/5 disabled:text-gray-400 text-white py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-100 dark:disabled:bg-white/5 disabled:text-gray-400 text-white py-6 rounded-xl font-black text-base uppercase tracking-widest transition-all flex items-center justify-center gap-3 active:scale-95"
               >
-                {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
-                Confirmar Venta
+                {processing ? <Loader2 className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+                Finalizar Venta
               </button>
             </motion.div>
           </div>
@@ -750,96 +835,105 @@ export default function POSPage() {
       {/* CLIENT SEARCH / CREATE MODAL */}
       <AnimatePresence>
         {showClientModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#141414] rounded-3xl shadow-2xl w-full max-w-lg p-6 flex flex-col max-h-[90vh]"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              className="bg-white dark:bg-[#0A0A0A] border border-gray-100 dark:border-white/10 rounded-2xl w-full max-w-2xl p-0 flex flex-col max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <User className="h-5 w-5 text-blue-500" />
-                  Asociar Cliente B2C
-                </h2>
-                <button onClick={() => setShowClientModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="h-5 w-5" />
+              <div className="p-8 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-extrabold flex items-center gap-3 text-gray-900 dark:text-white uppercase tracking-widest">
+                    Asociar Cliente
+                  </h2>
+                  <button 
+                    onClick={() => setShowClientModal(false)} 
+                    className="h-10 w-10 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Creacion rapida */}
+                <div className="p-0">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Registro Rápido</p>
+                  <div className="flex flex-wrap md:flex-nowrap gap-4 items-end">
+                    <div className="flex-1 min-w-[200px] relative">
+                      <input
+                        type="text"
+                        placeholder="Nombre Completo"
+                        value={newClient.name}
+                        onChange={e => setNewClient({ ...newClient, name: e.target.value })}
+                        className="w-full bg-transparent border-b border-gray-100 dark:border-white/5 px-2 py-3 text-sm font-bold focus:outline-none focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div className="w-full md:w-48 relative">
+                       <input
+                         type="text"
+                         placeholder="Teléfono"
+                         value={newClient.phone}
+                         onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
+                         className="w-full bg-transparent border-b border-gray-100 dark:border-white/5 px-2 py-3 text-sm font-bold focus:outline-none focus:border-blue-500 transition-all"
+                       />
+                    </div>
+                    <button 
+                      onClick={handleCreateClient}
+                      disabled={isCreatingClient || !newClient.name}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-white/5 text-white rounded-xl h-[44px] px-8 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                    >
+                      {isCreatingClient ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Registrar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="px-8 py-6">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Búsqueda Global</p>
+                  <div className="relative">
+                     <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-300" />
+                     <input
+                       type="text"
+                       placeholder="Nombre, teléfono, RUC..."
+                       value={clientSearch}
+                       onChange={e => setClientSearch(e.target.value)}
+                       className="w-full bg-transparent border-b border-gray-100 dark:border-white/5 pl-8 pr-2 py-3 text-base font-bold text-gray-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-all"
+                       autoFocus
+                     />
+                  </div>
+                </div>
+
+                <div className="px-8 pb-8 flex-1 overflow-y-auto space-y-1">
+                   {clientsData.filter(c => 
+                      !clientSearch || 
+                      c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                      c.phone?.includes(clientSearch) ||
+                      c.reference?.toLowerCase().includes(clientSearch.toLowerCase())
+                   ).slice(0, 20).map(c => (
+                     <div 
+                       key={c.id} 
+                       onClick={() => { setSelectedClient(c); setShowClientModal(false); }}
+                       className="flex items-center gap-4 p-4 border-b border-gray-50 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-all group"
+                     >
+                        <div className="flex-1 min-w-0">
+                           <p className="text-sm font-extrabold text-gray-900 dark:text-white">{c.name}</p>
+                           <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{c.reference} {c.phone ? `• ${c.phone}` : ''}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-300" />
+                     </div>
+                   ))}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-100 dark:border-white/5">
+                <button 
+                  onClick={() => { setSelectedClient(null); setShowClientModal(false); }}
+                  className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:opacity-90 active:scale-95"
+                >
+                  Continuar como Consumidor Final
                 </button>
               </div>
-
-              {/* Tabs for Search / Create */}
-              <div className="flex gap-4 border-b border-gray-100 dark:border-white/10 mb-4 pb-1">
-                 <button className="text-sm font-bold text-blue-600 border-b-2 border-blue-600 pb-2">Buscar Existente</button>
-                 {/* Creacion rapida */}
-                 <div className="ml-auto flex items-center gap-2">
-                   <input
-                     type="text"
-                     placeholder="Nombre rápido..."
-                     value={newClient.name}
-                     onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-                     className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-3 py-1.5 rounded-lg text-xs w-32 focus:outline-blue-500"
-                   />
-                   <input
-                     type="text"
-                     placeholder="Teléfono..."
-                     value={newClient.phone}
-                     onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
-                     className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-3 py-1.5 rounded-lg text-xs w-28 focus:outline-blue-500"
-                   />
-                   <button 
-                     onClick={handleCreateClient}
-                     disabled={isCreatingClient || !newClient.name}
-                     className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
-                   >
-                     {isCreatingClient ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Crear'}
-                   </button>
-                 </div>
-              </div>
-
-              {/* Search input */}
-              <div className="relative mb-4">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                 <input
-                   type="text"
-                   placeholder="Buscar por nombre, teléfono o documento..."
-                   value={clientSearch}
-                   onChange={e => setClientSearch(e.target.value)}
-                   className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                   autoFocus
-                 />
-              </div>
-
-              <div className="flex-1 overflow-y-auto border border-gray-100 dark:border-white/5 rounded-xl">
-                 {clientsData.filter(c => 
-                    !clientSearch || 
-                    c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-                    c.phone?.includes(clientSearch) ||
-                    c.reference?.toLowerCase().includes(clientSearch.toLowerCase())
-                 ).slice(0, 50).map(c => (
-                   <div 
-                     key={c.id} 
-                     onClick={() => { setSelectedClient(c); setShowClientModal(false); }}
-                     className="flex items-center justify-between p-3 border-b border-gray-50 dark:border-white/5 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
-                   >
-                      <div className="flex flex-col">
-                         <span className="text-sm font-bold text-gray-900 dark:text-white">{c.name}</span>
-                         <span className="text-[10px] text-gray-500">{c.reference} {c.phone ? `• ${c.phone}` : ''}</span>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-gray-300" />
-                   </div>
-                 ))}
-                 {clientsData.length === 0 && (
-                   <div className="p-8 text-center text-gray-400 text-sm">No hay clientes registrados</div>
-                 )}
-              </div>
-              
-              <button 
-                onClick={() => { setSelectedClient(null); setShowClientModal(false); }}
-                className="w-full mt-4 py-3 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-xl text-sm font-bold transition-colors"
-              >
-                Continuar como Consumidor Final
-              </button>
-
             </motion.div>
           </div>
         )}
