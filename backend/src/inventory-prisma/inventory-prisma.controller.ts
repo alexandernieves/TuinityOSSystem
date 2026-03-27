@@ -116,4 +116,14 @@ export class InventoryPrismaController {
       quantity: Number(body.quantity),
     });
   }
+
+  @Post('batch-transfer')
+  async batchTransfer(@Body() body: any) {
+    return this.inventoryService.batchInternalTransfer({
+      sourceWarehouseId: body.sourceWarehouseId,
+      destinationWarehouseId: body.destinationWarehouseId,
+      items: body.items,
+      createdByUserId: body.userId,
+    });
+  }
 }

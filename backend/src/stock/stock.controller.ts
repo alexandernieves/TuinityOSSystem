@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query } from '@nestjs/common';
 import { StockService } from './stock.service';
 
 @Controller('stock')
@@ -6,13 +6,13 @@ export class StockController {
     constructor(private readonly stockService: StockService) { }
 
     @Get()
-    findAll() {
-        return this.stockService.findAll();
+    findAll(@Query('warehouseId') warehouseId?: string) {
+        return this.stockService.findAll(warehouseId);
     }
 
     @Get('items')
-    getInventoryItems() {
-        return this.stockService.getInventoryItems();
+    getInventoryItems(@Query('warehouseId') warehouseId?: string) {
+        return this.stockService.getInventoryItems(warehouseId);
     }
 
     @Get('product/:productId')

@@ -10,9 +10,10 @@ export abstract class BaseService {
    * Execute operation within a transaction
    */
   protected async transaction<T>(
-    fn: (prisma: PrismaClient) => Promise<T>
+    fn: (prisma: PrismaClient | any) => Promise<T>,
+    options?: { timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel }
   ): Promise<T> {
-    return this.prisma.transaction(fn);
+    return this.prisma.transaction(fn, options);
   }
 
   /**

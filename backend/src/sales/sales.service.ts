@@ -38,6 +38,12 @@ export class SalesService {
         const active = await this.getActiveRegister(userId);
         if (active) throw new BadRequestException('El usuario ya tiene una caja abierta');
 
+        // Fetch user to get assigned warehouse
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, warehouseId: true } as any
+        });
+
         return this.prisma.cashRegister.create({
             data: {
                 userId,
@@ -48,6 +54,7 @@ export class SalesService {
                 cashSales: 0,
                 cardSales: 0,
                 transferSales: 0,
+                warehouseId: (user as any)?.warehouseId
             }
         });
     }
@@ -79,7 +86,9 @@ export class SalesService {
         });
         if (!activeRegister) throw new BadRequestException('Debes abrir la caja para realizar ventas POS');
 
-        const warehouseId = createSaleDto.bodegaId || createSaleDto.warehouseId;
+        const warehouseId = createSaleDto.bodegaId || createSaleDto.warehouseId || activeRegister.warehouseId;
+        
+        if (!warehouseId) throw new BadRequestException('No se ha especificado una bodega para esta venta');
         
         return this.prisma.$transaction(async (tx) => {
             // Create Sales Order

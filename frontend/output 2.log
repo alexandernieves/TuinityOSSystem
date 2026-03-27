@@ -1,0 +1,15 @@
+⚠ Port 3000 is in use by process 67362, using available port 3002 instead.
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://192.168.123.33:3002
+- Environments: .env
+
+✓ Starting...
+Error: An IO error occurred while attempting to create and acquire the lockfile
+    at ignore-listed frames {
+  [cause]: Error: Permission denied (os error 13)
+      at ignore-listed frames {
+    code: 'GenericFailure'
+  }
+}
+[?25h

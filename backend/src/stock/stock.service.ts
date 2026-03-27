@@ -5,8 +5,9 @@ import { PrismaService } from '../services/shared/prisma.service';
 export class StockService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(): Promise<any[]> {
+    async findAll(warehouseId?: string): Promise<any[]> {
         return this.prisma.inventoryExistence.findMany({
+            where: warehouseId ? { warehouseId } : {},
             include: {
                 product: true,
                 warehouse: true
@@ -77,10 +78,10 @@ export class StockService {
         });
     }
 
-    async getInventoryItems(): Promise<any[]> {
+    async getInventoryItems(warehouseId?: string): Promise<any[]> {
         const products = await this.prisma.product.findMany({
             include: {
-                existences: true,
+                existences: warehouseId ? { where: { warehouseId } } : true,
                 group: true,
                 brand: true,
                 subgroup: true,
@@ -115,7 +116,8 @@ export class StockService {
                 existence,
                 available,
                 reserved,
-                arriving
+                arriving,
+                warehouseId: warehouseId || 'ALL'
             };
         });
     }

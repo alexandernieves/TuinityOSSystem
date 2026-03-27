@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, UploadedFile, Header, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, UploadedFile, Header, StreamableFile, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -15,8 +15,8 @@ export class ProductsController {
     ) { }
 
     @Get()
-    async findAll(@CurrentUser() user: any) {
-        const products = await this.productsService.findAll();
+    async findAll(@CurrentUser() user: any, @Query('warehouseId') warehouseId?: string) {
+        const products = await this.productsService.findAll(warehouseId);
         
         // Security filter: Cajeros and Bodega don't see costs/margins
         if (['vendedor', 'bodega', 'pos_cajero', 'pos_encargado'].includes(user.role)) {

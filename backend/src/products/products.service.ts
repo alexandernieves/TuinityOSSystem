@@ -9,7 +9,7 @@ export class ProductsService {
         private stockService: StockService,
     ) { }
 
-    async findAll(): Promise<any[]> {
+    async findAll(warehouseId?: string): Promise<any[]> {
         const products = await this.prisma.product.findMany({
             include: {
                 brand: true,
@@ -25,7 +25,31 @@ export class ProductsService {
         const productsWithStock = await Promise.all(
             products.map(async (product) => {
                 const stock = await this.stockService.getProductStockAggregate(product.id);
+                // If a warehouseId is provided, we should probably return the stock for THAT warehouse
+                // BUT the system usually shows global stock. The user asked for "sincronizado".
+                // Let's modify getProductStockAggregate to support warehouseId if we want real filtering.
                 
+                // Let's check getProductStockAggregate in StockService first.
+                // It doesn't support warehouseId currently. I should update it.
+                
+                // For now, if warehouseId is present, we'll fetch existence specifically.
+                let filteredStock = stock;
+                if (warehouseId) {
+                    const existence = await this.prisma.inventoryExistence.findUnique({
+                        where: { productId_warehouseId: { productId: product.id, warehouseId } }
+                    });
+                    if (existence) {
+                        filteredStock = {
+                            existence: Number(existence.existence),
+                            available: Number(existence.available),
+                            reserved: Number(existence.reserved),
+                            arriving: Number(existence.arriving)
+                        };
+                    } else {
+                        filteredStock = { existence: 0, available: 0, reserved: 0, arriving: 0 };
+                    }
+                }
+
                 // Map prices array to object { A, B, C, D, E }
                 const pricesObj: any = {};
                 product.prices.forEach(p => {
@@ -35,7 +59,7 @@ export class ProductsService {
                 return {
                     ...product,
                     prices: pricesObj,
-                    stock,
+                    stock: filteredStock,
                     costAvgWeighted: Number(product.costAvgWeighted || 0),
                     costCIF: Number(product.costCIF || 0),
                     costFOB: Number(product.costFOB || 0),
@@ -197,6 +221,7 @@ export class ProductsService {
                 if (lower.includes('marca')) colMap.brand = i;
                 if (lower.includes('grupo') && !lower.includes('sub')) colMap.group = i;
                 if (lower.includes('sub-grupo') || lower.includes('subgrupo')) colMap.subgroup = i;
+                if (lower.includes('precio pos') || lower.includes('precio b2c')) colMap.pricePOS = i;
             });
 
             // Validation of mandatory columns
@@ -219,6 +244,9 @@ export class ProductsService {
             };
 
             const defaultWarehouse = await this.prisma.warehouse.findFirst({
+                where: { isActive: true, type: 'B2B' },
+                orderBy: { name: 'asc' }
+            }) || await this.prisma.warehouse.findFirst({
                 where: { isActive: true }
             }) || await this.prisma.warehouse.findFirst();
 
@@ -237,6 +265,7 @@ export class ProductsService {
                     subgroupName: colMap.subgroup ? values[colMap.subgroup]?.toString()?.trim() : null,
                     barcode: colMap.barcode ? values[colMap.barcode]?.toString()?.trim() : null,
                     priceA: colMap.priceA ? parseFloat(values[colMap.priceA]) : null,
+                    pricePOS: colMap.pricePOS ? parseFloat(values[colMap.pricePOS]) : null,
                     stock: colMap.stock ? parseFloat(values[colMap.stock]) : null,
                     minQty: colMap.minQty ? parseInt(values[colMap.minQty]) || 0 : 0,
                     rowNumber: row.number
@@ -282,7 +311,7 @@ export class ProductsService {
     }
 
     private async processSingleRow(rowData: any, results: any, defaultWarehouse: any) {
-        const { sku, name, groupName, brandName, subgroupName, barcode, priceA, stock, minQty, rowNumber } = rowData;
+        const { sku, name, groupName, brandName, subgroupName, barcode, priceA, pricePOS, stock, minQty, rowNumber } = rowData;
 
         if (!sku || !name || !groupName) {
             const missing: string[] = [];
@@ -427,8 +456,28 @@ export class ProductsService {
                 });
             }
 
+            // Handle Price POS
+            if (pricePOS !== null && !isNaN(pricePOS)) {
+                await this.prisma.productPrice.upsert({
+                    where: {
+                        productId_level: {
+                            productId: product.id,
+                            level: 'POS'
+                        }
+                    },
+                    update: { price: pricePOS },
+                    create: {
+                        productId: product.id,
+                        level: 'POS',
+                        price: pricePOS,
+                        currency: 'USD'
+                    }
+                });
+            }
+
             // Handle Stock
-            if (stock !== null && !isNaN(stock) && stock > 0 && defaultWarehouse) {
+            if (stock !== null && !isNaN(stock) && stock >= 0 && defaultWarehouse) {
+                // 1. Update InventoryExistence (total summary)
                 await this.prisma.inventoryExistence.upsert({
                     where: {
                         productId_warehouseId: {
@@ -447,6 +496,53 @@ export class ProductsService {
                         available: stock
                     }
                 });
+
+                // 2. Update ProductLot (granular level)
+                if (stock > 0) {
+                    const existingLot = await this.prisma.productLot.findFirst({
+                        where: {
+                            warehouseId: defaultWarehouse.id,
+                            productId: product.id,
+                            lotNumber: 'STOCK-INICIAL',
+                            expirationDate: null
+                        }
+                    });
+
+                    if (existingLot) {
+                        await this.prisma.productLot.update({
+                            where: { id: existingLot.id },
+                            data: {
+                                availableQuantity: stock,
+                                receivedQuantity: stock,
+                                isActive: true
+                            }
+                        });
+                    } else {
+                        await this.prisma.productLot.create({
+                            data: {
+                                warehouseId: defaultWarehouse.id,
+                                productId: product.id,
+                                lotNumber: 'STOCK-INICIAL',
+                                receivedQuantity: stock,
+                                availableQuantity: stock,
+                                isActive: true
+                            }
+                        });
+                    }
+                } else {
+                    // If stock is 0, we ensure the lot reflects that if it exists
+                    await this.prisma.productLot.updateMany({
+                        where: {
+                            productId: product.id,
+                            warehouseId: defaultWarehouse.id,
+                            lotNumber: 'STOCK-INICIAL'
+                        },
+                        data: {
+                            availableQuantity: 0,
+                            receivedQuantity: 0
+                        }
+                    });
+                }
             }
 
             results.success++;
@@ -480,6 +576,7 @@ export class ProductsService {
             { header: 'Precio C', key: 'priceC', width: 12 },
             { header: 'Precio D', key: 'priceD', width: 12 },
             { header: 'Precio E', key: 'priceE', width: 12 },
+            { header: 'Precio POS', key: 'pricePOS', width: 12 },
             { header: 'Costo FOB', key: 'costFOB', width: 12 },
             { header: 'Costo CIF', key: 'costCIF', width: 12 },
             { header: 'Costo Promedio', key: 'costAvg', width: 12 },
@@ -517,6 +614,7 @@ export class ProductsService {
                 priceC: p.prices?.C || 0,
                 priceD: p.prices?.D || 0,
                 priceE: p.prices?.E || 0,
+                pricePOS: p.prices?.POS || 0,
                 costFOB: p.costFOB || 0,
                 costCIF: p.costCIF || 0,
                 costAvg: p.costAvgWeighted || 0,

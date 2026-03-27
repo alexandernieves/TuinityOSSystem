@@ -131,11 +131,10 @@ export class AccountsPayableService extends BaseService {
       days90Plus: 0,
     };
 
+    const supplier = await this.prisma.supplier.findUnique({ where: { id: supplierId }, select: { paymentTerms: true } });
+    const terms = supplier?.paymentTerms ?? 30;
+
     for (const po of unpaidPOs) {
-        // Simple logic for POs: if we don't have detailed invoices, use orderDate + terms
-        // Assuming we need paymentTerms from Supplier
-        const supplier = await this.prisma.supplier.findUnique({ where: { id: supplierId } });
-        const terms = supplier?.paymentTerms || 30;
         const dueDate = new Date(po.orderDate);
         dueDate.setDate(dueDate.getDate() + terms);
 
@@ -143,11 +142,7 @@ export class AccountsPayableService extends BaseService {
             (cutoffDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
         );
 
-        // Calculate paid amount from payments applied... 
-        // For now, let's keep it simple: use total - applied...
-        // We'll assume the PO total is what we owe initially.
         const outstanding = Number(po.total);
-
         if (outstanding <= 0) continue;
 
         if (daysOverdue <= 0) {
@@ -182,16 +177,24 @@ export class AccountsPayableService extends BaseService {
 
     const supplierBalances = await Promise.all(
       suppliers.map(async (supplier) => {
-        const balanceData = await this.getSupplierBalance(supplier.id, cutoffDate);
-        return {
-          ...balanceData,
-          supplierName: supplier.legalName,
-          supplierCode: supplier.code
-        };
+        try {
+          const balanceData = await this.getSupplierBalance(supplier.id, cutoffDate);
+          return {
+            ...balanceData,
+            balance: Number(balanceData.balance || 0),
+            supplierName: supplier.legalName,
+            supplierCode: supplier.code
+          };
+        } catch (err) {
+          console.error(`[AccountsPayableService] Error getting balance for supplier ${supplier.id}:`, err);
+          return null;
+        }
       })
     );
 
-    const totalBalance = supplierBalances.reduce((sum, item) => {
+    const validSupplierBalances = supplierBalances.filter(s => s !== null);
+
+    const totalBalance = validSupplierBalances.reduce((sum, item) => {
       return sum + Number(item.balance || 0);
     }, 0);
 
@@ -206,19 +209,34 @@ export class AccountsPayableService extends BaseService {
       },
     });
 
-    const totalOverdue = supplierBalances.reduce((sum, item) => {
+    const totalOverdue = validSupplierBalances.reduce((sum, item) => {
       const overdue = Number(item.aging.days30) + Number(item.aging.days60) + 
                      Number(item.aging.days90) + Number(item.aging.days90Plus);
       return sum + overdue;
     }, 0);
 
-    return {
-      totalBalance,
-      totalOverdue,
-      supplierCount: supplierBalances.filter(s => Number(s.balance) > 0).length,
-      supplierBalances: supplierBalances.filter(s => Number(s.balance) > 0),
-      recentEntries,
+    const result = {
+      totalBalance: Number(totalBalance),
+      totalOverdue: Number(totalOverdue),
+      supplierCount: validSupplierBalances.filter(s => Number(s.balance) > 0).length,
+      supplierBalances: validSupplierBalances.filter(s => Number(s.balance) > 0).map(s => ({
+        ...s,
+        balance: Number(s.balance),
+        aging: {
+          current: Number(s.aging.current),
+          days30: Number(s.aging.days30),
+          days60: Number(s.aging.days60),
+          days90: Number(s.aging.days90),
+          days90Plus: Number(s.aging.days90Plus),
+        }
+      })),
+      recentEntries: recentEntries.map(e => ({
+        ...e,
+        amount: Number(e.amount),
+        balanceAfter: Number(e.balanceAfter),
+      })),
     };
+    return result;
   }
 
   /**

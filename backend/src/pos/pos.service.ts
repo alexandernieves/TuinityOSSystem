@@ -7,8 +7,8 @@ import { LotsService } from '../services/inventory/lots.service';
 
 @Injectable()
 export class POSService {
-    // Fixed B2C Warehouse for POS operations in show-room
-    private readonly B2C_WAREHOUSE_ID = 'eb09d4da-2d32-4ab3-9d8d-ca6d214b2b78'; // Tienda Panama City
+    // Default B2C Warehouse fallback
+    private readonly DEFAULT_B2C_WAREHOUSE_ID = '0641ae5b-8618-477e-a3e1-1259fc1a0715'; // Colon (Sucursal/POS)
 
     constructor(
         private prisma: PrismaService,
@@ -20,7 +20,7 @@ export class POSService {
 
     // --- SESSIONS ---
 
-    async startSession(userId: string, openingAmount: number) {
+    async startSession(userId: string, openingAmount: number, warehouseId?: string) {
         // Check if there's already an open session for this user
         const existing = await this.prisma.cashRegister.findFirst({
             where: { userId, status: 'abierta' }
@@ -29,6 +29,28 @@ export class POSService {
 
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         
+        // Priority: 1. Passed explicitly | 2. user.warehouseId | 3. Hardcoded Default in DB
+        let sessionWarehouseId = warehouseId || user?.warehouseId;
+
+        if (!sessionWarehouseId) {
+            // Find first B2C warehouse in case everything fails
+            const b2cFallback = await this.prisma.warehouse.findFirst({
+                where: { type: 'B2C' }
+            });
+            sessionWarehouseId = b2cFallback?.id || this.DEFAULT_B2C_WAREHOUSE_ID;
+        }
+
+        // VALIDATION: POS (B2C) must only operate from B2C-type warehouses
+        const warehouse = await this.prisma.warehouse.findUnique({ where: { id: sessionWarehouseId } });
+        
+        if (!warehouse) {
+            throw new BadRequestException('La bodega asignada a la sesión no existe.');
+        }
+
+        if (warehouse.type === 'B2B') {
+            throw new BadRequestException(`No se puede operar el Punto de Venta en '${warehouse.name}'. El POS está restringido a bodegas de tipo Sucursal (B2C).`);
+        }
+
         const session = await this.prisma.cashRegister.create({
             data: {
                 userId,
@@ -36,6 +58,7 @@ export class POSService {
                 openingAmount,
                 status: 'abierta',
                 openedAt: new Date(),
+                warehouseId: sessionWarehouseId
             }
         });
 
@@ -114,6 +137,17 @@ export class POSService {
         const { items, paymentMethod, amountReceived, customerId, referenceNumber } = dto;
 
         return this.prisma.$transaction(async (tx) => {
+            // 0. Get Session Warehouse
+            const session = await tx.cashRegister.findUnique({ where: { id: sessionId } });
+            let warehouseId = session?.warehouseId;
+
+            if (!warehouseId) {
+                const b2cFallback = await tx.warehouse.findFirst({
+                    where: { type: 'B2C' }
+                });
+                warehouseId = b2cFallback?.id || this.DEFAULT_B2C_WAREHOUSE_ID;
+            }
+
             // 1. Generate Number
             const count = await tx.pOSSale.count();
             const number = `POS-${new Date().getFullYear()}-${String(count + 1).padStart(6, '0')}`;
@@ -126,7 +160,7 @@ export class POSService {
                 const product = await tx.product.findUnique({ 
                     where: { id: item.productId },
                     include: { 
-                        existences: { where: { warehouseId: this.B2C_WAREHOUSE_ID } } 
+                        existences: { where: { warehouseId } } 
                     }
                 });
                 
@@ -143,7 +177,7 @@ export class POSService {
 
                 saleLines.push({
                     productId: item.productId,
-                    warehouseId: this.B2C_WAREHOUSE_ID, // Force B2C Warehouse
+                    warehouseId: warehouseId, // Use Session Warehouse
                     quantity: item.quantity,
                     unitPrice: item.unitPrice,
                     unitCost: product.costAvgWeighted || 0,
@@ -155,17 +189,17 @@ export class POSService {
                 // 1. Descontar de Lotes usando FEFO
                 const affectedLots = await this.lotsService.consumeFEFO({
                     productId: item.productId,
-                    warehouseId: this.B2C_WAREHOUSE_ID,
+                    warehouseId: warehouseId,
                     quantity: Number(item.quantity),
                     tx
                 });
 
-                // 2. Descontar del stock global (B2C Warehouse)
+                // 2. Descontar del stock global (Target Warehouse)
                 await tx.inventoryExistence.update({
                     where: {
                         productId_warehouseId: {
                             productId: item.productId,
-                            warehouseId: this.B2C_WAREHOUSE_ID
+                            warehouseId: warehouseId
                         }
                     },
                     data: {
@@ -180,7 +214,7 @@ export class POSService {
                 await tx.inventoryMovement.create({
                     data: {
                         productId: item.productId,
-                        warehouseId: this.B2C_WAREHOUSE_ID,
+                        warehouseId: warehouseId,
                         productLotId: mainLotId,
                         movementType: 'POS_SALE' as any,
                         quantity: -item.quantity,

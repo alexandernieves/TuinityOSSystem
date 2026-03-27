@@ -15,6 +15,7 @@ export class UsersService {
                 name: userData.name,
                 passwordHash: hashedPassword,
                 isActive: userData.isActive !== undefined ? userData.isActive : true,
+                warehouseId: userData.warehouseId || null,
             },
         });
     }
@@ -77,9 +78,15 @@ export class UsersService {
         // Remove mongo specific fields if they leak in
         delete data._id;
         delete data.__v;
+        delete data.id; // Prisma doesn't like id in data object
 
         const role = data.role;
         delete data.role;
+
+        // Ensure warehouseId is properly handled
+        if (data.warehouseId === "") {
+            data.warehouseId = null;
+        }
 
         const updatedUser = await this.prisma.user.update({
             where: { id },

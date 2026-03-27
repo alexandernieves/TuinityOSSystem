@@ -17,8 +17,9 @@ export class AdjustmentsService {
         private lotsService: LotsService,
     ) { }
 
-    async findAll(): Promise<any[]> {
+    async findAll(warehouseId?: string): Promise<any[]> {
         const adjustments = await this.prisma.inventoryAdjustment.findMany({
+            where: warehouseId ? { warehouseId } : {},
             include: {
                 warehouse: true,
                 createdByUser: true,

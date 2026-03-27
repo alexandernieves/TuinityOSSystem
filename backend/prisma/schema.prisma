@@ -18,6 +18,8 @@ model User {
   updatedAt                        DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
   avatar                           String?
   status                           UserStatus                @default(PENDING)
+  warehouseId                      String?                   @map("warehouse_id") @db.Uuid
+  warehouse                        Warehouse?                @relation(fields: [warehouseId], references: [id])
   createdAccountsPayableEntries    AccountsPayableEntry[]
   createdAccountsReceivableEntries AccountsReceivableEntry[]
   approvalDecisions                ApprovalDecision[]
@@ -350,6 +352,8 @@ model Warehouse {
   purchaseReceipts   PurchaseReceipt[]
   quotations         Quotation[]
   salesOrders        SalesOrder[]
+  cashRegisters      CashRegister[]
+  users              User[]
 
   @@map("warehouses")
 }
@@ -469,6 +473,7 @@ model Customer {
   email                     String?
   phone                     String?
   country                   String?                   @default("PA")
+  type                      CustomerType              @default(B2B)
   assignedSalesUserId       String?                   @map("assigned_sales_user_id") @db.Uuid
   isActive                  Boolean                   @default(true) @map("is_active")
   createdAt                 DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1259,9 +1264,11 @@ model CashRegister {
   transferSales  Decimal   @default(0) @map("transfer_sales") @db.Decimal(12, 2)
   totalSales     Decimal   @default(0) @map("total_sales") @db.Decimal(12, 2)
   notes          String?
+  warehouseId    String?   @map("warehouse_id") @db.Uuid
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   user           User      @relation(fields: [userId], references: [id])
+  warehouse      Warehouse? @relation(fields: [warehouseId], references: [id])
   posSales       POSSale[]
 
   @@index([userId])
@@ -1819,4 +1826,9 @@ enum NotificationSeverity {
   WARNING
   CRITICAL
   SUCCESS
+}
+
+enum CustomerType {
+  B2B
+  B2C
 }

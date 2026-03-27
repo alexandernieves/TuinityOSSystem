@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Request, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Request, UseGuards, UseInterceptors, UploadedFiles, Query } from '@nestjs/common';
 import { AdjustmentsService } from './adjustments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -44,8 +44,8 @@ export class AdjustmentsController {
     }
 
     @Get()
-    findAll() {
-        return this.adjustmentsService.findAll();
+    findAll(@Query('warehouseId') warehouseId?: string) {
+        return this.adjustmentsService.findAll(warehouseId);
     }
 
     @Get(':id')

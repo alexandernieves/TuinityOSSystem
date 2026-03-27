@@ -19,7 +19,14 @@ export class SuppliersController {
 
     @Get('cxp/summary')
     getSummary(@Query('asOf') asOf: string) {
-        return this.apService.getAccountsPayableSummary(asOf ? new Date(asOf) : undefined);
+        let date: Date | undefined = undefined;
+        if (asOf) {
+            const parsed = new Date(asOf);
+            if (!isNaN(parsed.getTime())) {
+                date = parsed;
+            }
+        }
+        return this.apService.getAccountsPayableSummary(date);
     }
 
     @Get()

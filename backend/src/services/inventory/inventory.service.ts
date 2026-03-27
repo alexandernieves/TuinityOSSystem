@@ -62,55 +62,56 @@ export class InventoryService extends BaseService {
   /**
    * Create inventory movement
    */
-  async createInventoryMovement(data: CreateInventoryMovementData): Promise<InventoryMovement> {
-    return this.transaction(async (prisma) => {
-      const movement = await prisma.inventoryMovement.create({
-        data: {
-          productId: data.productId,
-          warehouseId: data.warehouseId,
-          productLotId: data.productLotId,
-          movementType: data.movementType,
-          quantity: data.quantity,
-          unitCost: data.unitCost,
-          totalCost: data.unitCost ? data.unitCost * data.quantity : undefined,
-          referenceType: data.referenceType,
-          referenceId: data.referenceId,
-          notes: data.notes,
-          createdByUserId: data.createdByUserId,
-          occurredAt: new Date(),
-        },
-        include: {
-          product: true,
-          warehouse: true,
-          productLot: true,
-        },
-      });
-
-      // Execute core stock impact logic on the lot
-      if (data.productLotId) {
-        await this.applyLotStockImpact(
-          data.productLotId,
-          data.movementType,
-          data.quantity,
-          prisma
-        );
-      }
-
-      if (movement.movementType === InventoryMovementType.INVENTORY_ADJUSTMENT_POSITIVE) {
-        await this.notificationsService.notifyRole('GERENCIA', {
-           type: 'INVENTORY_ADJUSTMENT',
-           title: 'Nuevo Ajuste de Inventario',
-           message: `Se ha realizado un ajuste de ${movement.quantity} unidades para el producto ${movement.productId}.`,
-           module: 'INVENTORY',
-           entityType: 'InventoryMovement',
-           entityId: movement.id,
-           severity: 'WARNING',
-           actionUrl: `/inventario/ajustes`,
-        });
-      }
-
-      return movement;
+  async createInventoryMovement(data: CreateInventoryMovementData, tx?: Prisma.TransactionClient): Promise<InventoryMovement> {
+    const prisma = tx || this.prisma;
+    
+    // Execute core movement creation logic
+    const movement = await prisma.inventoryMovement.create({
+      data: {
+        productId: data.productId,
+        warehouseId: data.warehouseId,
+        productLotId: data.productLotId,
+        movementType: data.movementType,
+        quantity: data.quantity,
+        unitCost: data.unitCost,
+        totalCost: data.unitCost ? data.unitCost * data.quantity : undefined,
+        referenceType: data.referenceType,
+        referenceId: data.referenceId,
+        notes: data.notes,
+        createdByUserId: data.createdByUserId,
+        occurredAt: new Date(),
+      },
+      include: {
+        product: true,
+        warehouse: true,
+        productLot: true,
+      },
     });
+
+    // Execute core stock impact logic on the lot
+    if (data.productLotId) {
+      await this.applyLotStockImpact(
+        data.productLotId,
+        data.movementType,
+        data.quantity,
+        prisma
+      );
+    }
+
+    if (movement.movementType === InventoryMovementType.INVENTORY_ADJUSTMENT_POSITIVE) {
+      await this.notificationsService.notifyRole('GERENCIA', {
+        type: 'INVENTORY_ADJUSTMENT',
+        title: 'Nuevo Ajuste de Inventario',
+        message: `Se ha realizado un ajuste de ${movement.quantity} unidades para el producto ${movement.productId}.`,
+        module: 'INVENTORY',
+        entityType: 'InventoryMovement',
+        entityId: movement.id,
+        severity: 'WARNING',
+        actionUrl: `/inventario/ajustes`,
+      });
+    }
+
+    return movement;
   }
 
   /**
@@ -465,6 +466,132 @@ export class InventoryService extends BaseService {
     }
 
     return selectedLots;
+  }
+
+  /**
+   * Batch internal transfer from B2B to B2C (or any internal move)
+   */
+  async batchInternalTransfer(data: {
+    sourceWarehouseId: string;
+    destinationWarehouseId: string;
+    items: { productId: string; quantity: number }[];
+    createdByUserId?: string;
+  }) {
+    return this.transaction(async (tx) => {
+      const results: any[] = [];
+
+      for (const item of data.items) {
+        // 1. Select lots from source using FEFO
+        const selectedLots = await this.selectLotsForDispatch(
+          item.productId,
+          data.sourceWarehouseId,
+          item.quantity,
+          tx
+        );
+
+        for (const lotSelection of selectedLots) {
+          const originalLot = await tx.productLot.findUnique({
+            where: { id: lotSelection.lotId },
+            include: { product: true }
+          });
+
+          if (!originalLot) continue;
+
+          const unitCost = Number(originalLot.product.costAvgWeighted || 0);
+
+          // 2. TRANSFER_OUT from Source
+          await this.createInventoryMovement({
+            productId: item.productId,
+            warehouseId: data.sourceWarehouseId,
+            productLotId: originalLot.id,
+            movementType: InventoryMovementType.TRANSFER_OUT,
+            quantity: lotSelection.quantityToConsume,
+            unitCost,
+            notes: `Transferencia masiva a sucursal ${data.destinationWarehouseId}`,
+            createdByUserId: data.createdByUserId,
+          }, tx);
+
+          // Update existence summary for Source
+          await tx.inventoryExistence.update({
+            where: {
+              productId_warehouseId: {
+                productId: item.productId,
+                warehouseId: data.sourceWarehouseId
+              }
+            },
+            data: {
+              existence: { decrement: lotSelection.quantityToConsume },
+              available: { decrement: lotSelection.quantityToConsume }
+            }
+          });
+
+          // 3. Find or Create Lot in Destination
+          let destLot = await tx.productLot.findFirst({
+            where: {
+              warehouseId: data.destinationWarehouseId,
+              productId: item.productId,
+              lotNumber: originalLot.lotNumber,
+              expirationDate: originalLot.expirationDate,
+            },
+          });
+
+          if (!destLot) {
+            destLot = await tx.productLot.create({
+              data: {
+                productId: item.productId,
+                warehouseId: data.destinationWarehouseId,
+                lotNumber: originalLot.lotNumber,
+                expirationDate: originalLot.expirationDate,
+                manufacturingDate: originalLot.manufacturingDate,
+                receivedQuantity: 0,
+                availableQuantity: 0,
+                notes: `Creado por transferencia desde ${data.sourceWarehouseId}`,
+                isActive: true,
+              },
+            });
+          }
+
+          // 4. TRANSFER_IN to Destination
+          await this.createInventoryMovement({
+            productId: item.productId,
+            warehouseId: data.destinationWarehouseId,
+            productLotId: destLot.id,
+            movementType: InventoryMovementType.TRANSFER_IN,
+            quantity: lotSelection.quantityToConsume,
+            unitCost,
+            notes: `Transferencia masiva desde bodega ${data.sourceWarehouseId}`,
+            createdByUserId: data.createdByUserId,
+          }, tx);
+
+          // Update existence summary for Destination
+          await tx.inventoryExistence.upsert({
+            where: {
+              productId_warehouseId: {
+                productId: item.productId,
+                warehouseId: data.destinationWarehouseId
+              }
+            },
+            update: {
+              existence: { increment: lotSelection.quantityToConsume },
+              available: { increment: lotSelection.quantityToConsume }
+            },
+            create: {
+              productId: item.productId,
+              warehouseId: data.destinationWarehouseId,
+              existence: lotSelection.quantityToConsume,
+              available: lotSelection.quantityToConsume
+            }
+          });
+        }
+        results.push({ productId: item.productId, quantity: item.quantity, status: 'transferred' });
+      }
+
+      return {
+        message: 'Batch transfer completed successfully',
+        transferredCount: data.items.length,
+        results,
+      };
+    }, { timeout: 30000 });
   }
 }
 

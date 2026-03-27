@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: evolutionos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evolutionos
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution_dev_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution -d evolutionos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prisma:
+    image: node:20-alpine
+    container_name: evolutionos-prisma
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://evolution:evolution_dev_password@postgres:5432/evolutionos?schema=public
+    command: sh -c "npm install prisma@6 @prisma/client@6 pg && npx prisma migrate dev --name init_auth_core"
+    volumes:
+      - ./backend/prisma:/app/prisma
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["prisma"]
+
+volumes:
+  postgres_data:
+    driver: local

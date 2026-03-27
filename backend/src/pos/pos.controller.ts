@@ -12,8 +12,8 @@ export class POSController {
 
     // Sessions
     @Post('session/start')
-    async startSession(@Body() dto: { userId: string; openingAmount: number }) {
-        return this.posService.startSession(dto.userId, dto.openingAmount);
+    async startSession(@Body() dto: { userId: string; openingAmount: number; warehouseId?: string }) {
+        return this.posService.startSession(dto.userId, dto.openingAmount, dto.warehouseId);
     }
 
     @Post('session/close/:id')

@@ -13,21 +13,27 @@ export class ClientsService {
         if (existing) {
             throw new BadRequestException(`El cliente con código ${code} ya existe.`);
         }
+        const type = createClientDto.type ? 
+            (createClientDto.type.toUpperCase() as any) : 'B2B';
+
         return this.prisma.customer.create({
             data: {
                 code,
                 legalName: createClientDto.name || createClientDto.legalName,
                 tradeName: createClientDto.tradeName,
                 taxId: createClientDto.taxId,
+                taxDv: createClientDto.taxDv || createClientDto.dv,
                 email: createClientDto.email,
                 phone: createClientDto.phone,
-                country: createClientDto.country,
+                mobile: createClientDto.mobile || createClientDto.celular,
+                country: createClientDto.country || 'PA',
+                type,
                 isActive: createClientDto.isActive ?? true,
                 creditProfile: {
                     create: {
-                        creditLimit: createClientDto.creditLimit || 0,
-                        creditDays: createClientDto.creditDays || 30,
-                        priceLevel: 'A' // Default price level
+                        creditLimit: Number(createClientDto.creditLimit || 0),
+                        creditDays: createClientDto.creditDays !== undefined ? Number(createClientDto.creditDays) : 30,
+                        priceLevel: 'A'
                     }
                 }
             }
@@ -38,6 +44,7 @@ export class ClientsService {
         const customers = await this.prisma.customer.findMany({
             where: {
                 ...(filters.status ? { isActive: filters.status === 'active' } : {}),
+                ...(filters.type ? { type: filters.type } : {}),
             },
             include: {
                 creditProfile: true
@@ -110,9 +117,13 @@ export class ClientsService {
             data: {
                 legalName: updateClientDto.name || updateClientDto.legalName,
                 tradeName: updateClientDto.tradeName,
+                taxId: updateClientDto.taxId,
+                taxDv: updateClientDto.taxDv || updateClientDto.dv,
                 email: updateClientDto.email,
                 phone: updateClientDto.phone,
+                mobile: updateClientDto.mobile || updateClientDto.celular,
                 ...(isActiveUpdate !== undefined ? { isActive: isActiveUpdate } : {}),
+                ...(updateClientDto.type ? { type: updateClientDto.type.toUpperCase() as any } : {}),
             }
         });
     }
@@ -264,13 +275,15 @@ export class ClientsService {
                     code,
                     legalName,
                     taxId,
+                    taxDv: rowData.taxDv || rowData.dv,
                     phone,
-                    mobile,
+                    mobile: mobile || rowData.celular,
                     email,
+                    type: (rowData.type || 'B2B').toUpperCase() as any,
                     creditProfile: {
                         create: {
-                            creditLimit: 0,
-                            creditDays: 30,
+                            creditLimit: Number(rowData.creditLimit || 0),
+                            creditDays: rowData.creditDays !== undefined ? Number(rowData.creditDays) : 30,
                             priceLevel: 'A'
                         }
                     }
